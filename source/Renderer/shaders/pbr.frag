@@ -355,7 +355,7 @@ void main()
 #if DEBUG == DEBUG_NONE
 
 #if ALPHAMODE == ALPHAMODE_MASK
-    // Late discard to avoid samplig artifacts. See https://github.com/KhronosGroup/glTF-Sample-Viewer/issues/267
+    // Late discard to avoid sampling artifacts. See https://github.com/KhronosGroup/glTF-Sample-Viewer/issues/267
     if (baseColor.a < u_AlphaCutoff)
     {
         discard;

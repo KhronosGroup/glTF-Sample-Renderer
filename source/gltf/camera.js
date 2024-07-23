@@ -184,7 +184,7 @@ class gltfCamera extends GltfObject
     getDescription(gltf)
     {
         const asset = {
-            "generator": "gltf-sample-viewer",
+            "generator": "gltf-sample-renderer",
             "version": "2.0"
         };
 
