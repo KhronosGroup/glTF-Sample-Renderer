@@ -18,6 +18,8 @@ class iblSampler
         this.lowestMipLevel = 4;
         this.lutResolution = 1024;
 
+        this.scaleValue = 1.0
+
         this.mipmapCount = undefined;
 
         this.lambertianTextureID = undefined;
@@ -60,7 +62,7 @@ class iblSampler
         }
         else if (image.dataFloat instanceof Float32Array)
         {
-            // workaround for node-gles not supporting RGB32F
+            // workaround for node-gles not supporting RGB32F -> conver to RGBA32F
             internalFormat = this.gl.RGBA32F;
             format = this.gl.RGBA;
             type = this.gl.FLOAT;
@@ -87,6 +89,39 @@ class iblSampler
         {
             console.error("loadTextureHDR failed, unsupported HDR image");
             return;
+        }
+
+        if(this.use8bit){
+            internalFormat = this.gl.RGBA8;
+            format = this.gl.RGBA;
+            type = this.gl.UNSIGNED_BYTE;
+
+            const numPixels = image.dataFloat.length / 3;
+
+            let max_r=0.0;
+            let max_g=0.0;
+            let max_b=0.0;
+            for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
+            {
+                max_r=Math.max(image.dataFloat[src+0],max_r)
+                max_g=Math.max(image.dataFloat[src+1],max_g)
+                max_b=Math.max(image.dataFloat[src+2],max_b)
+            }
+
+            let max_value=Math.max(max_r, max_g, max_b)
+            
+
+            data = new Uint8Array(numPixels * 4);
+            for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
+            {
+                // copy the pixels and pad the alpha channel
+                data[dst+0] = (image.dataFloat[src+0]/max_value)*255;
+                data[dst+1] = (image.dataFloat[src+1]/max_value)*255;
+                data[dst+2] = (image.dataFloat[src+2]/max_value)*255;
+                data[dst+3] = 0;
+            }
+            this.scaleValue = max_value;
+            console.warning("Scaling environment intensity: "+this.scaleValue);
         }
 
         this.gl.texImage2D(
@@ -308,6 +343,7 @@ class iblSampler
             shader.updateUniform("u_distribution", distribution);
             shader.updateUniform("u_currentFace", i);
             shader.updateUniform("u_isGeneratingLUT", 0);
+            shader.updateUniform("u_intensityScale", this.scaleValue);
 
             //fullscreen triangle
             this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
