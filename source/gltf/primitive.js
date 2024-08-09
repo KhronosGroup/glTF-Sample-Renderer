@@ -1,6 +1,7 @@
 import { initGlForMembers } from './utils.js';
 import { GltfObject } from './gltf_object.js';
 import { gltfBuffer } from './buffer.js';
+import { gltfAccessor } from './accessor.js';
 import { gltfImage } from './image.js';
 import { ImageMimeType } from './image_mime_type.js';
 import { gltfTexture } from './texture.js';
@@ -9,13 +10,15 @@ import { gltfSampler } from './sampler.js';
 import { gltfBufferView } from './buffer_view.js';
 import { DracoDecoder } from '../ResourceLoader/draco.js';
 import { GL  } from '../Renderer/webgl.js';
+import { generateTangents } from '../libs/mikktspace.js';
+
 
 class gltfPrimitive extends GltfObject
 {
     constructor()
     {
         super();
-        this.attributes = [];
+        this.attributes = {};
         this.targets = [];
         this.indices = undefined;
         this.material = undefined;
@@ -53,6 +56,7 @@ class gltfPrimitive extends GltfObject
 
         if (this.extensions !== undefined)
         {
+            // Decode Draco compressed mesh:
             if (this.extensions.KHR_draco_mesh_compression !== undefined)
             {
                 const dracoDecoder = new DracoDecoder();
@@ -67,6 +71,16 @@ class gltfPrimitive extends GltfObject
                     console.warn('Failed to load draco compressed mesh: DracoDecoder not initialized');
                 }
             }
+        }
+
+        // Generate tangents with Mikktspace which needs normals and texcoords as inputs
+        if (this.attributes.TANGENT === undefined && this.attributes.NORMAL && this.attributes.TEXCOORD_0)
+        {
+            console.info("Generating tangents using the MikkTSpace algorithm.");
+            console.time("Tangent generation");
+            this.unweld(gltf);
+            this.generateTangents(gltf);
+            console.timeEnd("Tangent generation");
         }
 
         // VERTEX ATTRIBUTES
@@ -123,7 +137,7 @@ class gltfPrimitive extends GltfObject
         {
             const max2DTextureSize = Math.pow(webGlContext.getParameter(GL.MAX_TEXTURE_SIZE), 2);
             const maxTextureArraySize = webGlContext.getParameter(GL.MAX_ARRAY_TEXTURE_LAYERS);
-            // Check which attributes are affected by morph targets and 
+            // Check which attributes are affected by morph targets and
             // define offsets for the attributes in the morph target texture.
             const attributeOffsets = {};
             let attributeOffset = 0;
@@ -149,7 +163,7 @@ class gltfPrimitive extends GltfObject
                 // Add morph target defines
                 this.defines.push(`HAS_MORPH_TARGET_${attribute} 1`);
                 this.defines.push(`MORPH_TARGET_${attribute}_OFFSET ${attributeOffset}`);
-                // Store the attribute offset so that later the 
+                // Store the attribute offset so that later the
                 // morph target texture can be assembled.
                 attributeOffsets[attribute] = attributeOffset;
                 attributeOffset += targetCount;
@@ -208,7 +222,7 @@ class gltfPrimitive extends GltfObject
 
                 // Add the morph target texture.
                 // We have to create a WebGL2 texture as the format of the
-                // morph target texture has to be explicitly specified 
+                // morph target texture has to be explicitly specified
                 // (gltf image would assume uint8).
                 let texture = webGlContext.createTexture();
                 webGlContext.bindTexture( webGlContext.TEXTURE_2D_ARRAY, texture);
@@ -233,8 +247,8 @@ class gltfPrimitive extends GltfObject
                 webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_WRAP_T,  GL.CLAMP_TO_EDGE);
                 webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_MIN_FILTER,  GL.NEAREST);
                 webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_MAG_FILTER,  GL.NEAREST);
-                
-                // Now we add the morph target texture as a gltf texture info resource, so that 
+
+                // Now we add the morph target texture as a gltf texture info resource, so that
                 // we can just call webGl.setTexture(..., gltfTextureInfo, ...) in the renderer.
                 const morphTargetImage = new gltfImage(
                     undefined, // uri
@@ -264,7 +278,7 @@ class gltfPrimitive extends GltfObject
                 this.morphTargetTextureInfo.generateMips = false;
             } else {
                 console.warn("Mesh of Morph targets too big. Cannot apply morphing.");
-            }         
+            }
         }
 
         this.computeCentroid(gltf);
@@ -478,42 +492,34 @@ class gltfPrimitive extends GltfObject
         {
         case "Int8Array":
             arrayBuffer = new ArrayBuffer(arrayData.length);
-            let int8Array = new Int8Array(arrayBuffer);
-            int8Array.set(arrayData);
+            new Int8Array(arrayBuffer).set(arrayData);
             break;
         case "Uint8Array":
             arrayBuffer = new ArrayBuffer(arrayData.length);
-            let uint8Array = new Uint8Array(arrayBuffer);
-            uint8Array.set(arrayData);
+            new Uint8Array(arrayBuffer).set(arrayData);
             break;
         case "Int16Array":
             arrayBuffer = new ArrayBuffer(arrayData.length * 2);
-            let int16Array = new Int16Array(arrayBuffer);
-            int16Array.set(arrayData);
+            new Int16Array(arrayBuffer).set(arrayData);
             break;
         case "Uint16Array":
             arrayBuffer = new ArrayBuffer(arrayData.length * 2);
-            let uint16Array = new Uint16Array(arrayBuffer);
-            uint16Array.set(arrayData);
+            new Uint16Array(arrayBuffer).set(arrayData);
             break;
         case "Int32Array":
             arrayBuffer = new ArrayBuffer(arrayData.length * 4);
-            let int32Array = new Int32Array(arrayBuffer);
-            int32Array.set(arrayData);
+            new Int32Array(arrayBuffer).set(arrayData);
             break;
         case "Uint32Array":
             arrayBuffer = new ArrayBuffer(arrayData.length * 4);
-            let uint32Array = new Uint32Array(arrayBuffer);
-            uint32Array.set(arrayData);
+            new Uint32Array(arrayBuffer).set(arrayData);
             break;
         default:
         case "Float32Array":
             arrayBuffer = new ArrayBuffer(arrayData.length * 4);
-            let floatArray = new Float32Array(arrayBuffer);
-            floatArray.set(arrayData);
+            new Float32Array(arrayBuffer).set(arrayData);
             break;
         }
-
 
         return arrayBuffer;
     }
@@ -537,7 +543,7 @@ class gltfPrimitive extends GltfObject
         decoderBuffer.Init(actualBuffer, origGltfDrBufViewObj.byteLength);
         let geometry = this.decodeGeometry( draco, decoder, decoderBuffer, dracoExtension.attributes, gltf );
 
-        draco.destroy( decoderBuffer );
+        draco.destroy(decoderBuffer);
 
         return geometry;
     }
@@ -712,7 +718,128 @@ class gltfPrimitive extends GltfObject
         };
 
     }
+
+    /**
+     * Unwelds this primitive, i.e. applies the index mapping.
+     * This is required for generating tangents using the MikkTSpace algorithm,
+     * because the same vertex might be mapped to different tangents.
+     * @param {*} gltf The glTF document.
+     */
+    unweld(gltf) {
+        // Unwelding is an idempotent operation.
+        if (this.indices === undefined) {
+            return;
+        }
+
+        const indices = gltf.accessors[this.indices].getTypedView(gltf);
+
+        // Unweld attributes:
+        for (const [attribute, accessorIndex] of Object.entries(this.attributes)) {
+            this.attributes[attribute] = this.unweldAccessor(gltf, gltf.accessors[accessorIndex], indices);
+        }
+
+        // Unweld morph targets:
+        for (const target of this.targets) {
+            for (const [attribute, accessorIndex] of Object.entries(target)) {
+                target[attribute] = this.unweldAccessor(gltf, gltf.accessors[accessorIndex], indices);
+            }
+        }
+
+        // Dipose the indices:
+        this.indices = undefined;
+    }
+
+    /**
+     * Unwelds a single accessor. Used by {@link unweld}.
+     * @param {*} gltf The glTF document.
+     * @param {*} accessor The accessor to unweld.
+     * @param {*} typedIndexView A typed view of the indices.
+     * @returns A new accessor index containing the unwelded attribute.
+     */
+    unweldAccessor(gltf, accessor, typedIndexView) {
+        const componentCount = accessor.getComponentCount(accessor.type);
+
+        const weldedAttribute = accessor.getDeinterlacedView(gltf);
+        // Create new array with same type as weldedAttribute
+        const unweldedAttribute = new weldedAttribute.constructor(gltf.accessors[this.indices].count * componentCount);
+
+        // Apply the index mapping.
+        for (let i = 0; i < typedIndexView.length; i++) {
+            for (let j = 0; j < componentCount; j++) {
+                unweldedAttribute[i * componentCount + j] = weldedAttribute[typedIndexView[i] * componentCount + j];
+            }
+        }
+
+        // Create a new buffer and buffer view for the unwelded attribute:
+        const unweldedBuffer = new gltfBuffer();
+        unweldedBuffer.byteLength = unweldedAttribute.byteLength;
+        unweldedBuffer.buffer = unweldedAttribute.buffer;
+        gltf.buffers.push(unweldedBuffer);
+
+        const unweldedBufferView = new gltfBufferView();
+        unweldedBufferView.buffer = gltf.buffers.length - 1;
+        unweldedBufferView.byteLength = unweldedAttribute.byteLength;
+        unweldedBufferView.target = GL.ARRAY_BUFFER;
+        gltf.bufferViews.push(unweldedBufferView);
+
+        // Create a new accessor for the unwelded attribute:
+        const unweldedAccessor = new gltfAccessor();
+        unweldedAccessor.bufferView = gltf.bufferViews.length - 1;
+        unweldedAccessor.byteOffset = 0;
+        unweldedAccessor.count = typedIndexView.length;
+        unweldedAccessor.type = accessor.type;
+        unweldedAccessor.componentType = accessor.componentType;
+        unweldedAccessor.min = accessor.min;
+        unweldedAccessor.max = accessor.max;
+        unweldedAccessor.normalized = accessor.normalized;
+        gltf.accessors.push(unweldedAccessor);
+
+        // Update the primitive to use the unwelded attribute:
+        return gltf.accessors.length - 1;
+    }
+
+    generateTangents(gltf) {
+        if(this.attributes.NORMAL === undefined || this.attributes.TEXCOORD_0 === undefined)
+        {
+            return;
+        }
+
+        const positions = gltf.accessors[this.attributes.POSITION].getTypedView(gltf);
+        const normals = gltf.accessors[this.attributes.NORMAL].getTypedView(gltf);
+        const texcoords = gltf.accessors[this.attributes.TEXCOORD_0].getTypedView(gltf);
+
+        const tangents = generateTangents(positions, normals, texcoords);
+
+        // convert coordinate system handedness to respect output format of MikkTSpace
+        for (let idx = 0; idx < tangents.length; idx += 4) {
+            tangents[idx+3] = -tangents[idx+3]; // Flip w-channel
+        }
+
+        // Create a new buffer and buffer view for the tangents:
+        const tangentBuffer = new gltfBuffer();
+        tangentBuffer.byteLength = tangents.byteLength;
+        tangentBuffer.buffer = tangents.buffer;
+        gltf.buffers.push(tangentBuffer);
+
+        const tangentBufferView = new gltfBufferView();
+        tangentBufferView.buffer = gltf.buffers.length - 1;
+        tangentBufferView.byteLength = tangents.byteLength;
+        tangentBufferView.target = GL.ARRAY_BUFFER;
+        gltf.bufferViews.push(tangentBufferView);
+
+        // Create a new accessor for the tangents:
+        const tangentAccessor = new gltfAccessor();
+        tangentAccessor.bufferView = gltf.bufferViews.length - 1;
+        tangentAccessor.byteOffset = 0;
+        tangentAccessor.count = tangents.length / 4;
+        tangentAccessor.type = "VEC4";
+        tangentAccessor.componentType = GL.FLOAT;
+
+        // Update the primitive to use the tangents:
+        this.attributes.TANGENT = gltf.accessors.length;
+        gltf.accessors.push(tangentAccessor);
+
+    }
 }
 
 export { gltfPrimitive };
-

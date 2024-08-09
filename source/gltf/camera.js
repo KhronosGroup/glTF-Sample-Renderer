@@ -94,7 +94,6 @@ class gltfCamera extends GltfObject
         // 2. Sort primitives so that the furthest nodes are rendered first.
         //    This is required for correct transparency rendering.
         return drawables
-            .filter((a) => a.depth <= 0)
             .sort((a, b) => a.depth - b.depth);
     }
 
@@ -196,7 +195,7 @@ class gltfCamera extends GltfObject
     getDescription(gltf)
     {
         const asset = {
-            "generator": "gltf-sample-viewer",
+            "generator": "gltf-sample-renderer",
             "version": "2.0"
         };
 
@@ -237,9 +236,9 @@ class gltfCamera extends GltfObject
         const node = {
             "camera": 0,
             "matrix": [mat[0], mat[1], mat[2], mat[3],
-                       mat[4], mat[5], mat[6], mat[7],
-                       mat[8], mat[9], mat[10], mat[11],
-                       mat[12], mat[13], mat[14], mat[15]]
+                mat[4], mat[5], mat[6], mat[7],
+                mat[8], mat[9], mat[10], mat[11],
+                mat[12], mat[13], mat[14], mat[15]]
         };
 
         if (this.node !== undefined && gltf.nodes[this.node].name !== undefined)

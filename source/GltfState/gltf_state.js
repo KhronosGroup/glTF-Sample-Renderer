@@ -55,6 +55,11 @@ class GltfState
                 KHR_materials_specular: true,
                 /** KHR_materials_iridescence adds a thin-film iridescence effect */
                 KHR_materials_iridescence: true,
+                KHR_materials_diffuse_transmission: true,
+                /** KHR_materials_anisotropy defines microfacet grooves in the surface, stretching the specular reflection on the surface */
+                KHR_materials_anisotropy: true,
+                /** KHR_materials_dispersion defines configuring the strength of the angular separation of colors (chromatic abberation)*/
+                KHR_materials_dispersion: true,
                 KHR_materials_emissive_strength: true,
             },
             /** clear color expressed as list of ints in the range [0, 255] */
@@ -71,16 +76,16 @@ class GltfState
             renderEnvironmentMap: true,
             /** apply blur to the background environment map */
             blurEnvironmentMap: true,
-            /** which tonemap to use, use ACES for a filmic effect */
-            toneMap: GltfState.ToneMaps.LINEAR,
+            /** which tonemap to use, use KHR_PBR_NEUTRAL for best color reproduction */
+            toneMap: GltfState.ToneMaps.KHR_PBR_NEUTRAL,
             /** render some debug output channes, such as for example the normals */
             debugOutput: GltfState.DebugOutput.NONE,
             /**
              * By default the front face of the environment is +Z (90)
              * Front faces:
-             * +X = 0 
-             * +Z = 90 
-             * -X = 180 
+             * +X = 0
+             * +Z = 90
+             * -X = 180
              * -Z = 270
              */
             environmentRotation: 90.0,
@@ -95,19 +100,21 @@ class GltfState
     }
 }
 
-/** 
- * ToneMaps enum for the different tonemappings that are supported 
+/**
+ * ToneMaps enum for the different tonemappings that are supported
  * by gltf sample viewer
 */
 GltfState.ToneMaps = {
-    /** don't apply tone mapping */
-    NONE: "None",
+    /** Khronos PBR neutral tone mapping, see https://github.com/KhronosGroup/ToneMapping, https://modelviewer.dev/examples/tone-mapping */
+    KHR_PBR_NEUTRAL: "Khronos PBR Neutral",
     /** ACES sRGB RRT+ODT implementation for 3D Commerce based on Stephen Hill's implementation with a exposure factor of 1.0 / 0.6 */
     ACES_HILL_EXPOSURE_BOOST: "ACES Filmic Tone Mapping (Hill - Exposure Boost)",
     /** fast implementation of the ACES sRGB RRT+ODT based on Krzysztof Narkowicz' implementation*/
     ACES_NARKOWICZ: "ACES Filmic Tone Mapping (Narkowicz)",
     /** more accurate implementation of the ACES sRGB RRT+ODT based on Stephen Hill's implementation*/
     ACES_HILL: "ACES Filmic Tone Mapping (Hill)",
+    /** Linear mapping, clamped at 1.0 per channel */
+    NONE: "None (Linear mapping, clamped at 1.0)",
 };
 
 /**
@@ -142,10 +149,8 @@ GltfState.DebugOutput = {
         EMISSIVE: "Emissive",
     },
 
-    /** output metallic roughness */
+    /** metallic roughness */
     mr: {
-        /** output the combined metallic roughness */
-        METALLIC_ROUGHNESS: "Metallic Roughness",
         /** output the base color value */
         BASECOLOR: "Base Color",
         /** output the metallic value from pbr metallic roughness */
@@ -154,56 +159,62 @@ GltfState.DebugOutput = {
         ROUGHNESS: "Roughness",
     },
 
-    /** output clearcoat lighting */
+    /** KHR_materials_clearcoat */
     clearcoat: {
-        /** output the combined clear coat */
-        CLEARCOAT: "ClearCoat",
-        /** output the clear coat factor */
-        CLEARCOAT_FACTOR: "ClearCoat Factor",
+        /** output the clear coat strength */
+        CLEARCOAT_FACTOR: "ClearCoat Strength",
         /** output the clear coat roughness */
         CLEARCOAT_ROUGHNESS: "ClearCoat Roughness",
         /** output the clear coat normal */
-        CLEARCOAT_NORMAL: "ClearCoat Normal",    
+        CLEARCOAT_NORMAL: "ClearCoat Normal",
     },
 
-    /** output sheen lighting */
+    /** KHR_materials_sheen */
     sheen: {
-        /** output the combined sheen */
-        SHEEN: "Sheen",
         /** output the sheen color*/
         SHEEN_COLOR: "Sheen Color",
         /** output the sheen roughness*/
         SHEEN_ROUGHNESS: "Sheen Roughness",
     },
 
-    /** output specular lighting */
+    /** KHR_materials_specular */
     specular: {
-        /** output the combined specular */
-        SPECULAR: "Specular",
-        /** output the specular factor*/
-        SPECULAR_FACTOR: "Specular Factor",
+        /** output the specular strength*/
+        SPECULAR_FACTOR: "Specular Strength",
         /** output the specular color*/
         SPECULAR_COLOR: "Specular Color",
     },
 
-    /** output tranmission lighting */
+    /** KHR_materials_transmission */
     transmission: {
-        /** output the combined transmission/volume */
-        TRANSMISSION_VOLUME: "Transmission/Volume",
-        /** output the transmission factor*/
-        TRANSMISSION_FACTOR: "Transmission Factor",
+        /** output the transmission strength*/
+        TRANSMISSION_FACTOR: "Transmission Strength",
         /** output the volume thickness*/
         VOLUME_THICKNESS: "Volume Thickness",
     },
 
-    /** output tranmission lighting */
+    /** KHR_materials_diffuse_tranmission */
+    diffuseTransmission: {
+        /** output the diffuse tranmission strength */
+        DIFFUSE_TRANSMISSION_FACTOR: "Diffuse Transmission Strength",
+        /** output the diffuse tranmission color factor */
+        DIFFUSE_TRANSMISSION_COLOR_FACTOR: "Diffuse Transmission Color",
+    },
+
+    /** KHR_materials_iridescence */
     iridescence: {
-        /** output the combined iridescence */
-        IRIDESCENCE: "Iridescence",
-        /** output the iridescence factor*/
-        IRIDESCENCE_FACTOR: "Iridescence Factor",
+        /** output the iridescence strength*/
+        IRIDESCENCE_FACTOR: "Iridescence Strength",
         /** output the iridescence thickness*/
         IRIDESCENCE_THICKNESS: "Iridescence Thickness",
+    },
+
+    /** KHR_materials_anisotropy */
+    anisotropy: {
+        /** output the anisotropic strength*/
+        ANISOTROPIC_STRENGTH: "Anisotropic Strength",
+        /** output final direction as defined by the anisotropyTexture and rotation*/
+        ANISOTROPIC_DIRECTION: "Anisotropic Direction",
     },
 };
 

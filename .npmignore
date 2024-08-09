@@ -2,7 +2,6 @@
 .git/
 .github/
 .vscode/
-app_headless/
 app_web/
 assets/
 source/
