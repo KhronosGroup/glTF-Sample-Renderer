@@ -97,9 +97,16 @@ class gltfAnimation extends GltfObject
                     const suffix = property.substring("/extensions/KHR_lights_punctual/".length);
                     property = "/" + suffix;
                 }
-
-                const animatedProperty = JsonPointer.get(gltf, property);
-                if (animatedProperty === undefined || !animatedProperty instanceof AnimatableProperty) {
+                const jsonPointer = JsonPointer.create(property);
+                const parentObject = jsonPointer.parent(gltf);
+                const back = jsonPointer.path.at(-1);
+                let animatedProperty = JsonPointer.get(gltf, property);
+                if (animatedProperty === undefined || !(animatedProperty instanceof AnimatableProperty)) {
+                    if (parentObject.animatedPropertyObjects && back in parentObject.animatedPropertyObjects) {
+                        animatedProperty = parentObject.animatedPropertyObjects[back];
+                    }
+                }
+                if (animatedProperty === undefined || !(animatedProperty instanceof AnimatableProperty)) {
                     if (!this.errors.includes(property)) {
                         console.warn(`Cannot animate ${property}`);
                         this.errors.push(property);

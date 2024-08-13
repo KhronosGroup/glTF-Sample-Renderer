@@ -605,7 +605,7 @@ class gltfRenderer
         // morphing
         if (parameters.morphing && node.mesh !== undefined && primitive.targets.length > 0)
         {
-            const weights = node.getWeights(gltf).value();
+            const weights = node.getWeights(gltf);
             if (weights !== undefined && weights.length > 0)
             {
                 vertDefines.push("USE_MORPHING 1");
@@ -618,7 +618,7 @@ class gltfRenderer
     {
         if (state.renderingParameters.morphing && node.mesh !== undefined && primitive.targets.length > 0)
         {
-            const weights = node.getWeights(state.gltf).value();
+            const weights = node.getWeights(state.gltf);
             if (weights !== undefined && weights.length > 0)
             {
                 this.shader.updateUniformArray("u_morphWeights", weights);

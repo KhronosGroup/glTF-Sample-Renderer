@@ -9,18 +9,24 @@ import { AnimatableProperty, makeAnimatable } from './animatable_property.js';
 
 class gltfNode extends GltfObject
 {
+    static animatedProperties = [
+        "rotation",
+        "scale",
+        "translation",
+        "weights"
+    ];
     constructor()
     {
         super();
         this.camera = undefined;
         this.children = [];
-        this.rotation = new AnimatableProperty(jsToGl([0, 0, 0, 1]));
-        this.scale = new AnimatableProperty(jsToGl([1, 1, 1]));
-        this.translation = new AnimatableProperty(jsToGl([0, 0, 0]));
+        this.rotation = jsToGl([0, 0, 0, 1]);
+        this.scale = jsToGl([1, 1, 1]);
+        this.translation = jsToGl([0, 0, 0]);
         this.name = undefined;
         this.mesh = undefined;
         this.skin = undefined;
-        this.weights = new AnimatableProperty(undefined);
+        this.weights = undefined;
 
         // non gltf
         this.worldTransform = mat4.create();
@@ -32,12 +38,12 @@ class gltfNode extends GltfObject
     fromJson(json)
     {
         super.fromJson(json);
-        makeAnimatable(this, json, { "weights": [] });
+        //makeAnimatable(this, json, { "weights": [] });
     }
 
     getWeights(gltf)
     {
-        if (this.weights.value()  !== undefined && this.weights.value().length > 0) {
+        if (this.weights !== undefined && this.weights.length > 0) {
             return this.weights;
         }
         else {
@@ -68,18 +74,18 @@ class gltfNode extends GltfObject
 
     resetTransform()
     {
-        this.rotation.rest();
-        this.scale.rest();
-        this.translation.rest();
+        this.animatedPropertyObjects["rotation"].rest();
+        this.animatedPropertyObjects["scale"].rest();
+        this.animatedPropertyObjects["translation"].rest();
     }
 
     getLocalTransform()
     {
         return mat4.fromRotationTranslationScale(
             mat4.create(),
-            this.rotation.value(),
-            this.translation.value(),
-            this.scale.value()
+            this.rotation,
+            this.translation,
+            this.scale
         );
     }
 }

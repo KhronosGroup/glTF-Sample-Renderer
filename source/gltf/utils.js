@@ -60,19 +60,19 @@ function objectFromJson(jsonObject, GltfType) {
 }
 
 function fromKeys(target, jsonObj, ignore = []) {
-    for (let k of Object.keys(target)) {
+    for (let k of Object.keys(jsonObj)) {
         if (ignore && ignore.find(function (elem) { return elem == k; }) !== undefined) {
             continue; // skip
         }
-        if (jsonObj[k] !== undefined) {
-            let normalizedK = k.replace("^@", "");
-            if (target[normalizedK] instanceof AnimatableProperty) {
-                target[normalizedK].restAt(jsonObj[k]);
-            }
-            else {
-                target[normalizedK] = jsonObj[k];
-            }
+
+        let normalizedK = k.replace("^@", "");
+        if (target[normalizedK] instanceof AnimatableProperty) {
+            target[normalizedK].restAt(jsonObj[k]);
         }
+        else {
+            target[normalizedK] = jsonObj[k];
+        }
+
     }
 }
 
