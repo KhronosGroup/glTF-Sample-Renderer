@@ -18,7 +18,7 @@ class iblSampler
         this.lowestMipLevel = 4;
         this.lutResolution = 1024;
 
-        this.scaleValue = 1.0
+        this.scaleValue = 1.0;
 
         this.mipmapCount = undefined;
 
@@ -33,6 +33,8 @@ class iblSampler
         this.cubemapTextureID = undefined;
         this.framebuffer = undefined;
 
+        this.supportedFormat = "BYTE";
+
         const shaderSources = new Map();
 
         shaderSources.set("fullscreen.vert", fullscreenShader);
@@ -43,58 +45,21 @@ class iblSampler
         this.shaderCache = new ShaderCache(shaderSources, view.renderer.webGl);
     }
 
-    loadTextureHDR(image)
+    
+    prepareTextureData(image)
     {
-        const texture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+        let texture =  {
+            internalFormat: this.gl.RGB32F,
+            format:this.gl.RGB,
+            type: this.gl.FLOAT,
+            data:undefined 
+        };
 
-        let internalFormat = this.gl.RGB32F;
-        let format = this.gl.RGB;
-        let type = this.gl.FLOAT;
-        let data = undefined;
-
-        if (image.dataFloat instanceof Float32Array && typeof(this.gl.RGB32F) !== 'undefined')
+        if(this.supportedFormat == "BYTE")
         {
-            internalFormat = this.gl.RGB32F;
-            format = this.gl.RGB;
-            type = this.gl.FLOAT;
-            data = image.dataFloat;
-        }
-        else if (image.dataFloat instanceof Float32Array)
-        {
-            // workaround for node-gles not supporting RGB32F -> conver to RGBA32F
-            internalFormat = this.gl.RGBA32F;
-            format = this.gl.RGBA;
-            type = this.gl.FLOAT;
-
-            const numPixels = image.dataFloat.length / 3;
-            data = new Float32Array(numPixels * 4);
-            for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
-            {
-                // copy the pixels and pad the alpha channel
-                data[dst] = image.dataFloat[src];
-                data[dst+1] = image.dataFloat[src+1];
-                data[dst+2] = image.dataFloat[src+2];
-                data[dst+3] = 0;
-            }
-        }
-        else if (typeof(Image) !== 'undefined' && image instanceof Image)
-        {
-            internalFormat = this.gl.RGBA;
-            format = this.gl.RGBA;
-            type = this.gl.UNSIGNED_BYTE;
-            data = image;
-        }
-        else
-        {
-            console.error("loadTextureHDR failed, unsupported HDR image");
-            return;
-        }
-
-        if(this.use8bit){
-            internalFormat = this.gl.RGBA8;
-            format = this.gl.RGBA;
-            type = this.gl.UNSIGNED_BYTE;
+            texture.internalFormat = this.internalFormat();
+            texture.format = this.gl.RGBA;
+            texture.type = this.type();
 
             const numPixels = image.dataFloat.length / 3;
 
@@ -110,30 +75,79 @@ class iblSampler
 
             let max_value=Math.max(max_r, max_g, max_b)
             
-
-            data = new Uint8Array(numPixels * 4);
+            texture.data = new Uint8Array(numPixels * 4);
             for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
             {
                 // copy the pixels and pad the alpha channel
-                data[dst+0] = (image.dataFloat[src+0]/max_value)*255;
-                data[dst+1] = (image.dataFloat[src+1]/max_value)*255;
-                data[dst+2] = (image.dataFloat[src+2]/max_value)*255;
-                data[dst+3] = 0;
+                texture.data[dst+0] = (image.dataFloat[src+0]/max_value)*255;
+                texture.data[dst+1] = (image.dataFloat[src+1]/max_value)*255;
+                texture.data[dst+2] = (image.dataFloat[src+2]/max_value)*255;
+                texture.data[dst+3] = 0;
             }
             this.scaleValue = max_value;
-            console.warning("Scaling environment intensity: "+this.scaleValue);
+            return texture;
         }
+
+        if (image.dataFloat instanceof Float32Array && typeof(this.gl.RGB32F) !== 'undefined')
+        {
+            texture.internalFormat = this.gl.RGB32F;
+            texture.format = this.gl.RGB;
+            texture.type = this.gl.FLOAT;
+            texture.data = image.dataFloat;
+            return texture;
+        }
+
+        if (image.dataFloat instanceof Float32Array)
+        {
+            // workaround for node-gles not supporting RGB32F -> conver to RGBA32F
+            texture.internalFormat = this.gl.RGBA32F;
+            texture.format = this.gl.RGBA;
+            texture.type = this.gl.FLOAT;
+
+            const numPixels = image.dataFloat.length / 3;
+            texture.data = new Float32Array(numPixels * 4);
+            for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
+            {
+                // copy the pixels and pad the alpha channel
+                texture.data[dst] = image.dataFloat[src];
+                texture.data[dst+1] = image.dataFloat[src+1];
+                texture.data[dst+2] = image.dataFloat[src+2];
+                texture.data[dst+3] = 0;
+            }
+            return texture;
+        }
+
+        if (typeof(Image) !== 'undefined' && image instanceof Image)
+        {
+            texture.internalFormat = this.gl.RGBA;
+            texture.format = this.gl.RGBA;
+            texture.type = this.gl.UNSIGNED_BYTE;
+            texture.data = image;
+            return texture;
+        }
+
+        console.error("loadTextureHDR failed, unsupported HDR image");
+
+
+    }
+
+    loadTextureHDR(image)
+    {
+        let texture = this.prepareTextureData(image);
+       
+        const textureID = this.gl.createTexture();
+        this.gl.bindTexture(this.gl.TEXTURE_2D, textureID);      
 
         this.gl.texImage2D(
             this.gl.TEXTURE_2D,
             0,
-            internalFormat,
+            texture.internalFormat,
             image.width,
             image.height,
             0,
-            format,
-            type,
-            data
+            texture.format,
+            texture.type,
+            texture.data
         );
 
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.MIRRORED_REPEAT);
@@ -141,17 +155,23 @@ class iblSampler
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
-        return texture;
+        return textureID;
     }
 
     internalFormat()
     {
-        return this.use8bit ? this.gl.RGBA8 : this.gl.RGBA32F;
+        if(this.supportedFormat == "FLOAT") return  this.gl.RGBA32F;
+        if(this.supportedFormat == "HALF_FLOAT") return  this.gl.RGBA16F;
+        if(this.supportedFormat == "BYTE") return  this.gl.RGBA8;
+        return this.gl.RGBA8; // Fallback
     }
 
     type()
     {
-        return this.use8bit ? this.gl.UNSIGNED_BYTE : this.gl.FLOAT;
+        if(this.supportedFormat == "FLOAT") return  this.gl.FLOAT;
+        if(this.supportedFormat == "HALF_FLOAT") return  this.gl.HALF_FLOAT;
+        if(this.supportedFormat == "BYTE") return  this.gl.UNSIGNED_BYTE;
+        return this.gl.UNSIGNED_BYTE; // Fallback
     }
 
     createCubemapTexture(withMipmaps)
@@ -217,10 +237,14 @@ class iblSampler
 
     init(panoramaImage)
     {
-        if (!this.gl.getExtension("EXT_color_buffer_float") || !this.gl.getExtension("OES_texture_float_linear"))
+        if (this.gl.getExtension("EXT_color_buffer_float") && this.gl.getExtension("OES_texture_float_linear"))
+        {
+            this.supportedFormat = "FLOAT";  
+        } 
+        else
         {
             console.warn("Floating point textures are not supported");
-            this.use8bit = true;
+            this.supportedFormat = "BYTE";
         }
 
         this.inputTextureID = this.loadTextureHDR(panoramaImage);

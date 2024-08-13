@@ -458,7 +458,7 @@ void main()
     if(maxV > 1.0) 
     {
         color /= maxV;
-        fragmentColor.a = 1.0/maxV;
+        fragmentColor.a = max(1.0/maxV, 1.0/255.0);
     } 
     else
     {
