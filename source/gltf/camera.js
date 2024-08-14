@@ -145,17 +145,6 @@ class gltfCamera extends GltfObject
         return rotation;
     }
 
-    clone()
-    {
-        const copy = new gltfCamera();
-        copy.name = this.name;
-        copy.node = this.node;
-        copy.type = this.type;
-        copy.perspective = { ...this.perspective };
-        copy.orthographic = { ...this.orthographic };
-        return copy;
-    }
-
     getNode(gltf)
     {
         return gltf.nodes[this.node];

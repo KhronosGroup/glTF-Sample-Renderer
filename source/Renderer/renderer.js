@@ -247,7 +247,7 @@ class gltfRenderer
         }
         else
         {
-            currentCamera = state.gltf.cameras[state.cameraIndex].clone();
+            currentCamera = state.gltf.cameras[state.cameraIndex];
         }
 
         currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
