@@ -1,6 +1,5 @@
 import { mat4, vec3, quat } from 'gl-matrix';
 import { GltfObject } from './gltf_object.js';
-import { AnimatableProperty, makeAnimatable } from './animatable_property.js';
 
 class gltfCamera extends GltfObject
 {
@@ -10,18 +9,8 @@ class gltfCamera extends GltfObject
         this.name = undefined;
         this.node = undefined;
         this.type = "perspective";
-        this.perspective = {
-            yfov: new AnimatableProperty(45 * Math.PI / 180),
-            aspectRatio: new AnimatableProperty(1.0),
-            znear: new AnimatableProperty(0.01),
-            zfar: new AnimatableProperty(Infinity),
-        };
-        this.orthographic = {
-            xmag: new AnimatableProperty(1),
-            ymag: new AnimatableProperty(1),
-            znear: new AnimatableProperty(0.01),
-            zfar: new AnimatableProperty(Infinity),
-        };
+        this.perspective = new PerspectiveCamera();
+        this.orthographic = new OrthographicCamera();
     }
 
     fromJson(json)
@@ -30,21 +19,13 @@ class gltfCamera extends GltfObject
 
         if (json.perspective !== undefined)
         {
-            makeAnimatable(this.perspective, json.perspective, {
-                "yfov": 45 * Math.PI / 180,            
-                "aspectRatio": 1.0,
-                "znear": 0.01,
-                "zfar": Infinity,
-            });
+            this.perspective = new PerspectiveCamera();
+            this.perspective.fromJson(json.perspective);
         }
         if (json.orthographic !== undefined)
         {
-            makeAnimatable(this.orthographic, json.orthographic, {
-                "xmag": 1,
-                "ymag": 1,
-                "znear": 0.01,
-                "zfar": Infinity,
-            });
+            this.orthographic = new OrthographicCamera();
+            this.orthographic.fromJson(json.orthographic);
         }
     }
 
@@ -105,18 +86,18 @@ class gltfCamera extends GltfObject
         {
             mat4.perspective(
                 projection,
-                this.perspective.yfov.value(),
-                this.perspective.aspectRatio.value(),
-                this.perspective.znear.value(),
-                this.perspective.zfar.value()
+                this.perspective.yfov,
+                this.perspective.aspectRatio,
+                this.perspective.znear,
+                this.perspective.zfar
             );
         }
         else if (this.type === "orthographic")
         {
-            const znear = this.orthographic.znear.value();
-            const zfar = this.orthographic.zfar.value();
-            projection[0]  = 1.0 / this.orthographic.xmag.value();
-            projection[5]  = 1.0 / this.orthographic.ymag.value();
+            const znear = this.orthographic.znear;
+            const zfar = this.orthographic.zfar;
+            projection[0]  = 1.0 / this.orthographic.xmag;
+            projection[5]  = 1.0 / this.orthographic.ymag;
             projection[10] = 2.0 / (znear - zfar);
             projection[14] = (zfar + znear) / (znear - zfar);
         }
@@ -211,24 +192,24 @@ class gltfCamera extends GltfObject
         if (this.type === "perspective")
         {
             camera["perspective"] = {};
-            if (this.perspective.aspectRatio.isDefined())
+            if (this.perspective.aspectRatio)
             {
-                camera["perspective"]["aspectRatio"] = this.perspective.aspectRatio.value();
+                camera["perspective"]["aspectRatio"] = this.perspective.aspectRatio;
             }
-            camera["perspective"]["yfov"] = this.perspective.yfov.value();
-            if (this.perspective.zfar.isDefined() && this.perspective.zfar.value() != Infinity)
+            camera["perspective"]["yfov"] = this.perspective.yfov;
+            if (this.perspective.zfar && this.perspective.zfar != Infinity)
             {
-                camera["perspective"]["zfar"] = this.perspective.zfar.value();
+                camera["perspective"]["zfar"] = this.perspective.zfar;
             }
-            camera["perspective"]["znear"] = this.perspective.znear.value();
+            camera["perspective"]["znear"] = this.perspective.znear;
         }
         else if (this.type === "orthographic")
         {
             camera["orthographic"] = {};
-            camera["orthographic"]["xmag"] = this.orthographic.xmag.value();
-            camera["orthographic"]["ymag"] = this.orthographic.ymag.value();
-            camera["orthographic"]["zfar"] = this.orthographic.zfar.value();
-            camera["orthographic"]["znear"] = this.orthographic.znear.value();
+            camera["orthographic"]["xmag"] = this.orthographic.xmag;
+            camera["orthographic"]["ymag"] = this.orthographic.ymag;
+            camera["orthographic"]["zfar"] = this.orthographic.zfar;
+            camera["orthographic"]["znear"] = this.orthographic.znear;
         }
 
         const mat = this.getTransformMatrix(gltf);
@@ -251,6 +232,40 @@ class gltfCamera extends GltfObject
             "cameras": [camera],
             "nodes": [node]
         };
+    }
+}
+
+class PerspectiveCamera extends GltfObject
+{
+    static animatedProperties = [
+        "yfov",
+        "aspectRatio",
+        "znear",
+        "zfar"
+    ];
+    constructor() {
+        super();
+        this.yfov = 45 * Math.PI / 180;
+        this.aspectRatio = 1.0;
+        this.znear = 0.01;
+        this.zfar = Infinity;
+    }
+}
+
+class OrthographicCamera extends GltfObject
+{
+    static animatedProperties = [
+        "xmag",
+        "ymag",
+        "znear",
+        "zfar"
+    ];
+    constructor() {
+        super();
+        this.xmag = 1;
+        this.ymag = 1;
+        this.znear = 0.01;
+        this.zfar = Infinity;
     }
 }
 

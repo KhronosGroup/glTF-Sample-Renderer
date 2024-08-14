@@ -250,11 +250,11 @@ class gltfRenderer
             currentCamera = state.gltf.cameras[state.cameraIndex].clone();
         }
 
-        currentCamera.perspective.aspectRatio.restValue = this.currentWidth / this.currentHeight;
-        if(currentCamera.perspective.aspectRatio.restValue > 1.0) {
-            currentCamera.orthographic.xmag.restValue = currentCamera.orthographic.ymag.restValue * currentCamera.perspective.aspectRatio.restValue; 
+        currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
+        if(currentCamera.perspective.aspectRatio > 1.0) {
+            currentCamera.orthographic.xmag = currentCamera.orthographic.ymag * currentCamera.perspective.aspectRatio; 
         } else {
-            currentCamera.orthographic.ymag.restValue = currentCamera.orthographic.xmag.restValue / currentCamera.perspective.aspectRatio.restValue; 
+            currentCamera.orthographic.ymag = currentCamera.orthographic.xmag / currentCamera.perspective.aspectRatio; 
         }
 
         this.projMatrix = currentCamera.getProjectionMatrix();
