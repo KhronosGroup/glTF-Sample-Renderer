@@ -70,7 +70,7 @@ class gltfRenderer
 
         this.lightKey = new gltfLight();
         this.lightFill = new gltfLight();
-        this.lightFill.intensity.restValue = 0.5;
+        this.lightFill.intensity = 0.5;
         const quatKey = quat.fromValues(
             -0.3535534,
             -0.353553385,
