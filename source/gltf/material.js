@@ -10,7 +10,7 @@ class gltfMaterial extends GltfObject
     {
         super();
         this.name = undefined;
-        this.pbrMetallicRoughness = undefined;
+        this.pbrMetallicRoughness = new PbrMetallicRoughness();
         this.normalTexture = undefined;
         this.occlusionTexture = undefined;
         this.emissiveTexture = undefined;
@@ -208,22 +208,22 @@ class gltfMaterial extends GltfObject
             this.properties.set("u_EmissiveUVSet", this.emissiveTexture.texCoord);
         }
 
-        if (this.baseColorTexture !== undefined)
+        if (this.pbrMetallicRoughness.baseColorTexture !== undefined)
         {
-            this.baseColorTexture.samplerName = "u_BaseColorSampler";
-            this.parseTextureInfoExtensions(this.baseColorTexture, "BaseColor");
-            this.textures.push(this.baseColorTexture);
+            this.pbrMetallicRoughness.baseColorTexture.samplerName = "u_BaseColorSampler";
+            this.parseTextureInfoExtensions(this.pbrMetallicRoughness.baseColorTexture, "BaseColor");
+            this.textures.push(this.pbrMetallicRoughness.baseColorTexture);
             this.defines.push("HAS_BASE_COLOR_MAP 1");
-            this.properties.set("u_BaseColorUVSet", this.baseColorTexture.texCoord);
+            this.properties.set("u_BaseColorUVSet", this.pbrMetallicRoughness.baseColorTexture.texCoord);
         }
 
-        if (this.metallicRoughnessTexture !== undefined)
+        if (this.pbrMetallicRoughness.metallicRoughnessTexture !== undefined)
         {
-            this.metallicRoughnessTexture.samplerName = "u_MetallicRoughnessSampler";
-            this.parseTextureInfoExtensions(this.metallicRoughnessTexture, "MetallicRoughness");
-            this.textures.push(this.metallicRoughnessTexture);
+            this.pbrMetallicRoughness.metallicRoughnessTexture.samplerName = "u_MetallicRoughnessSampler";
+            this.parseTextureInfoExtensions(this.pbrMetallicRoughness.metallicRoughnessTexture, "MetallicRoughness");
+            this.textures.push(this.pbrMetallicRoughness.metallicRoughnessTexture);
             this.defines.push("HAS_METALLIC_ROUGHNESS_MAP 1");
-            this.properties.set("u_MetallicRoughnessUVSet", this.metallicRoughnessTexture.texCoord);
+            this.properties.set("u_MetallicRoughnessUVSet", this.pbrMetallicRoughness.metallicRoughnessTexture.texCoord);
         }
 
         if (this.diffuseTexture !== undefined)
@@ -601,7 +601,7 @@ class gltfMaterial extends GltfObject
         {
             this.fromJsonMaterialExtensions(jsonMaterial.extensions);
         }
-
+        this.pbrMetallicRoughness = new PbrMetallicRoughness();
         if (jsonMaterial.pbrMetallicRoughness !== undefined && this.type !== "SG")
         {
             this.type = "MR";
@@ -670,25 +670,8 @@ class gltfMaterial extends GltfObject
 
     fromJsonMetallicRoughness(jsonMetallicRoughness)
     {
-        makeAnimatable(this.pbrMetallicRoughness, jsonMetallicRoughness, {
-            "baseColorFactor": vec4.fromValues(1, 1, 1, 1),
-            "metallicFactor": 1,
-            "roughnessFactor": 1,
-        })
+        this.pbrMetallicRoughness.fromJson(jsonMetallicRoughness);
 
-        if (jsonMetallicRoughness.baseColorTexture !== undefined)
-        {
-            const baseColorTexture = new gltfTextureInfo(undefined, 0, false);
-            baseColorTexture.fromJson(jsonMetallicRoughness.baseColorTexture);
-            this.baseColorTexture = baseColorTexture;
-        }
-
-        if (jsonMetallicRoughness.metallicRoughnessTexture !== undefined)
-        {
-            const metallicRoughnessTexture = new gltfTextureInfo();
-            metallicRoughnessTexture.fromJson(jsonMetallicRoughness.metallicRoughnessTexture);
-            this.metallicRoughnessTexture = metallicRoughnessTexture;
-        }
     }
 
     fromJsonSpecularGlossiness(jsonSpecularGlossiness)
@@ -869,5 +852,36 @@ class gltfMaterial extends GltfObject
         }
     }
 }
+
+class PbrMetallicRoughness extends GltfObject {
+    static animatedProperties = ["baseColorFactor", "metallicFactor", "roughnessFactor"];
+    constructor()
+    {
+        super();
+        this.baseColorFactor = vec4.fromValues(1, 1, 1, 1);
+        this.baseColorTexture = undefined;
+        this.metallicFactor = 1;
+        this.roughnessFactor = 1;
+        this.metallicRoughnessTexture = undefined;
+    }
+
+    fromJson(json) {
+        super.fromJson(json);
+        if (json.baseColorTexture !== undefined)
+        {
+            const baseColorTexture = new gltfTextureInfo(undefined, 0, false);
+            baseColorTexture.fromJson(json.baseColorTexture);
+            this.baseColorTexture = baseColorTexture;
+        }
+
+        if (json.metallicRoughnessTexture !== undefined)
+        {
+            const metallicRoughnessTexture = new gltfTextureInfo();
+            metallicRoughnessTexture.fromJson(json.metallicRoughnessTexture);
+            this.metallicRoughnessTexture = metallicRoughnessTexture;
+        }
+    }
+}
+
 
 export { gltfMaterial };
