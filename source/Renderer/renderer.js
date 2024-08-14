@@ -531,6 +531,8 @@ class gltfRenderer
 
         this.shader.updateUniform("u_DiffuseUVSet", material.diffuseTexture?.texCoord, false);
 
+        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions.KHR_materials_anisotropy?.anisotropyTexture?.texCoord, false);
+
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
         {

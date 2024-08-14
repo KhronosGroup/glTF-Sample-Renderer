@@ -533,7 +533,6 @@ class gltfMaterial extends GltfObject
                     this.parseTextureInfoExtensions(this.anisotropyTexture, "Anisotropy");
                     this.textures.push(this.anisotropyTexture);
                     this.defines.push("HAS_ANISOTROPY_MAP 1");
-                    this.properties.set("u_AnisotropyUVSet", this.anisotropyTexture.texCoord);
                 }
 
                 let anisotropy =  vec3.fromValues(Math.cos(rotation), Math.sin(rotation), factor);
@@ -647,7 +646,8 @@ class gltfMaterial extends GltfObject
 
         if(jsonExtensions.KHR_materials_anisotropy !== undefined)
         {
-            this.fromJsonAnisotropy(jsonExtensions.KHR_materials_anisotropy);
+            this.extensions.KHR_materials_anisotropy = new KHR_materials_anisotropy();
+            this.extensions.KHR_materials_anisotropy.fromJson(jsonExtensions.KHR_materials_anisotropy);
         }
         
         if(jsonExtensions.KHR_materials_emissive_strength !== undefined)
@@ -829,16 +829,6 @@ class gltfMaterial extends GltfObject
             this.iridescenceThicknessTexture = iridescenceThicknessTexture;
         }
     }
-
-    fromJsonAnisotropy(jsonAnisotropy)
-    {
-        if(jsonAnisotropy.anisotropyTexture !== undefined)
-        {
-            const anisotropyTexture = new gltfTextureInfo();
-            anisotropyTexture.fromJson(jsonAnisotropy.anisotropyTexture);
-            this.anisotropyTexture = anisotropyTexture;
-        }
-    }
 }
 
 class PbrMetallicRoughness extends GltfObject {
@@ -871,5 +861,25 @@ class PbrMetallicRoughness extends GltfObject {
     }
 }
 
+class KHR_materials_anisotropy extends GltfObject {
+    static animatedProperties = ["anisotropyStrength", "anisotropyRotation"];
+    constructor()
+    {
+        super();
+        this.anisotropyStrength = 0;
+        this.anisotropyRotation = 0;
+        this.anisotropyTexture = undefined;
+    }
+
+    fromJson(json) {
+        super.fromJson(json);
+        if (json.anisotropyTexture !== undefined)
+        {
+            const anisotropyTexture = new gltfTextureInfo();
+            anisotropyTexture.fromJson(json.anisotropyTexture);
+            this.anisotropyTexture = anisotropyTexture;
+        }
+    }
+}
 
 export { gltfMaterial };
