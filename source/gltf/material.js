@@ -6,6 +6,7 @@ import { AnimatableProperty, makeAnimatable } from './animatable_property.js';
 
 class gltfMaterial extends GltfObject
 {
+    static animatedProperties = ["alphaCutoff", "emissiveFactor"];
     constructor()
     {
         super();
@@ -14,9 +15,9 @@ class gltfMaterial extends GltfObject
         this.normalTexture = undefined;
         this.occlusionTexture = undefined;
         this.emissiveTexture = undefined;
-        this.emissiveFactor = new AnimatableProperty(vec3.fromValues(0, 0, 0));
+        this.emissiveFactor = vec3.fromValues(0, 0, 0);
         this.alphaMode = "OPAQUE";
-        this.alphaCutoff = new AnimatableProperty(0.5);
+        this.alphaCutoff = 0.5;
         this.doubleSided = false;
 
         // pbr next extension toggles
@@ -184,8 +185,6 @@ class gltfMaterial extends GltfObject
             this.parseTextureInfoExtensions(this.normalTexture, "Normal");
             this.textures.push(this.normalTexture);
             this.defines.push("HAS_NORMAL_MAP 1");
-            this.properties.set("u_NormalScale", this.normalTexture.scale);
-            this.properties.set("u_NormalUVSet", this.normalTexture.texCoord);
         }
 
         if (this.occlusionTexture !== undefined)
@@ -194,18 +193,14 @@ class gltfMaterial extends GltfObject
             this.parseTextureInfoExtensions(this.occlusionTexture, "Occlusion");
             this.textures.push(this.occlusionTexture);
             this.defines.push("HAS_OCCLUSION_MAP 1");
-            this.properties.set("u_OcclusionStrength", this.occlusionTexture.strength);
-            this.properties.set("u_OcclusionUVSet", this.occlusionTexture.texCoord);
         }
 
-        this.properties.set("u_EmissiveFactor", this.emissiveFactor);
         if (this.emissiveTexture !== undefined)
         {
             this.emissiveTexture.samplerName = "u_EmissiveSampler";
             this.parseTextureInfoExtensions(this.emissiveTexture, "Emissive");
             this.textures.push(this.emissiveTexture);
             this.defines.push("HAS_EMISSIVE_MAP 1");
-            this.properties.set("u_EmissiveUVSet", this.emissiveTexture.texCoord);
         }
 
         if (this.pbrMetallicRoughness.baseColorTexture !== undefined)
@@ -214,7 +209,6 @@ class gltfMaterial extends GltfObject
             this.parseTextureInfoExtensions(this.pbrMetallicRoughness.baseColorTexture, "BaseColor");
             this.textures.push(this.pbrMetallicRoughness.baseColorTexture);
             this.defines.push("HAS_BASE_COLOR_MAP 1");
-            this.properties.set("u_BaseColorUVSet", this.pbrMetallicRoughness.baseColorTexture.texCoord);
         }
 
         if (this.pbrMetallicRoughness.metallicRoughnessTexture !== undefined)
@@ -223,7 +217,6 @@ class gltfMaterial extends GltfObject
             this.parseTextureInfoExtensions(this.pbrMetallicRoughness.metallicRoughnessTexture, "MetallicRoughness");
             this.textures.push(this.pbrMetallicRoughness.metallicRoughnessTexture);
             this.defines.push("HAS_METALLIC_ROUGHNESS_MAP 1");
-            this.properties.set("u_MetallicRoughnessUVSet", this.pbrMetallicRoughness.metallicRoughnessTexture.texCoord);
         }
 
         if (this.diffuseTexture !== undefined)
@@ -232,7 +225,6 @@ class gltfMaterial extends GltfObject
             this.parseTextureInfoExtensions(this.diffuseTexture, "Diffuse");
             this.textures.push(this.diffuseTexture);
             this.defines.push("HAS_DIFFUSE_MAP 1");
-            this.properties.set("u_DiffuseUVSet", this.diffuseTexture.texCoord);
         }
 
         if (this.specularGlossinessTexture !== undefined)
@@ -250,7 +242,6 @@ class gltfMaterial extends GltfObject
         if(this.alphaMode === 'MASK') // only set cutoff value for mask material
         {
             this.defines.push("ALPHAMODE ALPHAMODE_MASK");
-            this.properties.set("u_AlphaCutoff", this.alphaCutoff);
         }
         else if (this.alphaMode === 'OPAQUE')
         {
@@ -265,9 +256,6 @@ class gltfMaterial extends GltfObject
         if (this.type !== "SG")
         {
             this.defines.push("MATERIAL_METALLICROUGHNESS 1");
-            this.properties.set("u_BaseColorFactor", this.pbrMetallicRoughness?.baseColorFactor);
-            this.properties.set("u_MetallicFactor", this.pbrMetallicRoughness?.metallicFactor);
-            this.properties.set("u_RoughnessFactor", this.pbrMetallicRoughness?.roughnessFactor);
         }
 
         if (this.extensions !== undefined)

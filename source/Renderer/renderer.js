@@ -473,6 +473,8 @@ class gltfRenderer
             }
         }
 
+        // Update material uniforms
+
         for (let [uniform, val] of material.getProperties().entries())
         {
             if (val instanceof AnimatableProperty) {
@@ -486,6 +488,26 @@ class gltfRenderer
             }
             this.shader.updateUniform(uniform, val, false);
         }
+
+        this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor), false);
+        this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff, false);
+
+        this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale, false);
+        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord, false);
+
+        this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength, false);
+        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord, false);
+
+        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord, false);
+
+        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord, false);
+        
+        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord, false);
+        this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor, false);
+        this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor, false);
+        this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor), false);
+
+        this.shader.updateUniform("u_DiffuseUVSet", material.diffuseTexture?.texCoord, false);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
