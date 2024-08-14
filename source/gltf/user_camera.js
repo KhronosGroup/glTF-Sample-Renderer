@@ -266,7 +266,7 @@ class UserCamera extends gltfCamera
     {
         const maxAxisLength = Math.max(max[0] - min[0], max[1] - min[1]);
         const yfov = this.perspective.yfov;
-        const xfov = this.perspective.yfov * this.perspective.aspectRatio;
+        const xfov = this.perspective.yfov * (this.perspective.aspectRatio ?? 1);
 
         const yZoom = maxAxisLength / 2 / Math.tan(yfov / 2);
         const xZoom = maxAxisLength / 2 / Math.tan(xfov / 2);

@@ -244,17 +244,39 @@ class gltfRenderer
         if (state.cameraIndex === undefined)
         {
             currentCamera = state.userCamera;
+            currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
         }
         else
         {
             currentCamera = state.gltf.cameras[state.cameraIndex];
         }
 
-        currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
-        if(currentCamera.perspective.aspectRatio > 1.0) {
-            currentCamera.orthographic.xmag = currentCamera.orthographic.ymag * currentCamera.perspective.aspectRatio; 
+        let aspectHeight = this.currentHeight;
+        let aspectWidth = this.currentWidth;
+        let aspectOffsetX = 0;
+        let aspectOffsetY = 0;
+        const currentAspectRatio = aspectWidth / aspectHeight;
+        if (currentCamera.type === "perspective") {
+            if (currentCamera.perspective.aspectRatio) {
+                if (currentCamera.perspective.aspectRatio > currentAspectRatio) {
+                    aspectHeight = aspectWidth * 1 / currentCamera.perspective.aspectRatio;
+                } else {
+                    aspectWidth = aspectHeight * currentCamera.perspective.aspectRatio;
+                }
+            }
         } else {
-            currentCamera.orthographic.ymag = currentCamera.orthographic.xmag / currentCamera.perspective.aspectRatio; 
+            const orthoAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
+            if (orthoAspect > currentAspectRatio) {
+                aspectHeight = aspectWidth * 1 / orthoAspect;
+            } else {
+                aspectWidth = aspectHeight * orthoAspect;
+            }
+        }
+        if (aspectHeight < this.currentHeight) {
+            aspectOffsetY = (this.currentHeight - aspectHeight) / 2;
+        }
+        if (aspectWidth < this.currentWidth) {
+            aspectOffsetX = (this.currentWidth - aspectWidth) / 2;
         }
 
         this.projMatrix = currentCamera.getProjectionMatrix();
@@ -317,7 +339,7 @@ class gltfRenderer
 
         // Render to canvas
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        this.webGl.context.viewport(0, 0,  this.currentWidth, this.currentHeight);
+        this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
 
         // Render environment
         const fragDefines = [];

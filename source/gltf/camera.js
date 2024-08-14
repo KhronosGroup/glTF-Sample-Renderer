@@ -235,7 +235,7 @@ class PerspectiveCamera extends GltfObject
     constructor() {
         super();
         this.yfov = 45 * Math.PI / 180;
-        this.aspectRatio = 1.0;
+        this.aspectRatio = undefined;
         this.znear = 0.01;
         this.zfar = Infinity;
     }
