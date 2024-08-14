@@ -119,31 +119,31 @@ class gltfMaterial extends GltfObject
             let scale = mat3.create();
             let translation = mat3.create();
 
-            if (uv.rotation.value() !== undefined)
+            if (uv.rotation !== undefined)
             {
-                const s =  Math.sin(uv.rotation.value());
-                const c =  Math.cos(uv.rotation.value());
+                const s =  Math.sin(uv.rotation);
+                const c =  Math.cos(uv.rotation);
                 rotation = jsToGl([
                     c, -s, 0.0,
                     s, c, 0.0,
                     0.0, 0.0, 1.0]);
             }
 
-            if (uv.scale.value() !== undefined)
+            if (uv.scale !== undefined)
             {
                 scale = jsToGl([
-                    uv.scale.value()[0], 0, 0, 
-                    0, uv.scale.value()[1], 0, 
+                    uv.scale[0], 0, 0, 
+                    0, uv.scale[1], 0, 
                     0, 0, 1
                 ]);
             }
 
-            if (uv.offset.value() !== undefined)
+            if (uv.offset !== undefined)
             {
                 translation = jsToGl([
                     1, 0, 0, 
                     0, 1, 0, 
-                    uv.offset.value()[0], uv.offset.value()[1], 1
+                    uv.offset[0], uv.offset[1], 1
                 ]);
             }
 

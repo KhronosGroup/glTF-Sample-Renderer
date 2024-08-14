@@ -3,7 +3,6 @@
 import { fromKeys, initGlForMembers } from './utils.js';
 import { GL } from '../Renderer/webgl.js';
 import { GltfObject } from './gltf_object.js';
-import { AnimatableProperty } from './animatable_property.js';
 
 class gltfTexture extends GltfObject
 {
@@ -59,16 +58,18 @@ class gltfTexture extends GltfObject
     }
 }
 
-class gltfTextureInfo
+class gltfTextureInfo extends GltfObject
 {
+    static animatedProperties = ["strength", "scale"];
     constructor(index = undefined, texCoord = 0, linear = true, samplerName = "", generateMips = true) // linear by default
     {
+        super();
         this.index = index; // reference to gltfTexture
         this.texCoord = texCoord; // which UV set to use
         this.linear = linear;
         this.samplerName = samplerName;
-        this.strength = new AnimatableProperty(1.0); // occlusion
-        this.scale = new AnimatableProperty(1.0); // normal
+        this.strength = 1.0; // occlusion
+        this.scale = 1.0; // normal
         this.generateMips = generateMips;
 
         this.extensions = undefined;
@@ -83,13 +84,21 @@ class gltfTextureInfo
     {
         fromKeys(this, jsonTextureInfo);
 
-        if (this.extensions?.KHR_texture_transform !== undefined)
+        if (jsonTextureInfo?.extensions?.KHR_texture_transform !== undefined)
         {
-            const uv = this.extensions.KHR_texture_transform;
-            uv.offset = new AnimatableProperty(uv.offset ?? [0, 0]);
-            uv.scale = new AnimatableProperty(uv.scale ?? [1, 1]);
-            uv.rotation = new AnimatableProperty(uv.rotation ?? 0);
+            this.extensions.KHR_texture_transform = new KHR_texture_transform();
+            this.extensions.KHR_texture_transform.fromJson(jsonTextureInfo.extensions.KHR_texture_transform);
         }
+    }
+}
+
+class KHR_texture_transform extends GltfObject {
+    static animatedProperties = ["offset", "scale", "rotation"];
+    constructor() {
+        super();
+        this.offset = [0, 0];
+        this.scale = [1, 1];
+        this.rotation = 0;
     }
 }
 
