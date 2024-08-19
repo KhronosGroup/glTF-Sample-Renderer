@@ -558,11 +558,15 @@ class gltfRenderer
         this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
         this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
 
-        this.properties.set("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
-        this.properties.set("u_SheenColorFactor", material.extensions?.KHR_materials_sheen?.sheenColorFactor);
-        this.properties.set("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
-        this.properties.set("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
+        this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
+        this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
+        this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
         
+        this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", material.extensions?.KHR_materials_specular?.specularColorFactor);
+        this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
+        this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)

@@ -350,26 +350,21 @@ class gltfMaterial extends GltfObject
             {
                 this.hasSpecular = true;
 
-                this.properties.set("u_KHR_materials_specular_specularColorFactor", this.extensions.KHR_materials_specular.specularColorFactor);
-                this.properties.set("u_KHR_materials_specular_specularFactor", this.extensions.KHR_materials_specular.specularFactor);
-
-                if (this.specularTexture !== undefined)
+                if (this.extensions.KHR_materials_specular?.specularTexture !== undefined)
                 {
-                    this.specularTexture.samplerName = "u_SpecularSampler";
-                    this.parseTextureInfoExtensions(this.specularTexture, "Specular");
-                    this.textures.push(this.specularTexture);
+                    this.extensions.KHR_materials_specular.specularTexture.samplerName = "u_SpecularSampler";
+                    this.parseTextureInfoExtensions(this.extensions?.KHR_materials_specular?.specularTexture, "Specular");
+                    this.textures.push(this.extensions?.KHR_materials_specular?.specularTexture);
                     this.defines.push("HAS_SPECULAR_MAP 1");
-                    this.properties.set("u_SpecularUVSet", this.specularTexture.texCoord);
                 }
 
-                if (this.specularColorTexture !== undefined)
+                if (this.extensions.KHR_materials_specular?.specularColorTexture !== undefined)
                 {
-                    this.specularColorTexture.samplerName = "u_SpecularColorSampler";
-                    this.parseTextureInfoExtensions(this.specularColorTexture, "SpecularColor");
-                    this.specularColorTexture.linear = false;
-                    this.textures.push(this.specularColorTexture);
+                    this.extensions.KHR_materials_specular.specularColorTexture.samplerName = "u_SpecularColorSampler";
+                    this.parseTextureInfoExtensions(this.extensions?.KHR_materials_specular.specularColorTexture, "SpecularColor");
+                    this.extensions.KHR_materials_specular.specularColorTexture.linear = false;
+                    this.textures.push(this.extensions.KHR_materials_specular.specularColorTexture);
                     this.defines.push("HAS_SPECULAR_COLOR_MAP 1");
-                    this.properties.set("u_SpecularColorUVSet", this.specularColorTexture.texCoord);
                 }
             }
 
@@ -575,7 +570,8 @@ class gltfMaterial extends GltfObject
 
         if(jsonExtensions.KHR_materials_specular !== undefined)
         {
-            this.fromJsonSpecular(jsonExtensions.KHR_materials_specular);
+            this.extensions.KHR_materials_specular = new KHR_materials_specular();
+            this.extensions.KHR_materials_specular.fromJson(jsonExtensions.KHR_materials_specular);
         }
 
         if(jsonExtensions.KHR_materials_volume !== undefined)
@@ -663,28 +659,6 @@ class gltfMaterial extends GltfObject
             const texture = new gltfTextureInfo();
             texture.fromJson(json.diffuseTransmissionColorTexture);
             this.diffuseTransmissionColorTexture = texture;
-        }
-    }
-
-    fromJsonSpecular(jsonSpecular)
-    {
-        makeAnimatable(this.extensions.KHR_materials_specular, jsonSpecular, {
-            "specularColorFactor": [1, 1, 1],
-            "specularFactor": 1,
-        });
-
-        if(jsonSpecular.specularTexture !== undefined)
-        {
-            const specularTexture = new gltfTextureInfo();
-            specularTexture.fromJson(jsonSpecular.specularTexture);
-            this.specularTexture = specularTexture;
-        }
-
-        if(jsonSpecular.specularColorTexture !== undefined)
-        {
-            const specularColorTexture = new gltfTextureInfo();
-            specularColorTexture.fromJson(jsonSpecular.specularColorTexture);
-            this.specularColorTexture = specularColorTexture;
         }
     }
 
@@ -877,6 +851,35 @@ class KHR_materials_sheen extends GltfObject {
             const sheenRoughnessTexture = new gltfTextureInfo();
             sheenRoughnessTexture.fromJson(jsonSheen.sheenRoughnessTexture);
             this.sheenRoughnessTexture = sheenRoughnessTexture;
+        }
+    }
+}
+
+class KHR_materials_specular extends GltfObject {
+    static animatedProperties = ["specularFactor", "specularColorFactor"];
+    constructor()
+    {
+        super();
+        this.specularFactor = 1;
+        this.specularColorFactor = vec3.fromValues(1, 1, 1);
+        this.specularTexture = undefined;
+        this.specularColorTexture = undefined;
+    }
+
+    fromJson(jsonSpecular) {
+        super.fromJson(jsonSpecular);
+        if(jsonSpecular.specularTexture !== undefined)
+        {
+            const specularTexture = new gltfTextureInfo();
+            specularTexture.fromJson(jsonSpecular.specularTexture);
+            this.specularTexture = specularTexture;
+        }
+
+        if(jsonSpecular.specularColorTexture !== undefined)
+        {
+            const specularColorTexture = new gltfTextureInfo();
+            specularColorTexture.fromJson(jsonSpecular.specularColorTexture);
+            this.specularColorTexture = specularColorTexture;
         }
     }
 }
