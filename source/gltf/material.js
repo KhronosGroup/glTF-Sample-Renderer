@@ -36,7 +36,6 @@ class gltfMaterial extends GltfObject
         this.textures = [];
         this.textureTransforms = [];
         this.defines = [];
-        this.properties = new Map();
     }
 
     static createDefault()
@@ -45,12 +44,6 @@ class gltfMaterial extends GltfObject
         defaultMaterial.type = "MR";
         defaultMaterial.name = "Default Material";
         defaultMaterial.defines.push("MATERIAL_METALLICROUGHNESS 1");
-        const baseColorFactor = vec4.fromValues(1, 1, 1, 1);
-        const metallicFactor = 1;
-        const roughnessFactor = 1;
-        defaultMaterial.properties.set("u_BaseColorFactor", baseColorFactor);
-        defaultMaterial.properties.set("u_MetallicFactor", metallicFactor);
-        defaultMaterial.properties.set("u_RoughnessFactor", roughnessFactor);
 
         return defaultMaterial;
     }
@@ -107,12 +100,7 @@ class gltfMaterial extends GltfObject
         return defines;
     }
 
-    getProperties()
-    {
-        return this.properties;
-    }
-
-    updateTextureTransforms()
+    updateTextureTransforms(shader)
     {
         for (const { key, uv } of this.textureTransforms) {
             let rotation = mat3.create();
@@ -150,7 +138,7 @@ class gltfMaterial extends GltfObject
             let uvMatrix = mat3.create();
             mat3.multiply(uvMatrix, translation, rotation);
             mat3.multiply(uvMatrix, uvMatrix, scale);
-            this.properties.set("u_" + key + "UVTransform", uvMatrix);
+            shader.updateUniform("u_" + key + "UVTransform", jsToGl(uvMatrix));
         }
     }
 

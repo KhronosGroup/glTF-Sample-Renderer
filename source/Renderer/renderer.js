@@ -402,8 +402,6 @@ class gltfRenderer
         this.pushVertParameterDefines(vertDefines, state.renderingParameters, state.gltf, node, primitive);
         vertDefines = primitive.defines.concat(vertDefines);
 
-        material.updateTextureTransforms();
-
         let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
         {
@@ -497,19 +495,7 @@ class gltfRenderer
 
         // Update material uniforms
 
-        for (let [uniform, val] of material.getProperties().entries())
-        {
-            if (val instanceof AnimatableProperty) {
-                val = val.value();
-            }
-            if (val instanceof Array) {
-                val = jsToGl(val);
-            }
-            if (val === undefined) {
-                continue;
-            }
-            this.shader.updateUniform(uniform, val, false);
-        }
+        material.updateTextureTransforms(this.shader);
 
         this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
         this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
