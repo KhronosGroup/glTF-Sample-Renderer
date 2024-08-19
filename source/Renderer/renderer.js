@@ -547,6 +547,8 @@ class gltfRenderer
 
         this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
 
+        this.shader.updateUniform("u_EmissiveStrength", material.extensions?.KHR_materials_emissive_strength?.emissiveStrength);
+
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
         {

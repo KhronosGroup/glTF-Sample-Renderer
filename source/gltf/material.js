@@ -622,7 +622,8 @@ class gltfMaterial extends GltfObject
         
         if(jsonExtensions.KHR_materials_emissive_strength !== undefined)
         {
-            this.fromJsonEmissiveStrength(jsonExtensions.KHR_materials_emissive_strength);
+            this.extensions.KHR_materials_emissive_strength = new KHR_materials_emissive_strength();
+            this.extensions.KHR_materials_emissive_strength.fromJson(jsonExtensions.KHR_materials_emissive_strength);
         }
 
         if(jsonExtensions.KHR_materials_dispersion !== undefined) {
@@ -745,13 +746,6 @@ class gltfMaterial extends GltfObject
         }
     }
 
-    fromJsonEmissiveStrength(json)
-    {
-        makeAnimatable(this.extensions.KHR_materials_emissive_strength, json, {
-            "emissiveStrength": 1,
-        });
-    }
-
     fromJsonIridescence(jsonIridescence)
     {
         makeAnimatable(this.extensions.KHR_materials_iridescence, jsonIridescence, {
@@ -871,6 +865,15 @@ class KHR_materials_dispersion extends GltfObject {
     {
         super();
         this.dispersion = 0;
+    }
+}
+
+class KHR_materials_emissive_strength extends GltfObject {
+    static animatedProperties = ["emissiveStrength"];
+    constructor()
+    {
+        super();
+        this.emissiveStrength = 1.0;
     }
 }
 
