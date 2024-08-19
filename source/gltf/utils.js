@@ -2,6 +2,9 @@ import { glMatrix } from 'gl-matrix';
 import { AnimatableProperty } from './animatable_property.js';
 
 function jsToGl(array) {
+    if (array === undefined) {
+        return undefined;
+    }
     let tensor = new glMatrix.ARRAY_TYPE(array.length);
 
     for (let i = 0; i < array.length; ++i) {
