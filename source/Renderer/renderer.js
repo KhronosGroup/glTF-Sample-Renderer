@@ -538,6 +538,13 @@ class gltfRenderer
         const anisotropy =  vec3.fromValues(Math.cos(rotation ?? 0), Math.sin(rotation ?? 0), factor ?? 0.0);
         this.shader.updateUniform("u_Anisotropy", anisotropy, false);
 
+        this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
+        this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
+        this.shader.updateUniform("u_ClearcoatUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
+
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
         {
