@@ -563,10 +563,13 @@ class gltfRenderer
         this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
         this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
         
-        this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", material.extensions?.KHR_materials_specular?.specularColorFactor);
+        this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", jsToGl(material.extensions?.KHR_materials_specular?.specularColorFactor));
         this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
         this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
         this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
+
+        this.shader.updateUniform("u_TransmissionFactor", material.extensions?.KHR_materials_transmission?.transmissionFactor);
+        this.shader.updateUniform("u_TransmissionUVSet", material.extensions?.KHR_materials_transmission?.transmissionTexture?.texCoord);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)

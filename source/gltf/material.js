@@ -379,15 +379,12 @@ class gltfMaterial extends GltfObject
             {
                 this.hasTransmission = true;
 
-                this.properties.set("u_TransmissionFactor", this.extensions.KHR_materials_transmission.transmissionFactor);
-
-                if (this.transmissionTexture !== undefined)
+                if (this.extensions?.KHR_materials_transmission?.transmissionTexture !== undefined)
                 {
-                    this.transmissionTexture.samplerName = "u_TransmissionSampler";
-                    this.parseTextureInfoExtensions(this.transmissionTexture, "Transmission");
-                    this.textures.push(this.transmissionTexture);
+                    this.extensions.KHR_materials_transmission.transmissionTexture.samplerName = "u_TransmissionSampler";
+                    this.parseTextureInfoExtensions(this.extensions?.KHR_materials_transmission?.transmissionTexture, "Transmission");
+                    this.textures.push(this.extensions?.KHR_materials_transmission?.transmissionTexture);
                     this.defines.push("HAS_TRANSMISSION_MAP 1");
-                    this.properties.set("u_TransmissionUVSet", this.transmissionTexture.texCoord);
                 }
             }
 
@@ -560,7 +557,8 @@ class gltfMaterial extends GltfObject
 
         if(jsonExtensions.KHR_materials_transmission !== undefined)
         {
-            this.fromJsonTransmission(jsonExtensions.KHR_materials_transmission);
+            this.extensions.KHR_materials_transmission = new KHR_materials_transmission();
+            this.extensions.KHR_materials_transmission.fromJson(jsonExtensions.KHR_materials_transmission);
         }
 
         if(jsonExtensions.KHR_materials_diffuse_transmission !== undefined)
@@ -628,20 +626,6 @@ class gltfMaterial extends GltfObject
             const specularGlossinessTexture = new gltfTextureInfo(undefined, 0, false);
             specularGlossinessTexture.fromJson(jsonSpecularGlossiness.specularGlossinessTexture);
             this.specularGlossinessTexture = specularGlossinessTexture;
-        }
-    }
-
-    fromJsonTransmission(jsonTransmission)
-    {
-        makeAnimatable(this.extensions.KHR_materials_transmission, jsonTransmission, {
-            "transmissionFactor": 0,
-        });
-
-        if(jsonTransmission.transmissionTexture !== undefined)
-        {
-            const transmissionTexture = new gltfTextureInfo();
-            transmissionTexture.fromJson(jsonTransmission.transmissionTexture);
-            this.transmissionTexture = transmissionTexture;
         }
     }
 
@@ -880,6 +864,26 @@ class KHR_materials_specular extends GltfObject {
             const specularColorTexture = new gltfTextureInfo();
             specularColorTexture.fromJson(jsonSpecular.specularColorTexture);
             this.specularColorTexture = specularColorTexture;
+        }
+    }
+}
+
+class KHR_materials_transmission extends GltfObject {
+    static animatedProperties = ["transmissionFactor"];
+    constructor()
+    {
+        super();
+        this.transmissionFactor = 0;
+        this.transmissionTexture = undefined;
+    }
+
+    fromJson(jsonTransmission) {
+        super.fromJson(jsonTransmission);
+        if(jsonTransmission.transmissionTexture !== undefined)
+        {
+            const transmissionTexture = new gltfTextureInfo();
+            transmissionTexture.fromJson(jsonTransmission.transmissionTexture);
+            this.transmissionTexture = transmissionTexture;
         }
     }
 }
