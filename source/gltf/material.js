@@ -521,16 +521,7 @@ class gltfMaterial extends GltfObject
             // See https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_dispersion
             if (this.extensions.KHR_materials_dispersion !== undefined)
             {
-                let dispersion = 0.0;
-
                 this.hasDispersion = true;
-
-                if(this.extensions.KHR_materials_dispersion.dispersion !== undefined)
-                {
-                    dispersion = this.extensions.KHR_materials_dispersion.dispersion;
-                }
-
-                this.properties.set("u_Dispersion", dispersion);
             }
         }
 
@@ -632,6 +623,11 @@ class gltfMaterial extends GltfObject
         if(jsonExtensions.KHR_materials_emissive_strength !== undefined)
         {
             this.fromJsonEmissiveStrength(jsonExtensions.KHR_materials_emissive_strength);
+        }
+
+        if(jsonExtensions.KHR_materials_dispersion !== undefined) {
+            this.extensions.KHR_materials_dispersion = new KHR_materials_dispersion();
+            this.extensions.KHR_materials_dispersion.fromJson(jsonExtensions.KHR_materials_dispersion);
         }
     }
 
@@ -866,6 +862,15 @@ class KHR_materials_clearcoat extends GltfObject {
             clearcoatNormalTexture.fromJson(jsonClearcoat.clearcoatNormalTexture);
             this.clearcoatNormalTexture = clearcoatNormalTexture;
         }
+    }
+}
+
+class KHR_materials_dispersion extends GltfObject {
+    static animatedProperties = ["dispersion"];
+    constructor()
+    {
+        super();
+        this.dispersion = 0;
     }
 }
 

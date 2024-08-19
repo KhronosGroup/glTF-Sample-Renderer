@@ -511,32 +511,32 @@ class gltfRenderer
             this.shader.updateUniform(uniform, val, false);
         }
 
-        this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor), false);
-        this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff, false);
+        this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
+        this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
 
-        this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale, false);
-        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord, false);
+        this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale);
+        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord);
 
-        this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength, false);
-        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord, false);
+        this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength);
+        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord);
 
-        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord, false);
+        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord);
 
-        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord, false);
+        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord);
         
-        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord, false);
-        this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor, false);
-        this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor, false);
-        this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor), false);
+        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor);
+        this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
+        this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
 
-        this.shader.updateUniform("u_DiffuseUVSet", material.diffuseTexture?.texCoord, false);
+        this.shader.updateUniform("u_DiffuseUVSet", material.diffuseTexture?.texCoord);
 
-        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord, false);
+        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
 
         const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
         const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
         const anisotropy =  vec3.fromValues(Math.cos(rotation ?? 0), Math.sin(rotation ?? 0), factor ?? 0.0);
-        this.shader.updateUniform("u_Anisotropy", anisotropy, false);
+        this.shader.updateUniform("u_Anisotropy", anisotropy);
 
         this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
         this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
@@ -544,6 +544,8 @@ class gltfRenderer
         this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
         this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
         this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
+
+        this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
