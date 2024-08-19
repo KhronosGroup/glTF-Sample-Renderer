@@ -529,8 +529,6 @@ class gltfRenderer
         this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
         this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
 
-        this.shader.updateUniform("u_DiffuseUVSet", material.diffuseTexture?.texCoord);
-
         this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
 
         const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
@@ -580,6 +578,12 @@ class gltfRenderer
         this.shader.updateUniform("u_DiffuseTransmissionColorFactor", jsToGl(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorFactor));
         this.shader.updateUniform("u_DiffuseTransmissionUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture?.texCoord);
         this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture?.texCoord);
+
+        this.shader.updateUniform("u_DiffuseFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseFactor);
+        this.shader.updateUniform("u_SpecularFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularFactor);
+        this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
+        this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
