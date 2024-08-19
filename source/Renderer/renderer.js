@@ -18,7 +18,6 @@ import animationShader from './shaders/animation.glsl';
 import cubemapVertShader from './shaders/cubemap.vert';
 import cubemapFragShader from './shaders/cubemap.frag';
 import { gltfLight } from '../gltf/light.js';
-import { AnimatableProperty } from '../gltf/animatable_property.js';
 import { jsToGl } from '../gltf/utils.js';
 
 class gltfRenderer
