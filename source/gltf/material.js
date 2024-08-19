@@ -430,17 +430,12 @@ class gltfMaterial extends GltfObject
             {
                 this.hasVolume = true;
 
-                this.properties.set("u_AttenuationColor", this.extensions.KHR_materials_volume.attenuationColor);
-                this.properties.set("u_AttenuationDistance", this.extensions.KHR_materials_volume.attenuationDistance);
-                this.properties.set("u_ThicknessFactor", this.extensions.KHR_materials_volume.thicknessFactor);
-
-                if (this.thicknessTexture !== undefined)
+                if (this.extensions?.KHR_materials_volume?.thicknessTexture !== undefined)
                 {
-                    this.thicknessTexture.samplerName = "u_ThicknessSampler";
-                    this.parseTextureInfoExtensions(this.thicknessTexture, "Thickness");
-                    this.textures.push(this.thicknessTexture);
+                    this.extensions.KHR_materials_volume.thicknessTexture.samplerName = "u_ThicknessSampler";
+                    this.parseTextureInfoExtensions(this.extensions.KHR_materials_volume.thicknessTexture, "Thickness");
+                    this.textures.push(this.extensions.KHR_materials_volume.thicknessTexture);
                     this.defines.push("HAS_THICKNESS_MAP 1");
-                    this.properties.set("u_ThicknessUVSet", this.thicknessTexture.texCoord);
                 }
             }
 
@@ -574,7 +569,8 @@ class gltfMaterial extends GltfObject
 
         if(jsonExtensions.KHR_materials_volume !== undefined)
         {
-            this.fromJsonVolume(jsonExtensions.KHR_materials_volume);
+            this.extensions.KHR_materials_volume = new KHR_materials_volume();
+            this.extensions.KHR_materials_volume.fromJson(jsonExtensions.KHR_materials_volume);
         }
 
         if(jsonExtensions.KHR_materials_iridescence !== undefined)
@@ -643,23 +639,6 @@ class gltfMaterial extends GltfObject
             const texture = new gltfTextureInfo();
             texture.fromJson(json.diffuseTransmissionColorTexture);
             this.diffuseTransmissionColorTexture = texture;
-        }
-    }
-
-    fromJsonVolume(jsonVolume)
-    {
-        makeAnimatable(this.extensions.KHR_materials_volume, jsonVolume, {
-            "thicknessFactor": 0,
-            "attenuationColor": [1, 1, 1],
-            "attenuationDistance": 0,
-
-        });
-
-        if(jsonVolume.thicknessTexture !== undefined)
-        {
-            const thicknessTexture = new gltfTextureInfo();
-            thicknessTexture.fromJson(jsonVolume.thicknessTexture);
-            this.thicknessTexture = thicknessTexture;
         }
     }
 }
@@ -884,6 +863,28 @@ class KHR_materials_transmission extends GltfObject {
             const transmissionTexture = new gltfTextureInfo();
             transmissionTexture.fromJson(jsonTransmission.transmissionTexture);
             this.transmissionTexture = transmissionTexture;
+        }
+    }
+}
+
+class KHR_materials_volume extends GltfObject {
+    static animatedProperties = ["thicknessFactor", "attenuationDistance", "attenuationColor"];
+    constructor()
+    {
+        super();
+        this.thicknessFactor = 0;
+        this.thicknessTexture = undefined;
+        this.attenuationDistance = 0;
+        this.attenuationColor = vec3.fromValues(1, 1, 1);
+    }
+
+    fromJson(jsonVolume) {
+        super.fromJson(jsonVolume);
+        if(jsonVolume.thicknessTexture !== undefined)
+        {
+            const thicknessTexture = new gltfTextureInfo();
+            thicknessTexture.fromJson(jsonVolume.thicknessTexture);
+            this.thicknessTexture = thicknessTexture;
         }
     }
 }
