@@ -382,8 +382,6 @@ class gltfMaterial extends GltfObject
             if (this.extensions.KHR_materials_emissive_strength !== undefined)
             {
                 this.hasEmissiveStrength = true;
-
-                this.properties.set("u_EmissiveStrength", this.extensions.KHR_materials_emissive_strength.emissiveStrength);
             }
 
             // KHR Extension: Transmission
@@ -437,16 +435,7 @@ class gltfMaterial extends GltfObject
             //https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_ior/extensions/2.0/Khronos/KHR_materials_ior
             if (this.extensions.KHR_materials_ior !== undefined)
             {
-                let ior = 1.5;
-
                 this.hasIOR = true;
-                
-                if(this.extensions.KHR_materials_ior.ior !== undefined)
-                {
-                    ior = this.extensions.KHR_materials_ior.ior;
-                }
-
-                this.properties.set("u_Ior", ior);
             }
 
             // KHR Extension: Volume
@@ -629,6 +618,11 @@ class gltfMaterial extends GltfObject
         if(jsonExtensions.KHR_materials_dispersion !== undefined) {
             this.extensions.KHR_materials_dispersion = new KHR_materials_dispersion();
             this.extensions.KHR_materials_dispersion.fromJson(jsonExtensions.KHR_materials_dispersion);
+        }
+
+        if(jsonExtensions.KHR_materials_ior !== undefined) {
+            this.extensions.KHR_materials_ior = new KHR_materials_ior();
+            this.extensions.KHR_materials_ior.fromJson(jsonExtensions.KHR_materials_ior);
         }
     }
 
@@ -874,6 +868,15 @@ class KHR_materials_emissive_strength extends GltfObject {
     {
         super();
         this.emissiveStrength = 1.0;
+    }
+}
+
+class KHR_materials_ior extends GltfObject {
+    static animatedProperties = ["ior"];
+    constructor()
+    {
+        super();
+        this.ior = 1.5;
     }
 }
 
