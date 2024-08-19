@@ -551,6 +551,14 @@ class gltfRenderer
 
         this.shader.updateUniform("u_Ior", material.extensions?.KHR_materials_ior?.ior);
 
+        this.shader.updateUniform("u_IridescenceFactor", material.extensions?.KHR_materials_iridescence?.iridescenceFactor);
+        this.shader.updateUniform("u_IridescenceIor", material.extensions?.KHR_materials_iridescence?.iridescenceIor);
+        this.shader.updateUniform("u_IridescenceThicknessMaximum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMaximum);
+        this.shader.updateUniform("u_IridescenceUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
+
+
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
         {
