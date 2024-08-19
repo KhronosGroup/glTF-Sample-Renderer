@@ -531,7 +531,12 @@ class gltfRenderer
 
         this.shader.updateUniform("u_DiffuseUVSet", material.diffuseTexture?.texCoord, false);
 
-        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions.KHR_materials_anisotropy?.anisotropyTexture?.texCoord, false);
+        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord, false);
+
+        const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
+        const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
+        const anisotropy =  vec3.fromValues(Math.cos(rotation ?? 0), Math.sin(rotation ?? 0), factor ?? 0.0);
+        this.shader.updateUniform("u_Anisotropy", anisotropy, false);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)

@@ -515,18 +515,6 @@ class gltfMaterial extends GltfObject
             {
                 this.hasAnisotropy = true;
 
-                let factor = this.extensions.KHR_materials_anisotropy.anisotropyStrength;
-                let rotation = this.extensions.KHR_materials_anisotropy.anisotropyRotation;
-
-                if (factor === undefined)
-                {
-                    factor = 0.0;
-                }
-                if (rotation === undefined)
-                {
-                    rotation = 0;
-                }
-
                 if (this.anisotropyTexture !== undefined)
                 {
                     this.anisotropyTexture.samplerName = "u_AnisotropySampler";
@@ -534,9 +522,6 @@ class gltfMaterial extends GltfObject
                     this.textures.push(this.anisotropyTexture);
                     this.defines.push("HAS_ANISOTROPY_MAP 1");
                 }
-
-                let anisotropy =  vec3.fromValues(Math.cos(rotation), Math.sin(rotation), factor);
-                this.properties.set("u_Anisotropy", anisotropy);
             }
 
             // KHR Extension: Dispersion
