@@ -15,6 +15,7 @@ import { generateTangents } from '../libs/mikktspace.js';
 
 class gltfPrimitive extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

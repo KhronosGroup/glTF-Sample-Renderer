@@ -3,6 +3,7 @@ import { objectFromJson } from './utils.js';
 
 class gltfAnimationChannel extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();
@@ -19,6 +20,7 @@ class gltfAnimationChannel extends GltfObject
 
 class gltfAnimationTarget extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

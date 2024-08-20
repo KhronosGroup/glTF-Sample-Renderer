@@ -10,6 +10,7 @@ import { gltfSampler } from './sampler.js';
 
 class gltfSkin extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

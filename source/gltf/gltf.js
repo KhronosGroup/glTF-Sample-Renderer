@@ -43,6 +43,7 @@ const allowedExtensions = [
 
 class glTF extends GltfObject
 {
+    static animatedProperties = [];
     constructor(file)
     {
         super();

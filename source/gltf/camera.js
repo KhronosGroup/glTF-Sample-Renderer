@@ -3,6 +3,7 @@ import { GltfObject } from './gltf_object.js';
 
 class gltfCamera extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

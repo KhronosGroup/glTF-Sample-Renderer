@@ -823,6 +823,7 @@ class KHR_materials_volume extends GltfObject {
 class KHR_materials_diffuse_transmission extends GltfObject {
 
     //TODO: define animated properties
+    static animatedProperties = [];
     constructor()
     {
         super();
@@ -851,6 +852,7 @@ class KHR_materials_diffuse_transmission extends GltfObject {
 }
 
 class KHR_materials_pbrSpecularGlossiness extends GltfObject {
+    static animatedProperties = [];
     constructor()
     {
         super();

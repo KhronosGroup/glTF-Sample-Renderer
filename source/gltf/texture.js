@@ -6,6 +6,7 @@ import { GltfObject } from './gltf_object.js';
 
 class gltfTexture extends GltfObject
 {
+    static animatedProperties = [];
     constructor(sampler = undefined, source = undefined, type = GL.TEXTURE_2D)
     {
         super();

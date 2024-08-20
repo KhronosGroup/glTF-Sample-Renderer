@@ -8,6 +8,7 @@ import * as png from 'fast-png';
 
 class gltfImage extends GltfObject
 {
+    static animatedProperties = [];
     constructor(
         uri = undefined,
         type = GL.TEXTURE_2D,

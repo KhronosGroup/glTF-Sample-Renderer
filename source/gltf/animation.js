@@ -8,6 +8,7 @@ import { JsonPointer } from 'json-ptr';
 
 class gltfAnimation extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

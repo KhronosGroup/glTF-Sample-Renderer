@@ -5,6 +5,7 @@ import { GltfObject } from './gltf_object.js';
 
 class gltfAccessor extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

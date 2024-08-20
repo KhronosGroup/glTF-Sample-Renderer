@@ -9,6 +9,10 @@ class GltfObject
         this.extensions = undefined;
         this.extras = undefined;
         this.animatedPropertyObjects = {};
+        if (this.constructor.animatedProperties === undefined)
+        {
+            throw new Error("animatedProperties is not defined for " + this.constructor.name);
+        }
         for (const prop of this.constructor.animatedProperties)
         {
             this.animatedPropertyObjects[prop] = new AnimatableProperty(undefined);
@@ -19,7 +23,7 @@ class GltfObject
         }
     }
     
-    static animatedProperties = [];
+    static animatedProperties = undefined;
 
     fromJson(json)
     {
