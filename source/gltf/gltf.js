@@ -150,7 +150,11 @@ class glTF extends GltfObject
                             property = `/nodes/${channel.target.node}/scale`;
                             break;
                         case "weights":
-                            property = `/meshes/${this.nodes[channel.target.node].mesh}/weights`;
+                            if (this.nodes[channel.target.node].weights !== undefined) {
+                                property = `/nodes/${channel.target.node}/weights`;
+                            } else {
+                                property = `/meshes/${this.nodes[channel.target.node].mesh}/weights`;
+                            }
                             break;
                         case "pointer":
                             property = channel.target.extensions.KHR_animation_pointer.pointer;
