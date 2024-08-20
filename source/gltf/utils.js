@@ -68,7 +68,7 @@ function fromKeys(target, jsonObj, ignore = []) {
         }
 
         let normalizedK = k.replace("^@", "");
-        target[normalizedK] = jsonObj[k];
+        target[normalizedK] = structuredClone(jsonObj[k]);
     }
 }
 

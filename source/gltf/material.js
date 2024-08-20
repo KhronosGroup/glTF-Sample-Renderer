@@ -805,7 +805,7 @@ class KHR_materials_volume extends GltfObject {
         super();
         this.thicknessFactor = 0;
         this.thicknessTexture = undefined;
-        this.attenuationDistance = 0;
+        this.attenuationDistance = 0; // 0 means infinite distance
         this.attenuationColor = vec3.fromValues(1, 1, 1);
     }
 
