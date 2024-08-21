@@ -248,11 +248,43 @@ class UserCamera extends gltfCamera
      * @param {Gltf} gltf 
      * @param {number} sceneIndex 
      */
-    fitViewToScene(gltf, sceneIndex)
+    resetView(gltf, sceneIndex)
     {
+        if(gltf === undefined)
+        {
+            return;
+        }
+
         this.transform = mat4.create();
         this.rotAroundX = 0;
         this.rotAroundY = 0;
+        getSceneExtents(gltf, sceneIndex, this.sceneExtents.min, this.sceneExtents.max);
+        this.fitDistanceToExtents(this.sceneExtents.min, this.sceneExtents.max);
+        this.fitCameraTargetToExtents(this.sceneExtents.min, this.sceneExtents.max);
+
+        this.fitPanSpeedToScene(this.sceneExtents.min, this.sceneExtents.max);
+        this.fitCameraPlanesToExtents(this.sceneExtents.min, this.sceneExtents.max);
+
+    }
+
+    /**
+     * Fit view to updated canvas size without changing rotation if distance is incorrect
+     * @param {Gltf} gltf 
+     * @param {number} sceneIndex 
+     */
+    fitViewToScene(gltf, sceneIndex)
+    {
+        if(gltf === undefined)
+        {
+            return;
+        }
+
+        if(Number.isFinite(this.distance))
+        {
+            return;
+        }
+
+        this.transform = mat4.create();
         getSceneExtents(gltf, sceneIndex, this.sceneExtents.min, this.sceneExtents.max);
         this.fitDistanceToExtents(this.sceneExtents.min, this.sceneExtents.max);
         this.fitCameraTargetToExtents(this.sceneExtents.min, this.sceneExtents.max);
