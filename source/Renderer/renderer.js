@@ -18,6 +18,7 @@ import animationShader from './shaders/animation.glsl';
 import cubemapVertShader from './shaders/cubemap.vert';
 import cubemapFragShader from './shaders/cubemap.frag';
 import { gltfLight } from '../gltf/light.js';
+import { jsToGl } from '../gltf/utils.js';
 
 class gltfRenderer
 {
@@ -242,17 +243,39 @@ class gltfRenderer
         if (state.cameraIndex === undefined)
         {
             currentCamera = state.userCamera;
+            currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
         }
         else
         {
-            currentCamera = state.gltf.cameras[state.cameraIndex].clone();
+            currentCamera = state.gltf.cameras[state.cameraIndex];
         }
 
-        currentCamera.aspectRatio = this.currentWidth / this.currentHeight;
-        if(currentCamera.aspectRatio > 1.0) {
-            currentCamera.xmag = currentCamera.ymag * currentCamera.aspectRatio; 
+        let aspectHeight = this.currentHeight;
+        let aspectWidth = this.currentWidth;
+        let aspectOffsetX = 0;
+        let aspectOffsetY = 0;
+        const currentAspectRatio = aspectWidth / aspectHeight;
+        if (currentCamera.type === "perspective") {
+            if (currentCamera.perspective.aspectRatio) {
+                if (currentCamera.perspective.aspectRatio > currentAspectRatio) {
+                    aspectHeight = aspectWidth * 1 / currentCamera.perspective.aspectRatio;
+                } else {
+                    aspectWidth = aspectHeight * currentCamera.perspective.aspectRatio;
+                }
+            }
         } else {
-            currentCamera.ymag = currentCamera.xmag / currentCamera.aspectRatio; 
+            const orthoAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
+            if (orthoAspect > currentAspectRatio) {
+                aspectHeight = aspectWidth * 1 / orthoAspect;
+            } else {
+                aspectWidth = aspectHeight * orthoAspect;
+            }
+        }
+        if (aspectHeight < this.currentHeight) {
+            aspectOffsetY = (this.currentHeight - aspectHeight) / 2;
+        }
+        if (aspectWidth < this.currentWidth) {
+            aspectOffsetX = (this.currentWidth - aspectWidth) / 2;
         }
 
         this.projMatrix = currentCamera.getProjectionMatrix();
@@ -315,7 +338,7 @@ class gltfRenderer
 
         // Render to canvas
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        this.webGl.context.viewport(0, 0,  this.currentWidth, this.currentHeight);
+        this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
 
         // Render environment
         const fragDefines = [];
@@ -376,17 +399,17 @@ class gltfRenderer
 
         let vertDefines = [];
         this.pushVertParameterDefines(vertDefines, state.renderingParameters, state.gltf, node, primitive);
-        vertDefines = primitive.getDefines().concat(vertDefines);
+        vertDefines = primitive.defines.concat(vertDefines);
 
         let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
-        if(renderpassConfiguration.linearOutput === true)
+        if (renderpassConfiguration.linearOutput)
         {
             fragDefines.push("LINEAR_OUTPUT 1");
         }
         this.pushFragParameterDefines(fragDefines, state);
         
-        const fragmentHash = this.shaderCache.selectShader(material.getShaderIdentifier(), fragDefines);
-        const vertexHash = this.shaderCache.selectShader(primitive.getShaderIdentifier(), vertDefines);
+        const fragmentHash = this.shaderCache.selectShader("pbr.frag", fragDefines);
+        const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
 
         if (fragmentHash && vertexHash)
         {
@@ -469,10 +492,83 @@ class gltfRenderer
             }
         }
 
-        for (let [uniform, val] of material.getProperties().entries())
-        {
-            this.shader.updateUniform(uniform, val, false);
-        }
+        // Update material uniforms
+
+        material.updateTextureTransforms(this.shader);
+
+        this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
+        this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
+
+        this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale);
+        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord);
+
+        this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength);
+        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord);
+
+        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord);
+
+        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord);
+        
+        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor);
+        this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
+        this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
+
+        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
+
+        const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
+        const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
+        const anisotropy =  vec3.fromValues(Math.cos(rotation ?? 0), Math.sin(rotation ?? 0), factor ?? 0.0);
+        this.shader.updateUniform("u_Anisotropy", anisotropy);
+
+        this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
+        this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
+        this.shader.updateUniform("u_ClearcoatUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
+
+        this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
+
+        this.shader.updateUniform("u_EmissiveStrength", material.extensions?.KHR_materials_emissive_strength?.emissiveStrength);
+
+        this.shader.updateUniform("u_Ior", material.extensions?.KHR_materials_ior?.ior);
+
+        this.shader.updateUniform("u_IridescenceFactor", material.extensions?.KHR_materials_iridescence?.iridescenceFactor);
+        this.shader.updateUniform("u_IridescenceIor", material.extensions?.KHR_materials_iridescence?.iridescenceIor);
+        this.shader.updateUniform("u_IridescenceThicknessMaximum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMaximum);
+        this.shader.updateUniform("u_IridescenceUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
+
+        this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
+        this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
+        this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
+        
+        this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", jsToGl(material.extensions?.KHR_materials_specular?.specularColorFactor));
+        this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
+        this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
+
+        this.shader.updateUniform("u_TransmissionFactor", material.extensions?.KHR_materials_transmission?.transmissionFactor);
+        this.shader.updateUniform("u_TransmissionUVSet", material.extensions?.KHR_materials_transmission?.transmissionTexture?.texCoord);
+
+        this.shader.updateUniform("u_AttenuationColor", jsToGl(material.extensions?.KHR_materials_volume?.attenuationColor));
+        this.shader.updateUniform("u_AttenuationDistance", material.extensions?.KHR_materials_volume?.attenuationDistance);
+        this.shader.updateUniform("u_ThicknessFactor", material.extensions?.KHR_materials_volume?.thicknessFactor);
+        this.shader.updateUniform("u_ThicknessUVSet", material.extensions?.KHR_materials_volume?.thicknessTexture?.texCoord);
+
+        this.shader.updateUniform("u_DiffuseTransmissionFactor", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionFactor);
+        this.shader.updateUniform("u_DiffuseTransmissionColorFactor", jsToGl(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorFactor));
+        this.shader.updateUniform("u_DiffuseTransmissionUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture?.texCoord);
+
+        this.shader.updateUniform("u_DiffuseFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseFactor));
+        this.shader.updateUniform("u_SpecularFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularFactor));
+        this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
+        this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
 
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
@@ -592,11 +688,11 @@ class gltfRenderer
         // morphing
         if (parameters.morphing && node.mesh !== undefined && primitive.targets.length > 0)
         {
-            const mesh = gltf.meshes[node.mesh];
-            if (mesh.getWeightsAnimated() !== undefined && mesh.getWeightsAnimated().length > 0)
+            const weights = node.getWeights(gltf);
+            if (weights !== undefined && weights.length > 0)
             {
                 vertDefines.push("USE_MORPHING 1");
-                vertDefines.push("WEIGHT_COUNT " + mesh.getWeightsAnimated().length);
+                vertDefines.push("WEIGHT_COUNT " + weights.length);
             }
         }
     }
@@ -605,11 +701,10 @@ class gltfRenderer
     {
         if (state.renderingParameters.morphing && node.mesh !== undefined && primitive.targets.length > 0)
         {
-            const mesh = state.gltf.meshes[node.mesh];
-            const weightsAnimated = mesh.getWeightsAnimated();
-            if (weightsAnimated !== undefined && weightsAnimated.length > 0)
+            const weights = node.getWeights(state.gltf);
+            if (weights !== undefined && weights.length > 0)
             {
-                this.shader.updateUniformArray("u_morphWeights", weightsAnimated);
+                this.shader.updateUniformArray("u_morphWeights", weights);
             }
         }
     }

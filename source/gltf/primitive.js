@@ -15,6 +15,7 @@ import { generateTangents } from '../libs/mikktspace.js';
 
 class gltfPrimitive extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();
@@ -336,16 +337,6 @@ class gltfPrimitive extends GltfObject
 
             this.centroid = centroid;
         }
-    }
-
-    getShaderIdentifier()
-    {
-        return "primitive.vert";
-    }
-
-    getDefines()
-    {
-        return this.defines;
     }
 
     fromJson(jsonPrimitive)

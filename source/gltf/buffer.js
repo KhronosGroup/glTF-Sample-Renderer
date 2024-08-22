@@ -3,6 +3,7 @@ import { GltfObject } from './gltf_object.js';
 
 class gltfBuffer extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

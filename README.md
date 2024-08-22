@@ -10,7 +10,7 @@ Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-R
 Table of Contents
 -----------------
 
-- [Khronos glTF 2.0 Sample Renderer](#khronos-gltf-20-sample-renderer)
+- [Khronos glTF Sample Renderer](#khronos-gltf-sample-renderer)
   - [Table of Contents](#table-of-contents)
   - [Credits](#credits)
   - [Features](#features)
@@ -30,6 +30,7 @@ Features
 --------
 
 - [x] glTF 2.0
+- [x] [KHR_animation_pointer](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_animation_pointer)
 - [x] [KHR_draco_mesh_compression](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_draco_mesh_compression)
 - [x] [KHR_lights_punctual](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_lights_punctual)
 - [x] [KHR_materials_clearcoat](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_clearcoat)

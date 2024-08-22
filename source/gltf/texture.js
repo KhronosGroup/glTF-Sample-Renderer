@@ -6,6 +6,7 @@ import { GltfObject } from './gltf_object.js';
 
 class gltfTexture extends GltfObject
 {
+    static animatedProperties = [];
     constructor(sampler = undefined, source = undefined, type = GL.TEXTURE_2D)
     {
         super();
@@ -58,10 +59,12 @@ class gltfTexture extends GltfObject
     }
 }
 
-class gltfTextureInfo
+class gltfTextureInfo extends GltfObject
 {
+    static animatedProperties = ["strength", "scale"];
     constructor(index = undefined, texCoord = 0, linear = true, samplerName = "", generateMips = true) // linear by default
     {
+        super();
         this.index = index; // reference to gltfTexture
         this.texCoord = texCoord; // which UV set to use
         this.linear = linear;
@@ -81,6 +84,22 @@ class gltfTextureInfo
     fromJson(jsonTextureInfo)
     {
         fromKeys(this, jsonTextureInfo);
+
+        if (jsonTextureInfo?.extensions?.KHR_texture_transform !== undefined)
+        {
+            this.extensions.KHR_texture_transform = new KHR_texture_transform();
+            this.extensions.KHR_texture_transform.fromJson(jsonTextureInfo.extensions.KHR_texture_transform);
+        }
+    }
+}
+
+class KHR_texture_transform extends GltfObject {
+    static animatedProperties = ["offset", "scale", "rotation"];
+    constructor() {
+        super();
+        this.offset = [0, 0];
+        this.scale = [1, 1];
+        this.rotation = 0;
     }
 }
 

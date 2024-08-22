@@ -42,7 +42,7 @@ class UserCamera extends gltfCamera
      */
     setVerticalFoV(yfov)
     {
-        this.yfov = yfov;
+        this.perspective.yfov = yfov;
     }
 
     /**
@@ -292,8 +292,8 @@ class UserCamera extends gltfCamera
     fitDistanceToExtents(min, max)
     {
         const maxAxisLength = Math.max(max[0] - min[0], max[1] - min[1]);
-        const yfov = this.yfov;
-        const xfov = this.yfov * this.aspectRatio;
+        const yfov = this.perspective.yfov;
+        const xfov = this.perspective.yfov * (this.perspective.aspectRatio ?? 1);
 
         const yZoom = maxAxisLength / 2 / Math.tan(yfov / 2);
         const xZoom = maxAxisLength / 2 / Math.tan(xfov / 2);
@@ -325,8 +325,8 @@ class UserCamera extends gltfCamera
         // minimum near plane value needs to depend on far plane value to avoid z fighting or too large near planes
         zNear = Math.max(zNear, zFar / MaxNearFarRatio);
 
-        this.znear = zNear;
-        this.zfar = zFar;
+        this.perspective.znear = zNear;
+        this.perspective.zfar = zFar;
     }
 }
 

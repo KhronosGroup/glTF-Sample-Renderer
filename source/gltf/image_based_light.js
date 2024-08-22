@@ -6,6 +6,7 @@ import { GL } from "../Renderer/webgl";
 
 class ImageBasedLight extends GltfObject
 {
+    static animatedProperties = [];
     constructor()
     {
         super();

@@ -1,6 +1,9 @@
 import { glMatrix } from 'gl-matrix';
 
 function jsToGl(array) {
+    if (array === undefined) {
+        return undefined;
+    }
     let tensor = new glMatrix.ARRAY_TYPE(array.length);
 
     for (let i = 0; i < array.length; ++i) {
@@ -59,14 +62,13 @@ function objectFromJson(jsonObject, GltfType) {
 }
 
 function fromKeys(target, jsonObj, ignore = []) {
-    for (let k of Object.keys(target)) {
+    for (let k of Object.keys(jsonObj)) {
         if (ignore && ignore.find(function (elem) { return elem == k; }) !== undefined) {
             continue; // skip
         }
-        if (jsonObj[k] !== undefined) {
-            let normalizedK = k.replace("^@", "");
-            target[normalizedK] = jsonObj[k];
-        }
+
+        let normalizedK = k.replace("^@", "");
+        target[normalizedK] = structuredClone(jsonObj[k]);
     }
 }
 

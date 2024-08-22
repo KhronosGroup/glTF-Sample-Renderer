@@ -29,8 +29,9 @@
   "dependencies": {
     "fast-png": "^6.2.0",
     "gl-matrix": "^3.2.1",
-    "globals": "^15.5.0",
-    "jpeg-js": "^0.4.3"
+    "jpeg-js": "^0.4.3",
+    "json-ptr": "^3.1.0",
+    "globals": "^15.5.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^26.0.1",

@@ -3,6 +3,7 @@ import { GL } from '../Renderer/webgl.js';
 
 class gltfSampler extends GltfObject
 {
+    static animatedProperties = [];
     constructor(
         magFilter = GL.LINEAR,
         minFilter = GL.LINEAR_MIPMAP_LINEAR,

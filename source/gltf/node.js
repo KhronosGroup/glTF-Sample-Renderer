@@ -8,6 +8,12 @@ import { GltfObject } from './gltf_object.js';
 
 class gltfNode extends GltfObject
 {
+    static animatedProperties = [
+        "rotation",
+        "scale",
+        "translation",
+        "weights"
+    ];
     constructor()
     {
         super();
@@ -20,43 +26,30 @@ class gltfNode extends GltfObject
         this.name = undefined;
         this.mesh = undefined;
         this.skin = undefined;
+        this.weights = undefined;
 
         // non gltf
         this.worldTransform = mat4.create();
         this.inverseWorldTransform = mat4.create();
         this.normalMatrix = mat4.create();
         this.light = undefined;
-        this.changed = true;
-
-        this.animationRotation = undefined;
-        this.animationTranslation = undefined;
-        this.animationScale = undefined;
     }
 
-    initGl()
+    fromJson(jsonNode) {
+        super.fromJson(jsonNode);
+        if (jsonNode.matrix !== undefined) {
+            this.applyMatrix(jsonNode.matrix);
+        }
+    }
+
+    getWeights(gltf)
     {
-        if (this.matrix !== undefined)
-        {
-            this.applyMatrix(this.matrix);
+        if (this.weights !== undefined && this.weights.length > 0) {
+            return this.weights;
         }
-        else
-        {
-            if (this.scale !== undefined)
-            {
-                this.scale = jsToGl(this.scale);
-            }
-
-            if (this.rotation !== undefined)
-            {
-                this.rotation = jsToGl(this.rotation);
-            }
-
-            if (this.translation !== undefined)
-            {
-                this.translation = jsToGl(this.translation);
-            }
+        else {
+            return gltf.meshes[this.mesh].weights;
         }
-        this.changed = true;
     }
 
     applyMatrix(matrixData)
@@ -77,57 +70,16 @@ class gltfNode extends GltfObject
         quat.normalize(this.rotation, this.rotation);
 
         mat4.getTranslation(this.translation, this.matrix);
-
-        this.changed = true;
-    }
-
-    // vec3
-    applyTranslationAnimation(translation)
-    {
-        this.animationTranslation = translation;
-        this.changed = true;
-    }
-
-    // quat
-    applyRotationAnimation(rotation)
-    {
-        this.animationRotation = rotation;
-        this.changed = true;
-    }
-
-    // vec3
-    applyScaleAnimation(scale)
-    {
-        this.animationScale = scale;
-        this.changed = true;
-    }
-
-    resetTransform()
-    {
-        this.rotation = jsToGl([0, 0, 0, 1]);
-        this.scale = jsToGl([1, 1, 1]);
-        this.translation = jsToGl([0, 0, 0]);
-        this.changed = true;
     }
 
     getLocalTransform()
     {
-        if(this.transform === undefined || this.changed)
-        {
-            // if no animation is applied and the transform matrix is present use it directly
-            if(this.animationTranslation === undefined && this.animationRotation === undefined && this.animationScale === undefined && this.matrix !== undefined) {
-                this.transform = mat4.clone(this.matrix);
-            } else {
-                this.transform = mat4.create();
-                const translation = this.animationTranslation !== undefined ? this.animationTranslation : this.translation;
-                const rotation = this.animationRotation !== undefined ? this.animationRotation : this.rotation;
-                const scale = this.animationScale !== undefined ? this.animationScale : this.scale;
-                mat4.fromRotationTranslationScale(this.transform, rotation, translation, scale);
-            }
-            this.changed = false;
-        }
-
-        return mat4.clone(this.transform);
+        return mat4.fromRotationTranslationScale(
+            mat4.create(),
+            this.rotation,
+            this.translation,
+            this.scale
+        );
     }
 }
 

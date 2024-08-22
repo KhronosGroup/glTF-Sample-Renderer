@@ -1,44 +1,31 @@
 import { mat4, vec3, quat } from 'gl-matrix';
 import { jsToGl, UniformStruct } from './utils.js';
-import { fromKeys } from './utils.js';
 import { GltfObject } from './gltf_object.js';
 
 class gltfLight extends GltfObject
 {
-    constructor(
-        type = "directional",
-        color = [1, 1, 1],
-        intensity = 1,
-        innerConeAngle = 0,
-        outerConeAngle = Math.PI / 4,
-        range = -1,
-        name = undefined)
+    static animatedProperties = ["color", "intensity", "range"];
+    constructor()
     {
         super();
-        this.type = type;
-        this.color = color;
-        this.intensity = intensity;
-        this.innerConeAngle = innerConeAngle;
-        this.outerConeAngle = outerConeAngle;
-        this.range = range;
-        this.name = name;
+        this.name = undefined;
+        this.type = "directional";
+        this.color = [1, 1, 1];
+        this.intensity = 1;
+        this.range = -1;
+        this.spot = new gltfLightSpot();
 
-        //Can be used to overwrite direction from node
+        // Used to override direction from node
         this.direction = undefined;
     }
 
-    initGl(gltf, webGlContext)
+    fromJson(json)
     {
-        super.initGl(gltf, webGlContext);
-    }
-
-    fromJson(jsonLight)
-    {
-        super.fromJson(jsonLight);
-
-        if(jsonLight.spot !== undefined)
+        super.fromJson(json);
+        if (json.spot !== undefined)
         {
-            fromKeys(this, jsonLight.spot);
+            this.spot = new gltfLightSpot();
+            this.spot.fromJson(json.spot);
         }
     }
 
@@ -78,8 +65,8 @@ class gltfLight extends GltfObject
         uLight.color = jsToGl(this.color);
         uLight.intensity = this.intensity;
 
-        uLight.innerConeCos = Math.cos(this.innerConeAngle);
-        uLight.outerConeCos = Math.cos(this.outerConeAngle);
+        uLight.innerConeCos = Math.cos(this.spot.innerConeAngle);
+        uLight.outerConeCos = Math.cos(this.spot.outerConeAngle);
 
         switch(this.type)
         {
@@ -121,6 +108,17 @@ class UniformLight extends UniformStruct
 
         this.outerConeCos = Math.PI / 4;
         this.type = Type_Directional;
+    }
+}
+
+class gltfLightSpot extends GltfObject
+{
+    static animatedProperties = ["innerConeAngle", "outerConeAngle"];
+    constructor()
+    {
+        super();
+        this.innerConeAngle = 0;
+        this.outerConeAngle = Math.PI / 4;
     }
 }
 
