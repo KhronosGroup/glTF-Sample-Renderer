@@ -726,7 +726,7 @@ class KHR_materials_sheen extends GltfObject {
     {
         super();
         this.sheenRoughnessFactor = 0;
-        this.sheenColorFactor = vec3.fromValues(1, 1, 1);
+        this.sheenColorFactor = vec3.fromValues(0, 0, 0);
         this.sheenColorTexture = undefined;
         this.sheenRoughnessTexture = undefined;
     }
