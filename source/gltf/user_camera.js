@@ -279,11 +279,6 @@ class UserCamera extends gltfCamera
             return;
         }
 
-        if(Number.isFinite(this.distance))
-        {
-            return;
-        }
-
         this.transform = mat4.create();
         getSceneExtents(gltf, sceneIndex, this.sceneExtents.min, this.sceneExtents.max);
         this.fitDistanceToExtents(this.sceneExtents.min, this.sceneExtents.max);
