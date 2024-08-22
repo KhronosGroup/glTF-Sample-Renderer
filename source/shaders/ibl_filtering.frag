@@ -22,6 +22,9 @@ uniform  int u_distribution; // enum
 uniform int u_currentFace;
 uniform int u_isGeneratingLUT;
 
+
+uniform  float u_intensityScale;
+
 //layout (location = 0) in vec2 inUV;
 in vec2 texCoord;
 
@@ -302,7 +305,7 @@ vec3 filterColor(vec3 N)
         if(u_distribution == cLambertian)
         {
             // sample lambertian at a lower resolution to avoid fireflies
-            vec3 lambertian = textureLod(uCubeMap, H, lod).rgb;
+            vec3 lambertian = textureLod(uCubeMap, H, lod).rgb * u_intensityScale;
 
             //// the below operations cancel each other out
             // lambertian *= NdotH; // lamberts law
@@ -325,7 +328,7 @@ vec3 filterColor(vec3 N)
                     // without this the roughness=0 lod is too high
                     lod = u_lodBias;
                 }
-                vec3 sampleColor = textureLod(uCubeMap, L, lod).rgb;
+                vec3 sampleColor = textureLod(uCubeMap, L, lod).rgb * u_intensityScale;
                 color += sampleColor * NdotL;
                 weight += NdotL;
             }
@@ -448,7 +451,20 @@ void main()
     {
         color = LUT(texCoord.x, texCoord.y);
     }
-    
-    fragmentColor = vec4(color,1.0);
+ 
+    float maxV = max(max(color.r,color.g),color.b);
+   
+
+    if(maxV > 1.0) 
+    {
+        color /= maxV;
+        fragmentColor.a = max(1.0/maxV, 1.0/255.0);
+    } 
+    else
+    {
+        fragmentColor.a = 1.0;
+    } 
+
+    fragmentColor.rgb = color;
 }
 

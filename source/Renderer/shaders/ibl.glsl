@@ -2,19 +2,26 @@ uniform float u_EnvIntensity;
 
 vec3 getDiffuseLight(vec3 n)
 {
-    return texture(u_LambertianEnvSampler, u_EnvRotation * n).rgb * u_EnvIntensity;
+    vec4 textureSample = texture(u_LambertianEnvSampler, u_EnvRotation * n);
+    return (textureSample.rgb / textureSample.a) * u_EnvIntensity;
 }
 
 
 vec4 getSpecularSample(vec3 reflection, float lod)
 {
-    return textureLod(u_GGXEnvSampler, u_EnvRotation * reflection, lod) * u_EnvIntensity;
+    vec4 textureSample = textureLod(u_GGXEnvSampler, u_EnvRotation * reflection, lod);
+    textureSample.rgb /= textureSample.a;
+    textureSample.rgb *=  u_EnvIntensity;
+    return textureSample;
 }
 
 
 vec4 getSheenSample(vec3 reflection, float lod)
 {
-    return textureLod(u_CharlieEnvSampler, u_EnvRotation * reflection, lod) * u_EnvIntensity;
+    vec4 textureSample =  textureLod(u_CharlieEnvSampler, u_EnvRotation * reflection, lod);
+    textureSample.rgb /= textureSample.a;
+    textureSample.rgb *= u_EnvIntensity;
+    return textureSample;
 }
 
 vec3 getIBLGGXFresnel(vec3 n, vec3 v, float roughness, vec3 F0, float specularWeight)
