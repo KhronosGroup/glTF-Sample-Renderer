@@ -15,8 +15,9 @@ in vec3 v_TexCoords;
 
 void main()
 {
-    vec4 color = textureLod(u_GGXEnvSampler, v_TexCoords, u_EnvBlurNormalized * float(u_MipCount - 1)) * u_EnvIntensity;
-    color.rgb /= color.a;
+    vec4 color = textureLod(u_GGXEnvSampler, v_TexCoords, u_EnvBlurNormalized * float(u_MipCount - 1));
+    color.rgb *= u_EnvIntensity;
+    color.a = 1.0;
 
 #ifdef LINEAR_OUTPUT
     FragColor = color.rgba;

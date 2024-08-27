@@ -55,6 +55,9 @@ class iblSampler
             data:undefined 
         };
 
+        // Reset scaling of hdrs 
+        this.scaleValue = 1.0;
+
         if(this.supportedFormat == "BYTE")
         {
             texture.internalFormat = this.internalFormat();
@@ -63,28 +66,46 @@ class iblSampler
 
             const numPixels = image.dataFloat.length / 3;
 
-            let max_r=0.0;
-            let max_g=0.0;
-            let max_b=0.0;
+            let max_value = 0.0;
+            let clamped_sum = 0.0;
+            let diff_sum = 0.0;
+
             for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
             {
-                max_r=Math.max(image.dataFloat[src+0],max_r)
-                max_g=Math.max(image.dataFloat[src+1],max_g)
-                max_b=Math.max(image.dataFloat[src+2],max_b)
+                let max_component = Math.max(image.dataFloat[src+0], image.dataFloat[src+1], image.dataFloat[src+2]);
+                if(max_component > 1.0) {
+                    diff_sum += max_component-1.0;
+                }
+                clamped_sum += Math.max(max_component, 1.0);
+
+                max_value =  Math.max(max_component, max_value);
             }
 
-            let max_value=Math.max(max_r, max_g, max_b)
+            let scaleFactor = 1.0;  
+            if(clamped_sum > 1.0) {
+                // Apply global scale factor to compensate for intensity lost when clamping
+                scaleFactor = (clamped_sum+diff_sum)/clamped_sum;
+            }
+           
+
+            if(max_value > 1.0){
+                console.warn("Environment light intensity cannot be displayed correctly on this device");
+            }
+
+            // Clamp intensity at 1 for 8 bit precision textures
+            max_value = Math.min(max_value, 1.0); 
             
             texture.data = new Uint8Array(numPixels * 4);
             for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
             {
                 // copy the pixels and pad the alpha channel
-                texture.data[dst+0] = (image.dataFloat[src+0]/max_value)*255;
-                texture.data[dst+1] = (image.dataFloat[src+1]/max_value)*255;
-                texture.data[dst+2] = (image.dataFloat[src+2]/max_value)*255;
+                texture.data[dst+0] = Math.min((image.dataFloat[src+0])*255, 255);
+                texture.data[dst+1] = Math.min((image.dataFloat[src+1])*255, 255);
+                texture.data[dst+2] = Math.min((image.dataFloat[src+2])*255, 255);
                 texture.data[dst+3] = 0;
             }
-            this.scaleValue = max_value;
+
+            this.scaleValue =  scaleFactor;
             return texture;
         }
 
@@ -367,6 +388,11 @@ class iblSampler
             shader.updateUniform("u_distribution", distribution);
             shader.updateUniform("u_currentFace", i);
             shader.updateUniform("u_isGeneratingLUT", 0);
+            if(this.supportedFormat === "BYTE") {
+                shader.updateUniform("u_floatTexture", 0);
+            } else {
+                shader.updateUniform("u_floatTexture", 1);
+            }
             shader.updateUniform("u_intensityScale", this.scaleValue);
 
             //fullscreen triangle

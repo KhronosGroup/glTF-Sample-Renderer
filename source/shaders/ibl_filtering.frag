@@ -22,6 +22,9 @@ uniform  int u_distribution; // enum
 uniform int u_currentFace;
 uniform int u_isGeneratingLUT;
 
+// 0: Byte Target Texture (normalized) 
+// 1: Float Target Texture
+uniform int u_floatTexture; 
 
 uniform  float u_intensityScale;
 
@@ -450,21 +453,20 @@ void main()
     else
     {
         color = LUT(texCoord.x, texCoord.y);
+        fragmentColor.rgb = color;
+        fragmentColor.a = 1.0;
+        return;
     }
  
-    float maxV = max(max(color.r,color.g),color.b);
-   
-
-    if(maxV > 1.0) 
-    {
-        color /= maxV;
-        fragmentColor.a = max(1.0/maxV, 1.0/255.0);
-    } 
-    else
-    {
-        fragmentColor.a = 1.0;
-    } 
-
+    fragmentColor.a = 1.0;
+    
+    if(u_floatTexture == 0) 
+    { 
+        float maxV = max(max(color.r,color.g),color.b);   
+        color /= u_intensityScale;       
+        color = clamp(color, 0.0f, 1.0f);
+    }
+    
     fragmentColor.rgb = color;
 }
 
