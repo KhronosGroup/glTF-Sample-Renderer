@@ -74,8 +74,8 @@ class gltfPrimitive extends GltfObject
             }
         }
 
-        // Generate tangents with Mikktspace which needs normals and texcoords as inputs
-        if (this.attributes.TANGENT === undefined && this.attributes.NORMAL && this.attributes.TEXCOORD_0)
+        // Generate tangents with Mikktspace which needs normals and texcoords as inputs for triangles
+        if (this.attributes.TANGENT === undefined && this.attributes.NORMAL && this.attributes.TEXCOORD_0 && this.mode > 3)
         {
             console.info("Generating tangents using the MikkTSpace algorithm.");
             console.time("Tangent generation");
