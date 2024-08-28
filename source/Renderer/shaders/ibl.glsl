@@ -3,15 +3,15 @@ uniform float u_EnvIntensity;
 vec3 getDiffuseLight(vec3 n)
 {
     vec4 textureSample = texture(u_LambertianEnvSampler, u_EnvRotation * n);
-    return (textureSample.rgb / textureSample.a) * u_EnvIntensity;
+    textureSample.rgb *= u_EnvIntensity;
+    return textureSample.rgb;
 }
 
 
 vec4 getSpecularSample(vec3 reflection, float lod)
 {
     vec4 textureSample = textureLod(u_GGXEnvSampler, u_EnvRotation * reflection, lod);
-    textureSample.rgb /= textureSample.a;
-    textureSample.rgb *=  u_EnvIntensity;
+    textureSample.rgb *= u_EnvIntensity;
     return textureSample;
 }
 
@@ -19,7 +19,6 @@ vec4 getSpecularSample(vec3 reflection, float lod)
 vec4 getSheenSample(vec3 reflection, float lod)
 {
     vec4 textureSample =  textureLod(u_CharlieEnvSampler, u_EnvRotation * reflection, lod);
-    textureSample.rgb /= textureSample.a;
     textureSample.rgb *= u_EnvIntensity;
     return textureSample;
 }

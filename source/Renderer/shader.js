@@ -75,6 +75,9 @@ class gltfShader
     updateUniform(objectName, object, log = false)
     {
         if (object === undefined) {
+            if(log) {
+                console.log("update uniform: object undefined");
+            }
             return;
         }
         if (object instanceof UniformStruct)

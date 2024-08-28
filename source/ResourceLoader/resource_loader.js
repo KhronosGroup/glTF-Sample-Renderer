@@ -376,6 +376,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
     environment.initGl(view.context);
 
     environment.mipCount = environmentFiltering.mipmapLevels;
+    environment.iblIntensityScale = environmentFiltering.scaleValue;
 
     return environment;
 }

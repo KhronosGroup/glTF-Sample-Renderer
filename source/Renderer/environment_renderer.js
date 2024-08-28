@@ -55,7 +55,9 @@ class EnvironmentRenderer
         webGl.setTexture(shader.getUniformLocation("u_GGXEnvSampler"), state.environment, state.environment.specularEnvMap, 0);
         shader.updateUniform("u_MipCount", state.environment.mipCount);
         shader.updateUniform("u_EnvBlurNormalized", state.renderingParameters.blurEnvironmentMap ? 0.6 : 0.0);
-        shader.updateUniform("u_EnvIntensity", state.renderingParameters.iblIntensity);
+
+        const envIntensity = state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
+        shader.updateUniform("u_EnvIntensity", envIntensity, true);
 
         shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
         shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
