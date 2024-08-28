@@ -86,15 +86,11 @@ class iblSampler
                 // Apply global scale factor to compensate for intensity lost when clamping
                 scaleFactor = (clamped_sum+diff_sum)/clamped_sum;
             }
-           
 
             if(max_value > 1.0){
                 console.warn("Environment light intensity cannot be displayed correctly on this device");
             }
-
-            // Clamp intensity at 1 for 8 bit precision textures
-            max_value = Math.min(max_value, 1.0); 
-            
+           
             texture.data = new Uint8Array(numPixels * 4);
             for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
             {
