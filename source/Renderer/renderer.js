@@ -406,6 +406,11 @@ class gltfRenderer
         {
             fragDefines.push("LINEAR_OUTPUT 1");
         }
+
+        //Points or Lines with no NORMAL attribute SHOULD be rendered without lighting and instead use the sum of the base color value and the emissive value.
+        if (primitive.mode < 4 && primitive.attributes?.NORMAL === undefined) { // POINTS, LINES, LINE_LOOP, LINE_STRIP
+            fragDefines.push("NO_TRIANGLE_NO_NORMAL 1");
+        }
         this.pushFragParameterDefines(fragDefines, state);
         
         const fragmentHash = this.shaderCache.selectShader("pbr.frag", fragDefines);

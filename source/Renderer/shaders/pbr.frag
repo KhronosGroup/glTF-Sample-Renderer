@@ -348,6 +348,8 @@ void main()
 
 #ifdef MATERIAL_UNLIT
     color = baseColor.rgb;
+#elif defined(NO_TRIANGLE_NO_NORMAL)
+    color = f_emissive + baseColor.rgb;
 #else
     color = f_emissive * (1.0 - clearcoatFactor * clearcoatFresnel) + color;
 #endif
