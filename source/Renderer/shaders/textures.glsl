@@ -361,7 +361,7 @@ uniform mat3 u_DiffuseTransmissionColorUVTransform;
 vec2 getDiffuseTransmissionUV()
 {
     vec3 uv = vec3(u_DiffuseTransmissionUVSet < 1 ? v_texcoord_0 : v_texcoord_1, 1.0);
-#ifdef HAS_DIFFUSE_TRANSMISSION_UV_TRANSFORM
+#ifdef HAS_DIFFUSETRANSMISSION_UV_TRANSFORM
     uv = u_DiffuseTransmissionUVTransform * uv;
 #endif
     return uv.xy;
@@ -370,7 +370,7 @@ vec2 getDiffuseTransmissionUV()
 vec2 getDiffuseTransmissionColorUV()
 {
     vec3 uv = vec3(u_DiffuseTransmissionColorUVSet < 1 ? v_texcoord_0 : v_texcoord_1, 1.0);
-#ifdef HAS_DIFFUSE_TRANSMISSION_COLOR_UV_TRANSFORM
+#ifdef HAS_DIFFUSETRANSMISSIONCOLOR_UV_TRANSFORM
     uv = u_DiffuseTransmissionColorUVTransform * uv;
 #endif
     return uv.xy;
