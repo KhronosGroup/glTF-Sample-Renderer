@@ -26,8 +26,9 @@ jobs:
       run: npm run build
 
     - run: npm version ${{ github.event.release.tag_name }} --git-tag-version=false
+      if: ${{ github.event.action }} == 'prereleased'
 
-    - name: Publish to NPM
+    - name: Test publishing to NPM
       if: ${{ github.event.action }} == 'prereleased'
       run: npm publish --dry-run
       env:
