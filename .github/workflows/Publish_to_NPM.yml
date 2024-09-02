@@ -28,13 +28,13 @@ jobs:
     - run: npm version ${{ github.event.release.tag_name }} --git-tag-version=false
 
     - name: Test publishing to NPM
-      if: ${{ github.event.action }} == 'prereleased'
+      if: "github.event.release.prerelease"
       run: npm publish --dry-run
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Publish to NPM
-      if: ${{ github.event.action }} == 'released'
+      if: "!github.event.release.prerelease"
       run: npm publish --dry-run
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
