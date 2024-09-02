@@ -25,7 +25,7 @@ jobs:
     - name: Build
       run: npm run build
 
-    - run: npm version ${{ github.event.release.tag_name }}
+    - run: npm version ${{ github.event.release.tag_name }} --git-tag-version=false
 
     - name: Publish to NPM
       if: ${{ github.event.action }} == 'prereleased'
