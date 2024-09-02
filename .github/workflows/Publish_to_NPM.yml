@@ -44,8 +44,11 @@ jobs:
         git add package.json
         git add package-lock.json
         git add API.md
+        git checkout -b release/${{ github.event.release.tag_name }}
         git commit -m "Bump version to ${{ github.event.release.tag_name }}"
         git tag -f ${{ github.event.release.tag_name }}
+        git checkout main
+        git rebase release/${{ github.event.release.tag_name }}
         git push
         git push origin -f ${{ github.event.release.tag_name }}
       env:
