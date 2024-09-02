@@ -40,10 +40,10 @@ jobs:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     
     - name: Bump version in git
-      if: ${{ github.event.action }} == 'released'
       run: |
         git add package.json
         git add package-lock.json
+        git add API.md
         git commit -m "Bump version to ${{ github.event.release.tag_name }}"
         git tag -f ${{ github.event.release.tag_name }}
         git push

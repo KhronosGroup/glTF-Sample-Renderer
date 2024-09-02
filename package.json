@@ -13,7 +13,7 @@
     "build": "rollup -c",
     "watch": "rollup -cw",
     "prepublishOnly": "npm run build && npm run build_docs",
-    "build_docs": "jsdoc2md source/gltf-sample-render.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js > API.md",
+    "build_docs": "jsdoc2md source/gltf-sample-renderer.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js > API.md",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint source/**/*.js",
     "lint:fix": "eslint --fix source/**/*.js"
