@@ -1,0 +1,34 @@
+name: Publish to NPM (Dry run on prerelease)
+
+on:
+  release:
+    types: [prereleased, released]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12
+
+    - run: git config --global user.name "NPM release bot"
+    - run: git config --global user.email "<>"
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build
+      run: npm run build
+
+    - run: npm version ${{ github.event.release.tag_name }}
+
+    - name: Publish to NPM
+      if: ${{ github.event.action }} == 'prereleased'
+      run: npm publish --dry-run
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
