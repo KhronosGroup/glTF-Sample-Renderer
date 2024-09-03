@@ -25,7 +25,7 @@ jobs:
     - name: Build
       run: npm run build
 
-    - run: npm version ${{ github.event.release.tag_name }} --git-tag-version=false
+    - run: npm version ${{ github.event.release.tag_name }} --git-tag-version=false --allow-same-version
 
     - name: Test publishing to NPM
       if: "github.event.release.prerelease"
