@@ -47,7 +47,8 @@ jobs:
         git checkout -b release/${{ github.event.release.tag_name }}
         git commit -m "Bump version to ${{ github.event.release.tag_name }}"
         git tag -f ${{ github.event.release.tag_name }}
-        git checkout main
+        git fetch
+        git switch main
         git rebase release/${{ github.event.release.tag_name }}
         git push
         git push origin -f ${{ github.event.release.tag_name }}
