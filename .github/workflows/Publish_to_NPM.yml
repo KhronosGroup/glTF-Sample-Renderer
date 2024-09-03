@@ -5,7 +5,7 @@ on:
     types: [prereleased, released]
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +45,7 @@ jobs:
         git add package-lock.json
         git add API.md
         git checkout -b release/${{ github.event.release.tag_name }}
-        git commit -m "Bump version to ${{ github.event.release.tag_name }}"
+        git diff-index --quiet HEAD || git commit -m "Bump version to ${{ github.event.release.tag_name }}"
         git tag -f ${{ github.event.release.tag_name }}
         git fetch
         git switch main
