@@ -35,7 +35,7 @@ jobs:
 
     - name: Publish to NPM
       if: "!github.event.release.prerelease"
-      run: npm publish --dry-run
+      run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     
