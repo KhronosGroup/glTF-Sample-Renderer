@@ -136,7 +136,7 @@ class glTF extends GltfObject
                 let isDisjoint = true;
                 for (const iChannel of this.animations[i].channels)
                 {
-                    const getAnimationProperty = function (channel){ 
+                    const getAnimationProperty = function (channel, nodes){ 
                      
                         let property = null;
                         switch(channel.target.path)
@@ -151,10 +151,10 @@ class glTF extends GltfObject
                             property = `/nodes/${channel.target.node}/scale`;
                             break;
                         case "weights":
-                            if (this.nodes[channel.target.node].weights !== undefined) {
+                            if (nodes[channel.target.node].weights !== undefined) {
                                 property = `/nodes/${channel.target.node}/weights`;
                             } else {
-                                property = `/meshes/${this.nodes[channel.target.node].mesh}/weights`;
+                                property = `/meshes/${nodes[channel.target.node].mesh}/weights`;
                             }
                             break;
                         case "pointer":
@@ -163,10 +163,10 @@ class glTF extends GltfObject
                         }
                         return property;
                     };
-                    const iProperty = getAnimationProperty(iChannel);
+                    const iProperty = getAnimationProperty(iChannel, this.nodes);
                     for (const kChannel of this.animations[k].channels)
                     {
-                        const kProperty = getAnimationProperty(kChannel);
+                        const kProperty = getAnimationProperty(kChannel, this.nodes);
                         if (iProperty === kProperty)
                         {
                             isDisjoint = false;
