@@ -406,6 +406,14 @@ class gltfRenderer
         {
             fragDefines.push("LINEAR_OUTPUT 1");
         }
+        // POINTS, LINES, LINE_LOOP, LINE_STRIP
+        if (primitive.mode < 4) {
+            fragDefines.push("NOT_TRIANGLE 1");
+            if (primitive.attributes?.NORMAL !== undefined && primitive.attributes?.TANGENT === undefined) {
+                //Points or Lines with NORMAL but without TANGENT attributes SHOULD be rendered with standard lighting but ignoring any normal textures on the material.
+                fragDefines = fragDefines.filter(e => e !== "HAS_NORMAL_MAP 1" && e !== "HAS_CLEARCOAT_NORMAL_MAP 1");
+            }
+        }
         this.pushFragParameterDefines(fragDefines, state);
         
         const fragmentHash = this.shaderCache.selectShader("pbr.frag", fragDefines);
