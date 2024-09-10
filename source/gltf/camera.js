@@ -79,7 +79,7 @@ class gltfCamera extends GltfObject
             .sort((a, b) => a.depth - b.depth);
     }
 
-    getProjectionMatrix()
+    getProjectionMatrix(aspectRatio)
     {
         const projection = mat4.create();
 
@@ -88,7 +88,7 @@ class gltfCamera extends GltfObject
             mat4.perspective(
                 projection,
                 this.perspective.yfov,
-                this.perspective.aspectRatio,
+                this.perspective.aspectRatio ?? aspectRatio,
                 this.perspective.znear,
                 this.perspective.zfar
             );

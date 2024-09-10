@@ -278,7 +278,7 @@ class gltfRenderer
             aspectOffsetX = (this.currentWidth - aspectWidth) / 2;
         }
 
-        this.projMatrix = currentCamera.getProjectionMatrix();
+        this.projMatrix = currentCamera.getProjectionMatrix(currentAspectRatio);
         this.viewMatrix = currentCamera.getViewMatrix(state.gltf);
         this.currentCameraPosition = currentCamera.getPosition(state.gltf);
 
