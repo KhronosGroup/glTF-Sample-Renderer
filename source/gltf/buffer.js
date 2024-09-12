@@ -27,16 +27,31 @@ class gltfBuffer extends GltfObject
         return new Promise(function(resolve)
         {
             if (!self.setBufferFromFiles(additionalFiles, resolve) &&
-                !self.setBufferFromUri(gltf, resolve))
+                !self.setBufferFromUri(gltf, resolve) &&
+                !self.setBufferFromBase64(resolve))
             {
                 resolve();
             }
         });
     }
 
+    setBufferFromBase64(callback)
+    {
+        if (this.uri === undefined || !this.uri.startsWith("data:"))
+        {
+            return false;
+        }
+
+        const base64 = this.uri.split(",")[1];
+        const binString = atob(base64);
+        this.buffer = Uint8Array.from(binString, (ch) => ch.charCodeAt(0)).buffer;
+        callback();
+        return true;
+    }
+
     setBufferFromUri(gltf, callback)
     {
-        if (this.uri === undefined)
+        if (this.uri === undefined || this.uri.startsWith("data:"))
         {
             return false;
         }
