@@ -147,25 +147,25 @@ class gltfImage extends GltfObject
         {
             return false;
         }
+        const parts = this.uri.split(",");
         if (this.mimeType === undefined)
         {
-            const mimeType = this.uri.match(/^data:(.*?);/);
-            switch (mimeType[0]) {
-            case "data:image/jpeg;":
+            switch (parts[0]) {
+            case "data:image/jpeg;base64":
                 this.mimeType = ImageMimeType.JPEG;
                 break;
-            case "data:image/png;":
+            case "data:image/png;base64":
                 this.mimeType = ImageMimeType.PNG;
                 break;
-            case "data:image/webp;":
+            case "data:image/webp;base64":
                 this.mimeType = ImageMimeType.WEBP;
                 break;
-            case "data:image/ktx2;":
+            case "data:image/ktx2;base64":
                 this.mimeType = ImageMimeType.KTX2;
                 break;
             default:
-                console.warn("MimeType not defined");
-                this.mimeType = ImageMimeType.JPEG;
+                console.warn(`Data URI ${parts[0]} not supported`);
+                return false;
             }
         }
         const base64 = this.uri.split(",")[1];
