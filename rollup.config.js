@@ -3,6 +3,7 @@ import glslify from 'rollup-plugin-glslify';
 import resolve from '@rollup/plugin-node-resolve';
 import copy from "rollup-plugin-copy";
 import {wasm} from "@rollup/plugin-wasm";
+import license from "rollup-plugin-license";
 
 
 export default {
@@ -41,5 +42,15 @@ export default {
             ]
         }),
         commonjs(),
+        license({
+            banner: {
+                content: {
+                    file: 'LICENSE_BANNER.txt',
+                }
+            },
+            thirdParty:{
+                includeSelf: false
+            }
+        }),
     ]
 };
