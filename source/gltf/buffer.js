@@ -27,36 +27,21 @@ class gltfBuffer extends GltfObject
         return new Promise(function(resolve)
         {
             if (!self.setBufferFromFiles(additionalFiles, resolve) &&
-                !self.setBufferFromUri(gltf, resolve) &&
-                !self.setBufferFromBase64(resolve))
+                !self.setBufferFromUri(gltf, resolve))
             {
                 resolve();
             }
         });
     }
 
-    setBufferFromBase64(callback)
-    {
-        if (this.uri === undefined || !this.uri.startsWith("data:"))
-        {
-            return false;
-        }
-
-        const base64 = this.uri.split(",")[1];
-        const binString = atob(base64);
-        this.buffer = Uint8Array.from(binString, (ch) => ch.charCodeAt(0)).buffer;
-        callback();
-        return true;
-    }
-
     setBufferFromUri(gltf, callback)
     {
-        if (this.uri === undefined || this.uri.startsWith("data:"))
+        if (this.uri === undefined)
         {
             return false;
         }
-
-        fetch(getContainingFolder(gltf.path) + this.uri)
+        const parentPath = this.uri.startsWith("data:") ? "" : getContainingFolder(gltf.path);
+        fetch(parentPath + this.uri)
             .then(response => response.arrayBuffer())
             .then(buffer => {
                 this.buffer = buffer;

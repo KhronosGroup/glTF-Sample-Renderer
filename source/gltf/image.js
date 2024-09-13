@@ -168,10 +168,9 @@ class gltfImage extends GltfObject
                 return false;
             }
         }
-        const base64 = this.uri.split(",")[1];
-        const binString = atob(base64);
-        const array = Uint8Array.from(binString, (ch) => ch.charCodeAt(0));
-        return await this.setImageFromBytes(gltf, array);
+        const res = await fetch(this.uri);
+        const buffer = await res.arrayBuffer();
+        return await this.setImageFromBytes(gltf, new Uint8Array(buffer));
     }
 
     async setImageFromUri(gltf)
