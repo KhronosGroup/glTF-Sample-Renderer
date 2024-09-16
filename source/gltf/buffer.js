@@ -40,8 +40,8 @@ class gltfBuffer extends GltfObject
         {
             return false;
         }
-
-        fetch(getContainingFolder(gltf.path) + this.uri)
+        const parentPath = this.uri.startsWith("data:") ? "" : getContainingFolder(gltf.path);
+        fetch(parentPath + this.uri)
             .then(response => response.arrayBuffer())
             .then(buffer => {
                 this.buffer = buffer;
