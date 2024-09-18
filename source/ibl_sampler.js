@@ -329,14 +329,20 @@ class iblSampler
 
     init(panoramaImage)
     {
+
         if (this.gl.getExtension("EXT_color_buffer_float") && this.gl.getExtension("OES_texture_float_linear"))
         {
             this.supportedFormat = "FLOAT";  
         } 
+        else if (this.gl.getExtension("EXT_color_buffer_float") || this.gl.getExtension("EXT_color_buffer_half_float"))
+        {
+            console.warn("Using 16 bit-floats for IBL filtering");
+            this.supportedFormat = "HALF_FLOAT";
+        }
         else
         {
-            console.warn("Floating point textures are not supported");
-            this.supportedFormat = "BYTE";
+            console.warn("Using 8 bit-floats for IBL filtering");
+            this.supportedFormat = "BYTE";  
         }
 
         this.inputTextureID = this.loadTextureHDR(panoramaImage);
