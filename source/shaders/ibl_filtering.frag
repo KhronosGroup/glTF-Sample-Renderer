@@ -1,7 +1,7 @@
 //#version 450
 //#extension GL_ARB_separate_shader_objects : enable
 
-precision mediump float;
+precision highp float;
 #define MATH_PI 3.1415926535897932384626433832795
 //#define MATH_INV_PI (1.0 / MATH_PI)
 
