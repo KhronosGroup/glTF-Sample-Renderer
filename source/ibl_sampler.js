@@ -97,7 +97,7 @@ class iblSampler
                 texture.data[dst+0] = Math.min((image.dataFloat[src+0])*255, 255);
                 texture.data[dst+1] = Math.min((image.dataFloat[src+1])*255, 255);
                 texture.data[dst+2] = Math.min((image.dataFloat[src+2])*255, 255);
-                texture.data[dst+3] = 1.0;
+                texture.data[dst+3] = 255;  // unused
             }
 
             this.scaleValue =  scaleFactor;
@@ -118,7 +118,7 @@ class iblSampler
                 texture.data[dst] =  image.dataFloat[src];
                 texture.data[dst+1] = image.dataFloat[src+1];
                 texture.data[dst+2] = image.dataFloat[src+2];
-                texture.data[dst+3] = 1.0;
+                texture.data[dst+3] = 1.0; // unused
             }
             return texture;
         }
@@ -148,7 +148,7 @@ class iblSampler
                 texture.data[dst] = image.dataFloat[src];
                 texture.data[dst+1] = image.dataFloat[src+1];
                 texture.data[dst+2] = image.dataFloat[src+2];
-                texture.data[dst+3] = 1.0;
+                texture.data[dst+3] = 1.0; // unused
             }
             return texture;
         }
@@ -279,12 +279,12 @@ class iblSampler
         } 
         else if (this.gl.getExtension("EXT_color_buffer_float") || this.gl.getExtension("EXT_color_buffer_half_float"))
         {
-            console.warn("Using 16 bit-floats for IBL filtering");
+            console.warn("Using 16-bit floats for IBL filtering");
             this.supportedFormat = "HALF_FLOAT";
         }
         else
         {
-            console.warn("Using 8 bit-floats for IBL filtering");
+            console.warn("Using 8-bit floats for IBL filtering");
             this.supportedFormat = "BYTE";  
         }
 
