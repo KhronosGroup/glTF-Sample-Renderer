@@ -45,62 +45,6 @@ class iblSampler
         this.shaderCache = new ShaderCache(shaderSources, view.renderer.webGl);
     }
 
-
-    toHalfFloat(val) 
-    {   
-        /*
-            Source: 
-            https://gamedev.stackexchange.com/questions/17326/conversion-of-a-number-from-single-precision-floating-point-representation-to-a/17410#17410
-                
-            This method is faster than the OpenEXR implementation (very often
-            used, eg. in Ogre), with the additional benefit of rounding, inspired
-            by James Tursa's half-precision code. 
-        */
-        var floatView = new Float32Array(1);
-        floatView[0] = val;
-        var int32View = new Int32Array(floatView.buffer);
-        var x = int32View[0];
-
-        var bits = (x >> 16) & 0x8000; /* Get the sign */
-        var m = (x >> 12) & 0x07ff; /* Keep one extra bit for rounding */
-        var e = (x >> 23) & 0xff; /* Using int is faster here */
-
-        /* If zero, or denormal, or exponent underflows too much for a denormal
-        * half, return signed zero. */
-        if (e < 103) 
-        {
-            return bits;
-        }
-
-        /* If NaN, return NaN. If Inf or exponent overflow, return Inf. */
-        if (e > 142) 
-        {
-            bits |= 0x7c00;
-            /* If exponent was 0xff and one mantissa bit was set, it means NaN,
-                    * not Inf, so make sure we set one mantissa bit too. */
-            bits |= ((e == 255) ? 0 : 1) && (x & 0x007fffff);
-            return bits;
-        }
-
-        /* If exponent underflows but not too much, return a denormal */
-        if (e < 113) 
-        {
-            m |= 0x0800;
-            /* Extra rounding may overflow and set mantissa to 0 and exponent
-                * to 1, which is OK. */
-            bits |= (m >> (114 - e)) + ((m >> (113 - e)) & 1);
-            return bits;
-        }
-
-        bits |= ((e - 112) << 10) | (m >> 1);
-        /* Extra rounding. An overflow will set mantissa to 0 and increment
-        * the exponent, which is OK. */
-        bits += m & 1;
-        return bits;
-    }
-      
-
-    
     prepareTextureData(image)
     {
         let texture =  {
@@ -117,7 +61,7 @@ class iblSampler
         {
             texture.internalFormat = this.internalFormat();
             texture.format = this.gl.RGBA;
-            texture.type = this.type();
+            texture.type = this.gl.UNSIGNED_BYTE;
 
             const numPixels = image.dataFloat.length / 3;
 
@@ -153,7 +97,7 @@ class iblSampler
                 texture.data[dst+0] = Math.min((image.dataFloat[src+0])*255, 255);
                 texture.data[dst+1] = Math.min((image.dataFloat[src+1])*255, 255);
                 texture.data[dst+2] = Math.min((image.dataFloat[src+2])*255, 255);
-                texture.data[dst+3] = 0;
+                texture.data[dst+3] = 1.0;
             }
 
             this.scaleValue =  scaleFactor;
@@ -164,17 +108,17 @@ class iblSampler
         {
             texture.internalFormat = this.internalFormat();
             texture.format = this.gl.RGBA;
-            texture.type = this.type();
+            texture.type = this.gl.FLOAT;
 
             const numPixels = image.dataFloat.length / 3;
-            texture.data = new Uint16Array(numPixels * 4);
+            texture.data = new Float32Array(numPixels * 4);
             for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
             {
-                // convert 32 bit float  to half float and pad the alpha channel
-                texture.data[dst] =  this.toHalfFloat(image.dataFloat[src]);
-                texture.data[dst+1] =  this.toHalfFloat(image.dataFloat[src+1]);
-                texture.data[dst+2] =  this.toHalfFloat(image.dataFloat[src+2]);
-                texture.data[dst+3] = 0;
+                // pad the alpha channel
+                texture.data[dst] =  image.dataFloat[src];
+                texture.data[dst+1] = image.dataFloat[src+1];
+                texture.data[dst+2] = image.dataFloat[src+2];
+                texture.data[dst+3] = 1.0;
             }
             return texture;
         }
@@ -204,14 +148,14 @@ class iblSampler
                 texture.data[dst] = image.dataFloat[src];
                 texture.data[dst+1] = image.dataFloat[src+1];
                 texture.data[dst+2] = image.dataFloat[src+2];
-                texture.data[dst+3] = 0;
+                texture.data[dst+3] = 1.0;
             }
             return texture;
         }
 
         if (typeof(Image) !== 'undefined' && image instanceof Image)
         {
-            texture.internalFormat = this.gl.RGBA;
+            texture.internalFormat = this.gl.RGBA8;
             texture.format = this.gl.RGBA;
             texture.type = this.gl.UNSIGNED_BYTE;
             texture.data = image;
@@ -219,7 +163,6 @@ class iblSampler
         }
 
         console.error("loadTextureHDR failed, unsupported HDR image");
-
 
     }
 
@@ -231,14 +174,14 @@ class iblSampler
         this.gl.bindTexture(this.gl.TEXTURE_2D, textureID);      
 
         this.gl.texImage2D(
-            this.gl.TEXTURE_2D,
-            0,
-            texture.internalFormat,
+            this.gl.TEXTURE_2D, // target
+            0, // level
+            texture.internalFormat, 
             image.width,
             image.height,
-            0,
-            texture.format,
-            texture.type,
+            0, // border
+            texture.format, // format of the pixel data
+            texture.type, // type of the pixel data
             texture.data
         );
 
@@ -258,7 +201,7 @@ class iblSampler
         return this.gl.RGBA8; // Fallback
     }
 
-    type()
+    textureTargetType()
     {
         if(this.supportedFormat == "FLOAT") return  this.gl.FLOAT;
         if(this.supportedFormat == "HALF_FLOAT") return  this.gl.HALF_FLOAT;
@@ -281,7 +224,7 @@ class iblSampler
                 this.textureSize,
                 0,
                 this.gl.RGBA,
-                this.type(),
+                this.textureTargetType(),
                 null
             );
         }
@@ -315,7 +258,7 @@ class iblSampler
             this.lutResolution,
             0,
             this.gl.RGBA,
-            this.type(),
+            this.textureTargetType(),
             null
         );
 
