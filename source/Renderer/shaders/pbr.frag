@@ -161,7 +161,8 @@ void main()
 #endif
 
     // Calculate lighting contribution from image based lighting source (IBL)
-#ifdef USE_IBL
+
+#if defined(USE_IBL) || defined(MATERIAL_TRANSMISSION)
 
     f_diffuse = getDiffuseLight(n) * baseColor.rgb ;
 
