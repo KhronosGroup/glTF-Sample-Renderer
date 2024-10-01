@@ -607,18 +607,18 @@ class gltfRenderer
         }
 
         let textureCount = textureIndex;
-        if (state.renderingParameters.useIBL && state.environment !== undefined)
-        {
-            textureCount = this.applyEnvironmentMap(state, textureCount);
-        }
+
+        textureCount = this.applyEnvironmentMap(state, textureCount);
+
 
         if (state.environment !== undefined)
         {
             this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
         }
 
-        if(transmissionSampleTexture !== undefined && state.renderingParameters.useIBL
-                    && state.environment && state.renderingParameters.enabledExtensions.KHR_materials_transmission)
+        if(transmissionSampleTexture !== undefined &&
+            state.environment &&
+            state.renderingParameters.enabledExtensions.KHR_materials_transmission)
         {
             this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
             this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.opaqueRenderTexture);
@@ -845,7 +845,12 @@ class gltfRenderer
         mat3.fromMat4(rotMatrix3, rotMatrix4);
         this.shader.updateUniform("u_EnvRotation", rotMatrix3);
 
-        const envIntensity = state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
+        let envIntensity = state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
+
+        if(state.renderingParameters.useIBL === false) {
+            envIntensity = 0.0;
+        }
+
         this.shader.updateUniform("u_EnvIntensity", envIntensity);
 
         return texSlotOffset;
