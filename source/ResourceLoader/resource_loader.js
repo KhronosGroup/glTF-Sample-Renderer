@@ -86,8 +86,12 @@ class ResourceLoader
             }
         }
         else
-        {
-            console.error("Passed invalid type to loadGltf " + typeof (gltfFile));
+        {   
+            // Load empty glTF
+            data = "{\"asset\":{\"version\": \"2.0\"}}";
+            filename = "empty";
+            isGlb = false;
+            json = JSON.parse(data);
         }
 
         if (isGlb)
