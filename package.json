@@ -7,7 +7,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KhronosGroup/glTF-Sample-Render.git"
+    "url": "git+https://github.com/KhronosGroup/glTF-Sample-Renderer.git"
   },
   "scripts": {
     "build": "rollup -c",
@@ -46,7 +46,7 @@
     "serve": "^14.2.3"
   },
   "bugs": {
-    "url": "https://github.com/KhronosGroup/glTF-Sample-Render/issues"
+    "url": "https://github.com/KhronosGroup/glTF-Sample-Renderer/issues"
   },
-  "homepage": "https://github.com/KhronosGroup/glTF-Sample-Render/#readme"
+  "homepage": "https://github.com/KhronosGroup/glTF-Sample-Renderer/#readme"
 }
