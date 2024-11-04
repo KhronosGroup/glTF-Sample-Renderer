@@ -439,10 +439,6 @@ class gltfRenderer
         }
 
         let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
-        if (renderpassConfiguration.linearOutput)
-        {
-            fragDefines.push("LINEAR_OUTPUT 1");
-        }
 
         // POINTS, LINES, LINE_LOOP, LINE_STRIP
         if (primitive.mode < 4) {
