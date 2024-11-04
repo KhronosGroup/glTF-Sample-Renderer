@@ -84,7 +84,8 @@ class gltfRenderer
         this.lightFill.direction = vec3.create();
         vec3.transformQuat(this.lightKey.direction, [0, 0, -1], quatKey);
         vec3.transformQuat(this.lightFill.direction, [0, 0, -1], quatFill);
-
+        
+        this.maxVertAttributes = undefined;
         this.instanceBuffer = undefined;
     }
 
@@ -151,6 +152,8 @@ class gltfRenderer
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.opaqueDepthTexture, 0);
             context.viewport(0, 0, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
             context.bindFramebuffer(context.FRAMEBUFFER, null);
+
+            this.maxVertAttributes = context.getParameter(context.MAX_VERTEX_ATTRIBS);
 
             this.initialized = true;
 
@@ -225,7 +228,7 @@ class gltfRenderer
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
             const winding = Math.sign(mat4.determinant(a.node.worldTransform));
             const id = `${a.node.mesh}_${winding}`;
-            if (a.node.skin || a.primitive.targets.length > 0) {
+            if (a.node.skin || a.primitive.targets.length > 0 || a.primitive.glAttributes.length + 4 > this.maxVertAttributes) {
                 counter++;
                 return id + "_" + counter;
             }

@@ -92,10 +92,7 @@ class gltfPrimitive extends GltfObject
                 console.error("To many vertex attributes for this primitive, skipping " + attribute);
                 break;
             }
-
-            const idx = this.attributes[attribute];
-            this.glAttributes.push({ attribute: attribute, name: "a_" + attribute.toLowerCase(), accessor: idx });
-            this.defines.push(`HAS_${attribute}_${gltf.accessors[idx].type} 1`);
+            let knownAttribute = true;
             switch (attribute)
             {
             case "POSITION":
@@ -129,7 +126,13 @@ class gltfPrimitive extends GltfObject
                 this.hasWeights = true;
                 break;
             default:
+                knownAttribute = false;
                 console.log("Unknown attribute: " + attribute);
+            }
+            if (knownAttribute) {
+                const idx = this.attributes[attribute];
+                this.glAttributes.push({ attribute: attribute, name: "a_" + attribute.toLowerCase(), accessor: idx });
+                this.defines.push(`HAS_${attribute}_${gltf.accessors[idx].type} 1`);
             }
         }
 
