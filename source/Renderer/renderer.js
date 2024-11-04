@@ -85,9 +85,7 @@ class gltfRenderer
         vec3.transformQuat(this.lightKey.direction, [0, 0, -1], quatKey);
         vec3.transformQuat(this.lightFill.direction, [0, 0, -1], quatFill);
 
-        this.previousPrimitive = undefined;
-        this.previousMaterial = undefined;
-        this.firstDraw = true;
+        this.instanceBuffer = undefined;
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -222,6 +220,17 @@ class gltfRenderer
             .filter(({primitive}) => state.gltf.materials[primitive.material].alphaMode !== "BLEND"
                 && (state.gltf.materials[primitive.material].extensions === undefined
                     || state.gltf.materials[primitive.material].extensions.KHR_materials_transmission === undefined));
+        
+        let counter = 0;
+        this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
+            const winding = Math.sign(mat4.determinant(a.node.worldTransform));
+            const id = `${a.node.mesh}_${winding}`;
+            if (a.node.skin || a.primitive.targets.length > 0) {
+                counter++;
+                return id + "_" + counter;
+            }
+            return id;
+        });
 
         // transparent drawables need sorting before they can be drawn
         this.transparentDrawables = drawables
@@ -241,9 +250,6 @@ class gltfRenderer
             this.prepareScene(state, scene);
             this.preparedScene = scene;
         }
-        this.previousMaterial = undefined;
-        this.previousPrimitive = undefined;
-        this.firstDraw = true;
 
         let currentCamera = undefined;
 
@@ -308,6 +314,19 @@ class gltfRenderer
             }
         }
 
+        const instanceWorldTransforms = [];
+        for (const instance of Object.values(this.opaqueDrawables))
+        {  
+            let instanceOffset = undefined;
+            if (instance.length > 1) {
+                instanceOffset = [];
+                for (const iDrawable of instance) {
+                    instanceOffset.push(iDrawable.node.worldTransform);
+                }
+            }
+            instanceWorldTransforms.push(instanceOffset);
+        }
+
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
         if (this.transmissionDrawables.length > 0) {
             // Render transmission sample texture
@@ -317,11 +336,15 @@ class gltfRenderer
             // Render environment for the transmission background
             this.environmentRenderer.drawEnvironmentMap(this.webGl, this.viewProjectionMatrix, state, this.shaderCache, ["LINEAR_OUTPUT 1"]);
 
-            for (const drawable of this.opaqueDrawables)
+            let drawableCounter = 0;
+            for (const instance of Object.values(this.opaqueDrawables))
             {
+                const drawable = instance[0];
                 let renderpassConfiguration = {};
                 renderpassConfiguration.linearOutput = true;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+                const instanceOffset = instanceWorldTransforms[drawableCounter];
+                drawableCounter++;
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, instanceOffset);
             }
 
             this.transparentDrawables = currentCamera.sortPrimitivesByDepth(state.gltf, this.transparentDrawables);
@@ -352,11 +375,15 @@ class gltfRenderer
         this.pushFragParameterDefines(fragDefines, state);
         this.environmentRenderer.drawEnvironmentMap(this.webGl, this.viewProjectionMatrix, state, this.shaderCache, fragDefines);
 
-        for (const drawable of this.opaqueDrawables)
+        let drawableCounter = 0;
+        for (const instance of Object.values(this.opaqueDrawables))
         {  
+            const drawable = instance[0];
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
-            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+            const instanceOffset = instanceWorldTransforms[drawableCounter];
+            drawableCounter++;
+            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
         }
 
         // filter materials with transmission extension
@@ -379,7 +406,7 @@ class gltfRenderer
     }
 
     // vertices with given material
-    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, transmissionSampleTexture)
+    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, transmissionSampleTexture, instanceOffset = undefined)
     {
         if (primitive.skip) return;
 
@@ -402,16 +429,14 @@ class gltfRenderer
             material = state.gltf.materials[primitive.material];
         }
 
-        const sameMaterial = this.previousMaterial === material;
-        const samePrimitive = this.previousPrimitive === primitive;
-        this.previousMaterial = material;
-        this.previousPrimitive = primitive;
-
         //select shader permutation, compile and link program.
 
         let vertDefines = [];
         this.pushVertParameterDefines(vertDefines, state.renderingParameters, state.gltf, node, primitive);
         vertDefines = primitive.defines.concat(vertDefines);
+        if (instanceOffset !== undefined) {
+            vertDefines.push("USE_INSTANCING 1");
+        }
 
         let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
@@ -419,16 +444,15 @@ class gltfRenderer
             fragDefines.push("LINEAR_OUTPUT 1");
         }
 
-        if (!samePrimitive) {
-            // POINTS, LINES, LINE_LOOP, LINE_STRIP
-            if (primitive.mode < 4) {
-                fragDefines.push("NOT_TRIANGLE 1");
-                if (primitive.attributes?.NORMAL !== undefined && primitive.attributes?.TANGENT === undefined) {
-                    //Points or Lines with NORMAL but without TANGENT attributes SHOULD be rendered with standard lighting but ignoring any normal textures on the material.
-                    fragDefines = fragDefines.filter(e => e !== "HAS_NORMAL_MAP 1" && e !== "HAS_CLEARCOAT_NORMAL_MAP 1");
-                }
+        // POINTS, LINES, LINE_LOOP, LINE_STRIP
+        if (primitive.mode < 4) {
+            fragDefines.push("NOT_TRIANGLE 1");
+            if (primitive.attributes?.NORMAL !== undefined && primitive.attributes?.TANGENT === undefined) {
+                //Points or Lines with NORMAL but without TANGENT attributes SHOULD be rendered with standard lighting but ignoring any normal textures on the material.
+                fragDefines = fragDefines.filter(e => e !== "HAS_NORMAL_MAP 1" && e !== "HAS_CLEARCOAT_NORMAL_MAP 1");
             }
         }
+
         this.pushFragParameterDefines(fragDefines, state);
         
         const fragmentHash = this.shaderCache.selectShader("pbr.frag", fragDefines);
@@ -455,10 +479,9 @@ class gltfRenderer
         this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", node.worldTransform);
         this.shader.updateUniform("u_NormalMatrix", node.normalMatrix, false);
-        if (this.firstDraw) {
-            this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
-            this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
-        }
+        this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        
 
         this.updateAnimationUniforms(state, node, primitive);
 
@@ -470,27 +493,27 @@ class gltfRenderer
         {
             this.webGl.context.frontFace(GL.CCW);
         }
-        if (!sameMaterial) {
-            if (material.doubleSided)
-            {
-                this.webGl.context.disable(GL.CULL_FACE);
-            }
-            else
-            {
-                this.webGl.context.enable(GL.CULL_FACE);
-            }
-        
-            if (material.alphaMode === 'BLEND')
-            {
-                this.webGl.context.enable(GL.BLEND);
-                this.webGl.context.blendFuncSeparate(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA, GL.ONE, GL.ONE_MINUS_SRC_ALPHA);
-                this.webGl.context.blendEquation(GL.FUNC_ADD);
-            }
-            else
-            {
-                this.webGl.context.disable(GL.BLEND);
-            }
+
+        if (material.doubleSided)
+        {
+            this.webGl.context.disable(GL.CULL_FACE);
         }
+        else
+        {
+            this.webGl.context.enable(GL.CULL_FACE);
+        }
+    
+        if (material.alphaMode === 'BLEND')
+        {
+            this.webGl.context.enable(GL.BLEND);
+            this.webGl.context.blendFuncSeparate(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA, GL.ONE, GL.ONE_MINUS_SRC_ALPHA);
+            this.webGl.context.blendEquation(GL.FUNC_ADD);
+        }
+        else
+        {
+            this.webGl.context.disable(GL.BLEND);
+        }
+        
 
         const drawIndexed = primitive.indices !== undefined;
         if (drawIndexed)
@@ -518,85 +541,113 @@ class gltfRenderer
             }
         }
 
-        // Update material uniforms
-        if (!sameMaterial) {
-            material.updateTextureTransforms(this.shader);
-    
-            this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
-            this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
-    
-            this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale);
-            this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord);
-    
-            this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength);
-            this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord);
-    
-            this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord);
-    
-            this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord);
+        if (instanceOffset !== undefined) {
+            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+            const location2 = location + 1;
+            const location3 = location2 + 1;
+            const location4 = location3 + 1;
+            if (this.instanceBuffer === undefined) {
+                this.instanceBuffer = this.webGl.context.createBuffer();
+            }
+            this.webGl.context.enableVertexAttribArray(location);
+            this.webGl.context.enableVertexAttribArray(location2);
+            this.webGl.context.enableVertexAttribArray(location3);
+            this.webGl.context.enableVertexAttribArray(location4);
+
+            this.webGl.context.bindBuffer(GL.ARRAY_BUFFER, this.instanceBuffer);
+            const data = new Float32Array(instanceOffset.length * 16);
+            instanceOffset.forEach((element, index) => {
+                data.set(element, 16 * index);
+            });
+            this.webGl.context.bufferData(GL.ARRAY_BUFFER, data, GL.DYNAMIC_DRAW);
+            this.webGl.context.vertexAttribPointer(location, 4, GL.FLOAT, GL.FALSE, 4 * 16, 0);
+            this.webGl.context.vertexAttribPointer(location2, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 4);
+            this.webGl.context.vertexAttribPointer(location3, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 8);
+            this.webGl.context.vertexAttribPointer(location4, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 12);
             
-            this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord);
-            this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor);
-            this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
-            this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
-    
-            this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
-    
-            const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
-            const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
-            const anisotropy =  vec3.fromValues(Math.cos(rotation ?? 0), Math.sin(rotation ?? 0), factor ?? 0.0);
-            this.shader.updateUniform("u_Anisotropy", anisotropy);
-    
-            this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
-            this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
-            this.shader.updateUniform("u_ClearcoatUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatTexture?.texCoord);
-            this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
-            this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
-            this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
-    
-            this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
-    
-            this.shader.updateUniform("u_EmissiveStrength", material.extensions?.KHR_materials_emissive_strength?.emissiveStrength);
-    
-            this.shader.updateUniform("u_Ior", material.extensions?.KHR_materials_ior?.ior);
-    
-            this.shader.updateUniform("u_IridescenceFactor", material.extensions?.KHR_materials_iridescence?.iridescenceFactor);
-            this.shader.updateUniform("u_IridescenceIor", material.extensions?.KHR_materials_iridescence?.iridescenceIor);
-            this.shader.updateUniform("u_IridescenceThicknessMaximum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMaximum);
-            this.shader.updateUniform("u_IridescenceUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceTexture?.texCoord);
-            this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
-            this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
-    
-            this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
-            this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
-            this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
-            this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
-            
-            this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", jsToGl(material.extensions?.KHR_materials_specular?.specularColorFactor));
-            this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
-            this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
-            this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
-    
-            this.shader.updateUniform("u_TransmissionFactor", material.extensions?.KHR_materials_transmission?.transmissionFactor);
-            this.shader.updateUniform("u_TransmissionUVSet", material.extensions?.KHR_materials_transmission?.transmissionTexture?.texCoord);
-    
-            this.shader.updateUniform("u_AttenuationColor", jsToGl(material.extensions?.KHR_materials_volume?.attenuationColor));
-            this.shader.updateUniform("u_AttenuationDistance", material.extensions?.KHR_materials_volume?.attenuationDistance);
-            this.shader.updateUniform("u_ThicknessFactor", material.extensions?.KHR_materials_volume?.thicknessFactor);
-            this.shader.updateUniform("u_ThicknessUVSet", material.extensions?.KHR_materials_volume?.thicknessTexture?.texCoord);
-    
-            this.shader.updateUniform("u_DiffuseTransmissionFactor", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionFactor);
-            this.shader.updateUniform("u_DiffuseTransmissionColorFactor", jsToGl(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorFactor));
-            this.shader.updateUniform("u_DiffuseTransmissionUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture?.texCoord);
-            this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture?.texCoord);
-    
-            this.shader.updateUniform("u_DiffuseFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseFactor));
-            this.shader.updateUniform("u_SpecularFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularFactor));
-            this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
-            this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
-            this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
-        
+            this.webGl.context.vertexAttribDivisor(location, 1);
+            this.webGl.context.vertexAttribDivisor(location2, 1);
+            this.webGl.context.vertexAttribDivisor(location3, 1);
+            this.webGl.context.vertexAttribDivisor(location4, 1);
         }
+
+        // Update material uniforms
+        material.updateTextureTransforms(this.shader);
+
+        this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
+        this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
+
+        this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale);
+        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord);
+
+        this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength);
+        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord);
+
+        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord);
+
+        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord);
+        
+        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor);
+        this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
+        this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
+
+        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
+
+        const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
+        const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
+        const anisotropy =  vec3.fromValues(Math.cos(rotation ?? 0), Math.sin(rotation ?? 0), factor ?? 0.0);
+        this.shader.updateUniform("u_Anisotropy", anisotropy);
+
+        this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
+        this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
+        this.shader.updateUniform("u_ClearcoatUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
+
+        this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
+
+        this.shader.updateUniform("u_EmissiveStrength", material.extensions?.KHR_materials_emissive_strength?.emissiveStrength);
+
+        this.shader.updateUniform("u_Ior", material.extensions?.KHR_materials_ior?.ior);
+
+        this.shader.updateUniform("u_IridescenceFactor", material.extensions?.KHR_materials_iridescence?.iridescenceFactor);
+        this.shader.updateUniform("u_IridescenceIor", material.extensions?.KHR_materials_iridescence?.iridescenceIor);
+        this.shader.updateUniform("u_IridescenceThicknessMaximum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMaximum);
+        this.shader.updateUniform("u_IridescenceUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
+
+        this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
+        this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
+        this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
+        
+        this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", jsToGl(material.extensions?.KHR_materials_specular?.specularColorFactor));
+        this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
+        this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
+
+        this.shader.updateUniform("u_TransmissionFactor", material.extensions?.KHR_materials_transmission?.transmissionFactor);
+        this.shader.updateUniform("u_TransmissionUVSet", material.extensions?.KHR_materials_transmission?.transmissionTexture?.texCoord);
+
+        this.shader.updateUniform("u_AttenuationColor", jsToGl(material.extensions?.KHR_materials_volume?.attenuationColor));
+        this.shader.updateUniform("u_AttenuationDistance", material.extensions?.KHR_materials_volume?.attenuationDistance);
+        this.shader.updateUniform("u_ThicknessFactor", material.extensions?.KHR_materials_volume?.thicknessFactor);
+        this.shader.updateUniform("u_ThicknessUVSet", material.extensions?.KHR_materials_volume?.thicknessTexture?.texCoord);
+
+        this.shader.updateUniform("u_DiffuseTransmissionFactor", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionFactor);
+        this.shader.updateUniform("u_DiffuseTransmissionColorFactor", jsToGl(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorFactor));
+        this.shader.updateUniform("u_DiffuseTransmissionUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture?.texCoord);
+
+        this.shader.updateUniform("u_DiffuseFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseFactor));
+        this.shader.updateUniform("u_SpecularFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularFactor));
+        this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
+        this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
+    
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
         {
@@ -655,11 +706,19 @@ class gltfRenderer
         if (drawIndexed)
         {
             const indexAccessor = state.gltf.accessors[primitive.indices];
-            this.webGl.context.drawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0);
+            if (instanceOffset !== undefined) {
+                this.webGl.context.drawElementsInstanced(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0, instanceOffset.length);
+            } else {
+                this.webGl.context.drawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0);
+            }
         }
         else
         {
-            this.webGl.context.drawArrays(primitive.mode, 0, vertexCount);
+            if (instanceOffset !== undefined) {
+                this.webGl.context.drawArraysInstanced(primitive.mode, 0, vertexCount, instanceOffset.length);
+            } else {
+                this.webGl.context.drawArrays(primitive.mode, 0, vertexCount);
+            }
         }
 
         for (const attribute of primitive.glAttributes)
@@ -671,7 +730,13 @@ class gltfRenderer
             }
             this.webGl.context.disableVertexAttribArray(location);
         }
-        this.firstDraw = false;
+        if (instanceOffset !== undefined) {
+            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+            this.webGl.context.disableVertexAttribArray(location);
+            this.webGl.context.disableVertexAttribArray(location + 1);
+            this.webGl.context.disableVertexAttribArray(location + 2);
+            this.webGl.context.disableVertexAttribArray(location + 3);
+        }
     }
 
     /// Compute a list of lights instantiated by one or more nodes as a list of node-light tuples.
