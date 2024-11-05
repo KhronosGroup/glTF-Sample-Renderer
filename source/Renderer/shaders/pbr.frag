@@ -367,7 +367,11 @@ void main()
     baseColor.a = 1.0;
 #endif
 
+#ifdef LINEAR_OUTPUT
+    g_finalColor = vec4(color.rgb, baseColor.a);
+#else
     g_finalColor = vec4(toneMap(color), baseColor.a);
+#endif
 
 #else
     // In case of missing data for a debug view, render a checkerboard.
