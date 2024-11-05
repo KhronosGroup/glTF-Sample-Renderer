@@ -228,7 +228,12 @@ class gltfRenderer
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
             const winding = Math.sign(mat4.determinant(a.node.worldTransform));
             const id = `${a.node.mesh}_${winding}`;
-            if (a.node.skin || a.primitive.targets.length > 0 || a.primitive.glAttributes.length + 4 > this.maxVertAttributes) {
+            // Disable instancing for skins, morph targets and if the GPU attributes limit is reached.
+            // Additionally we define a new id for each instance of the EXT_mesh_gpu_instancing extension.
+            if (a.node.skin || a.primitive.targets.length > 0 || a.primitive.glAttributes.length + 4 > this.maxVertAttributes || a.node.instanceMatrices) {
+                if (a.node.instanceMatrices && a.primitive.glAttributes.length + 4 > this.maxVertAttributes) {
+                    console.warn(`EXT_mesh_gpu_instancing disabled for mesh ${a.node.mesh} because the GPU vertex attribute limit is reached.`);
+                }
                 counter++;
                 return id + "_" + counter;
             }
@@ -325,6 +330,11 @@ class gltfRenderer
                 instanceOffset = [];
                 for (const iDrawable of instance) {
                     instanceOffset.push(iDrawable.node.worldTransform);
+                }
+            } else if (instance[0].node.instanceMatrices !== undefined) {
+                // Set instance matrices for EXT_mesh_gpu_instancing extension
+                if (instance[0].primitive.glAttributes.length + 4 <= this.maxVertAttributes) {
+                    instanceOffset = instance[0].node.instanceWorldTransforms;
                 }
             }
             instanceWorldTransforms.push(instanceOffset);
