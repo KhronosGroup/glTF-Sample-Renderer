@@ -84,6 +84,9 @@ class gltfRenderer
         this.lightFill.direction = vec3.create();
         vec3.transformQuat(this.lightKey.direction, [0, 0, -1], quatKey);
         vec3.transformQuat(this.lightFill.direction, [0, 0, -1], quatFill);
+        
+        this.maxVertAttributes = undefined;
+        this.instanceBuffer = undefined;
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -149,6 +152,8 @@ class gltfRenderer
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.opaqueDepthTexture, 0);
             context.viewport(0, 0, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
             context.bindFramebuffer(context.FRAMEBUFFER, null);
+
+            this.maxVertAttributes = context.getParameter(context.MAX_VERTEX_ATTRIBS);
 
             this.initialized = true;
 
@@ -218,6 +223,17 @@ class gltfRenderer
             .filter(({primitive}) => state.gltf.materials[primitive.material].alphaMode !== "BLEND"
                 && (state.gltf.materials[primitive.material].extensions === undefined
                     || state.gltf.materials[primitive.material].extensions.KHR_materials_transmission === undefined));
+        
+        let counter = 0;
+        this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
+            const winding = Math.sign(mat4.determinant(a.node.worldTransform));
+            const id = `${a.node.mesh}_${winding}`;
+            if (a.node.skin || a.primitive.targets.length > 0 || a.primitive.glAttributes.length + 4 > this.maxVertAttributes) {
+                counter++;
+                return id + "_" + counter;
+            }
+            return id;
+        });
 
         // transparent drawables need sorting before they can be drawn
         this.transparentDrawables = drawables
@@ -301,6 +317,19 @@ class gltfRenderer
             }
         }
 
+        const instanceWorldTransforms = [];
+        for (const instance of Object.values(this.opaqueDrawables))
+        {  
+            let instanceOffset = undefined;
+            if (instance.length > 1) {
+                instanceOffset = [];
+                for (const iDrawable of instance) {
+                    instanceOffset.push(iDrawable.node.worldTransform);
+                }
+            }
+            instanceWorldTransforms.push(instanceOffset);
+        }
+
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
         if (this.transmissionDrawables.length > 0) {
             // Render transmission sample texture
@@ -310,11 +339,15 @@ class gltfRenderer
             // Render environment for the transmission background
             this.environmentRenderer.drawEnvironmentMap(this.webGl, this.viewProjectionMatrix, state, this.shaderCache, ["LINEAR_OUTPUT 1"]);
 
-            for (const drawable of this.opaqueDrawables)
+            let drawableCounter = 0;
+            for (const instance of Object.values(this.opaqueDrawables))
             {
+                const drawable = instance[0];
                 let renderpassConfiguration = {};
                 renderpassConfiguration.linearOutput = true;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+                const instanceOffset = instanceWorldTransforms[drawableCounter];
+                drawableCounter++;
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, instanceOffset);
             }
 
             this.transparentDrawables = currentCamera.sortPrimitivesByDepth(state.gltf, this.transparentDrawables);
@@ -345,11 +378,15 @@ class gltfRenderer
         this.pushFragParameterDefines(fragDefines, state);
         this.environmentRenderer.drawEnvironmentMap(this.webGl, this.viewProjectionMatrix, state, this.shaderCache, fragDefines);
 
-        for (const drawable of this.opaqueDrawables)
+        let drawableCounter = 0;
+        for (const instance of Object.values(this.opaqueDrawables))
         {  
+            const drawable = instance[0];
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
-            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+            const instanceOffset = instanceWorldTransforms[drawableCounter];
+            drawableCounter++;
+            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
         }
 
         // filter materials with transmission extension
@@ -372,7 +409,7 @@ class gltfRenderer
     }
 
     // vertices with given material
-    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, transmissionSampleTexture)
+    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, transmissionSampleTexture, instanceOffset = undefined)
     {
         if (primitive.skip) return;
 
@@ -400,12 +437,16 @@ class gltfRenderer
         let vertDefines = [];
         this.pushVertParameterDefines(vertDefines, state.renderingParameters, state.gltf, node, primitive);
         vertDefines = primitive.defines.concat(vertDefines);
+        if (instanceOffset !== undefined) {
+            vertDefines.push("USE_INSTANCING 1");
+        }
 
         let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
         {
             fragDefines.push("LINEAR_OUTPUT 1");
         }
+
         // POINTS, LINES, LINE_LOOP, LINE_STRIP
         if (primitive.mode < 4) {
             fragDefines.push("NOT_TRIANGLE 1");
@@ -414,6 +455,7 @@ class gltfRenderer
                 fragDefines = fragDefines.filter(e => e !== "HAS_NORMAL_MAP 1" && e !== "HAS_CLEARCOAT_NORMAL_MAP 1");
             }
         }
+
         this.pushFragParameterDefines(fragDefines, state);
         
         const fragmentHash = this.shaderCache.selectShader("pbr.frag", fragDefines);
@@ -442,6 +484,7 @@ class gltfRenderer
         this.shader.updateUniform("u_NormalMatrix", node.normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        
 
         this.updateAnimationUniforms(state, node, primitive);
 
@@ -462,7 +505,7 @@ class gltfRenderer
         {
             this.webGl.context.enable(GL.CULL_FACE);
         }
-
+    
         if (material.alphaMode === 'BLEND')
         {
             this.webGl.context.enable(GL.BLEND);
@@ -473,6 +516,7 @@ class gltfRenderer
         {
             this.webGl.context.disable(GL.BLEND);
         }
+        
 
         const drawIndexed = primitive.indices !== undefined;
         if (drawIndexed)
@@ -500,8 +544,37 @@ class gltfRenderer
             }
         }
 
-        // Update material uniforms
+        if (instanceOffset !== undefined) {
+            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+            const location2 = location + 1;
+            const location3 = location2 + 1;
+            const location4 = location3 + 1;
+            if (this.instanceBuffer === undefined) {
+                this.instanceBuffer = this.webGl.context.createBuffer();
+            }
+            this.webGl.context.enableVertexAttribArray(location);
+            this.webGl.context.enableVertexAttribArray(location2);
+            this.webGl.context.enableVertexAttribArray(location3);
+            this.webGl.context.enableVertexAttribArray(location4);
 
+            this.webGl.context.bindBuffer(GL.ARRAY_BUFFER, this.instanceBuffer);
+            const data = new Float32Array(instanceOffset.length * 16);
+            instanceOffset.forEach((element, index) => {
+                data.set(element, 16 * index);
+            });
+            this.webGl.context.bufferData(GL.ARRAY_BUFFER, data, GL.DYNAMIC_DRAW);
+            this.webGl.context.vertexAttribPointer(location, 4, GL.FLOAT, GL.FALSE, 4 * 16, 0);
+            this.webGl.context.vertexAttribPointer(location2, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 4);
+            this.webGl.context.vertexAttribPointer(location3, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 8);
+            this.webGl.context.vertexAttribPointer(location4, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 12);
+            
+            this.webGl.context.vertexAttribDivisor(location, 1);
+            this.webGl.context.vertexAttribDivisor(location2, 1);
+            this.webGl.context.vertexAttribDivisor(location3, 1);
+            this.webGl.context.vertexAttribDivisor(location4, 1);
+        }
+
+        // Update material uniforms
         material.updateTextureTransforms(this.shader);
 
         this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
@@ -577,7 +650,7 @@ class gltfRenderer
         this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
         this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
         this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
-
+    
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
         {
@@ -588,6 +661,7 @@ class gltfRenderer
                 continue;
             }
         }
+
 
         // set the morph target texture
         if (primitive.morphTargetTextureInfo !== undefined) 
@@ -635,11 +709,19 @@ class gltfRenderer
         if (drawIndexed)
         {
             const indexAccessor = state.gltf.accessors[primitive.indices];
-            this.webGl.context.drawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0);
+            if (instanceOffset !== undefined) {
+                this.webGl.context.drawElementsInstanced(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0, instanceOffset.length);
+            } else {
+                this.webGl.context.drawElements(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0);
+            }
         }
         else
         {
-            this.webGl.context.drawArrays(primitive.mode, 0, vertexCount);
+            if (instanceOffset !== undefined) {
+                this.webGl.context.drawArraysInstanced(primitive.mode, 0, vertexCount, instanceOffset.length);
+            } else {
+                this.webGl.context.drawArrays(primitive.mode, 0, vertexCount);
+            }
         }
 
         for (const attribute of primitive.glAttributes)
@@ -650,6 +732,17 @@ class gltfRenderer
                 continue; // skip this attribute
             }
             this.webGl.context.disableVertexAttribArray(location);
+        }
+        if (instanceOffset !== undefined) {
+            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+            this.webGl.context.vertexAttribDivisor(location, 0);
+            this.webGl.context.vertexAttribDivisor(location + 1, 0);
+            this.webGl.context.vertexAttribDivisor(location + 2, 0);
+            this.webGl.context.vertexAttribDivisor(location + 3, 0);
+            this.webGl.context.disableVertexAttribArray(location);
+            this.webGl.context.disableVertexAttribArray(location + 1);
+            this.webGl.context.disableVertexAttribArray(location + 2);
+            this.webGl.context.disableVertexAttribArray(location + 3);
         }
     }
 

@@ -43,6 +43,9 @@ in vec4 a_color_0;
 out vec4 v_Color;
 #endif
 
+#ifdef USE_INSTANCING
+in mat4 a_instance_model_matrix;
+#endif
 
 vec4 getPosition()
 {
@@ -100,18 +103,25 @@ vec3 getTangent()
 void main()
 {
     gl_PointSize = 1.0f;
-    vec4 pos = u_ModelMatrix * getPosition();
+#ifdef USE_INSTANCING
+    mat4 modelMatrix = a_instance_model_matrix;
+    mat4 normalMatrix = transpose(inverse(modelMatrix));
+#else
+    mat4 modelMatrix = u_ModelMatrix;
+    mat4 normalMatrix = u_NormalMatrix;
+#endif
+    vec4 pos = modelMatrix * getPosition();
     v_Position = vec3(pos.xyz) / pos.w;
 
 #ifdef HAS_NORMAL_VEC3
 #ifdef HAS_TANGENT_VEC4
     vec3 tangent = getTangent();
-    vec3 normalW = normalize(vec3(u_NormalMatrix * vec4(getNormal(), 0.0)));
-    vec3 tangentW = normalize(vec3(u_ModelMatrix * vec4(tangent, 0.0)));
+    vec3 normalW = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
+    vec3 tangentW = normalize(vec3(modelMatrix * vec4(tangent, 0.0)));
     vec3 bitangentW = cross(normalW, tangentW) * a_tangent.w;
     v_TBN = mat3(tangentW, bitangentW, normalW);
 #else
-    v_Normal = normalize(vec3(u_NormalMatrix * vec4(getNormal(), 0.0)));
+    v_Normal = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
 #endif
 #endif
 
