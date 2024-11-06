@@ -735,6 +735,10 @@ class gltfRenderer
         }
         if (instanceOffset !== undefined) {
             const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+            this.webGl.context.vertexAttribDivisor(location, 0);
+            this.webGl.context.vertexAttribDivisor(location + 1, 0);
+            this.webGl.context.vertexAttribDivisor(location + 2, 0);
+            this.webGl.context.vertexAttribDivisor(location + 3, 0);
             this.webGl.context.disableVertexAttribArray(location);
             this.webGl.context.disableVertexAttribArray(location + 1);
             this.webGl.context.disableVertexAttribArray(location + 2);
