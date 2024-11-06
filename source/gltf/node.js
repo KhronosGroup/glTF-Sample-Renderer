@@ -1,5 +1,5 @@
-import { mat4, quat } from 'gl-matrix';
-import { jsToGl } from './utils.js';
+import { mat4, quat, vec3 } from 'gl-matrix';
+import { jsToGl, jsToGlSlice } from './utils.js';
 import { GltfObject } from './gltf_object.js';
 
 // contain:
@@ -33,6 +33,43 @@ class gltfNode extends GltfObject
         this.inverseWorldTransform = mat4.create();
         this.normalMatrix = mat4.create();
         this.light = undefined;
+        this.instanceMatrices = undefined;
+        this.instanceWorldTransforms = undefined;
+    }
+
+    initGl(gltf, webGlContext)
+    {
+        if (this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined) {
+            const firstAccessor = Object.values(this.extensions?.EXT_mesh_gpu_instancing?.attributes)[0];
+            const count = gltf.accessors[firstAccessor].count;
+            const translationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
+            let translationData = undefined;
+            if (translationAccessor !== undefined) {
+                translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
+            }
+            const rotationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
+            let rotationData = undefined;
+            if (rotationAccessor !== undefined) {
+                rotationData = gltf.accessors[rotationAccessor].getDeinterlacedView(gltf);
+            }
+            const scaleAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
+            let scaleData = undefined;
+            if (scaleAccessor !== undefined) {
+                scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+            }
+            this.instanceMatrices = [];
+            for (let i = 0; i < count; i++) {
+                const translation = translationData ? jsToGlSlice(translationData, i * 3, 3) : vec3.create();
+                const rotation = rotationData ? jsToGlSlice(rotationData, i * 4, 4) : quat.create();
+                const scale = scaleData ? jsToGlSlice(scaleData, i * 3, 3) : vec3.fromValues(1, 1, 1);
+                this.instanceMatrices.push(mat4.fromRotationTranslationScale(
+                    mat4.create(),
+                    rotation,
+                    translation,
+                    scale
+                ));
+            }
+        }
     }
 
     fromJson(jsonNode) {
