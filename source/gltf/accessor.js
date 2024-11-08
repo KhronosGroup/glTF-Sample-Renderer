@@ -141,7 +141,7 @@ class gltfAccessor extends GltfObject
             const arrayLength = this.count * componentCount;
 
             let stride = bufferView.byteStride !== 0 ? bufferView.byteStride : componentCount * componentSize;
-            let dv = new DataView(buffer.buffer, byteOffset, this.count * stride);
+            let dv = new DataView(buffer.buffer, byteOffset, this.count * stride - this.byteOffset);
 
             let func = 'getFloat32';
             switch (this.componentType)
