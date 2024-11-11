@@ -134,14 +134,14 @@ class gltfAccessor extends GltfObject
         {
             const bufferView = gltf.bufferViews[this.bufferView];
             const buffer = gltf.buffers[bufferView.buffer];
-            const byteOffset = this.byteOffset + bufferView.byteOffset;
 
-            const componentSize = this.getComponentSize(this.componentType);
-            const componentCount = this.getComponentCount(this.type);
+            const componentSize = this.getComponentSize(this.componentType); // E.g. GL.FLOAT -> 4
+            const componentCount = this.getComponentCount(this.type); // E.g. Vec3 -> 3
             const arrayLength = this.count * componentCount;
 
             let stride = bufferView.byteStride !== 0 ? bufferView.byteStride : componentCount * componentSize;
-            let dv = new DataView(buffer.buffer, byteOffset, this.count * stride - this.byteOffset);
+
+            let bufferViewData = new DataView(buffer.buffer, bufferView.byteOffset, bufferView.byteLength);
 
             let func = 'getFloat32';
             switch (this.componentType)
@@ -174,9 +174,12 @@ class gltfAccessor extends GltfObject
 
             for(let i = 0; i < arrayLength; ++i)
             {
-                let offset = Math.floor(i/componentCount) * stride + (i % componentCount) * componentSize;
-                this.filteredView[i] = dv[func](offset, true);
+                const vertexIndex = Math.floor(i/componentCount);
+                const componentIndex = (i % componentCount) * componentSize;
+                const offset = vertexIndex * stride + componentIndex + this.byteOffset; // Add Accessor byte offset
+                this.filteredView[i] = bufferViewData[func](offset, true);
             }
+              
         }
         else
         {
