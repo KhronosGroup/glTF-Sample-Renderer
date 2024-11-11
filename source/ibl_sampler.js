@@ -273,13 +273,8 @@ class iblSampler
     init(panoramaImage)
     {
 
-        if (this.gl.getExtension("EXT_color_buffer_float") && this.gl.getExtension("OES_texture_float_linear"))
+        if (this.gl.getExtension("EXT_color_buffer_float") || this.gl.getExtension("EXT_color_buffer_half_float"))
         {
-            this.supportedFormat = "FLOAT";  
-        } 
-        else if (this.gl.getExtension("EXT_color_buffer_float") || this.gl.getExtension("EXT_color_buffer_half_float"))
-        {
-            console.warn("Using 16-bit floats for IBL filtering");
             this.supportedFormat = "HALF_FLOAT";
         }
         else
