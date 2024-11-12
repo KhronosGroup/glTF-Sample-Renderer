@@ -932,6 +932,9 @@ class gltfRenderer
     applyEnvironmentMap(state, texSlotOffset)
     {
         const environment = state.environment;
+        if (environment === undefined) {
+            return texSlotOffset;
+        }
         this.webGl.setTexture(this.shader.getUniformLocation("u_LambertianEnvSampler"), environment, environment.diffuseEnvMap, texSlotOffset++);
 
         this.webGl.setTexture(this.shader.getUniformLocation("u_GGXEnvSampler"), environment, environment.specularEnvMap, texSlotOffset++);
