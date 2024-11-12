@@ -213,8 +213,8 @@ class gltfRenderer
         // and nodes for the transform
         const drawables = this.nodes
             .filter(node => node.mesh !== undefined)
-            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( primitive => {
-                return  {node: node, primitive: primitive};
+            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( (primitive, index) => {
+                return  {node: node, primitive: primitive, primitiveIndex: index};
             })), [])
             .filter(({primitive}) => primitive.material !== undefined);
 
@@ -227,7 +227,7 @@ class gltfRenderer
         let counter = 0;
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
             const winding = Math.sign(mat4.determinant(a.node.worldTransform));
-            const id = `${a.node.mesh}_${winding}`;
+            const id = `${a.node.mesh}_${winding}_${a.primitiveIndex}`;
             // Disable instancing for skins, morph targets and if the GPU attributes limit is reached.
             // Additionally we define a new id for each instance of the EXT_mesh_gpu_instancing extension.
             if (a.node.skin || a.primitive.targets.length > 0 || a.primitive.glAttributes.length + 4 > this.maxVertAttributes || a.node.instanceMatrices) {
@@ -357,7 +357,7 @@ class gltfRenderer
                 renderpassConfiguration.linearOutput = true;
                 const instanceOffset = instanceWorldTransforms[drawableCounter];
                 drawableCounter++;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, instanceOffset);
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
             }
 
             this.transparentDrawables = currentCamera.sortPrimitivesByDepth(state.gltf, this.transparentDrawables);
@@ -932,6 +932,9 @@ class gltfRenderer
     applyEnvironmentMap(state, texSlotOffset)
     {
         const environment = state.environment;
+        if (environment === undefined) {
+            return texSlotOffset;
+        }
         this.webGl.setTexture(this.shader.getUniformLocation("u_LambertianEnvSampler"), environment, environment.diffuseEnvMap, texSlotOffset++);
 
         this.webGl.setTexture(this.shader.getUniformLocation("u_GGXEnvSampler"), environment, environment.specularEnvMap, texSlotOffset++);
