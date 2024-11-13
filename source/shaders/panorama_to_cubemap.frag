@@ -10,7 +10,6 @@ out vec4 fragmentColor;
 
 uniform int u_currentFace;
 
-uniform sampler2D u_inputTexture;
 uniform sampler2D u_panorama;
 
 vec3 uvToXYZ(int face, vec2 uv)
