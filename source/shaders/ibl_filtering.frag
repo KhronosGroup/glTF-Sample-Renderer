@@ -5,7 +5,7 @@ precision highp float;
 #define MATH_PI 3.1415926535897932384626433832795
 //#define MATH_INV_PI (1.0 / MATH_PI)
 
-uniform samplerCube uCubeMap;
+uniform samplerCube u_cubemapTexture;
 
 // enum
 const int cLambertian = 0;
@@ -288,7 +288,7 @@ float computeLod(float pdf)
 
 vec3 filterColor(vec3 N)
 {
-    //return  textureLod(uCubeMap, N, 3.0).rgb;
+    //return  textureLod(u_cubemapTexture, N, 3.0).rgb;
     vec3 color = vec3(0.f);
     float weight = 0.0f;
 
@@ -308,7 +308,7 @@ vec3 filterColor(vec3 N)
         if(u_distribution == cLambertian)
         {
             // sample lambertian at a lower resolution to avoid fireflies
-            vec3 lambertian = textureLod(uCubeMap, H, lod).rgb * u_intensityScale;
+            vec3 lambertian = textureLod(u_cubemapTexture, H, lod).rgb * u_intensityScale;
 
             //// the below operations cancel each other out
             // lambertian *= NdotH; // lamberts law
@@ -331,7 +331,7 @@ vec3 filterColor(vec3 N)
                     // without this the roughness=0 lod is too high
                     lod = u_lodBias;
                 }
-                vec3 sampleColor = textureLod(uCubeMap, L, lod).rgb * u_intensityScale;
+                vec3 sampleColor = textureLod(u_cubemapTexture, L, lod).rgb * u_intensityScale;
                 color += sampleColor * NdotL;
                 weight += NdotL;
             }
