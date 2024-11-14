@@ -76,7 +76,7 @@ class iblSampler
                 if(max_component > 1.0) {
                     diff_sum += max_component-1.0;
                 }
-                clamped_sum += Math.max(max_component, 1.0);
+                clamped_sum += Math.min(max_component, 1.0);
 
                 max_value =  Math.max(max_component, max_value);
             }
@@ -124,7 +124,7 @@ class iblSampler
             max_value =  Math.max(max_component, max_value);
         }
 
-        if(max_value > 65504) {
+        if(max_value > 65504.0) {
             // We need float (32 bit) to support value range
             if(this.supportedFormats.includes("FLOAT"))
             {
@@ -134,6 +134,32 @@ class iblSampler
             else
             {
                 console.warn("Supported texture formats do not support HDR value range ");
+                console.warn("Environment light intensity cannot be displayed correctly on this device");
+
+                // Recalcualte texture data to fit in half_float range
+                let clamped_sum = 0.0;
+                let diff_sum = 0.0;
+                const max_range = 65504.0;
+                for(let i = 0, src = 0, dst = 0; i < numPixels; ++i, src += 3, dst += 4)
+                {
+                    texture.data[dst] =  Math.min(image.dataFloat[src], max_range);
+                    texture.data[dst+1] = Math.min(image.dataFloat[src+1], max_range);
+                    texture.data[dst+2] = Math.min(image.dataFloat[src+2], max_range);
+                    texture.data[dst+3] = 1.0; // unused
+
+                    let max_component = Math.max(image.dataFloat[src+0], image.dataFloat[src+1], image.dataFloat[src+2]);
+                    if(max_component > max_range) {
+                        diff_sum += max_component-max_range;
+                    }
+                    clamped_sum += Math.min(max_component, max_range);
+     
+                } 
+                if(clamped_sum > 1.0) {
+                    // Apply global scale factor to compensate for intensity lost when clamping
+                    this.scaleValue =   (clamped_sum+diff_sum)/clamped_sum;
+                }
+    
+
             }
         }
 
