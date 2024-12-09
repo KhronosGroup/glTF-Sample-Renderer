@@ -139,6 +139,10 @@ class gltfMaterial extends GltfObject
             mat3.multiply(uvMatrix, translation, rotation);
             mat3.multiply(uvMatrix, uvMatrix, scale);
             shader.updateUniform("u_" + key + "UVTransform", jsToGl(uvMatrix));
+            
+            if(key === "Normal") {
+                shader.updateUniform("u_vertNormalUVTransform", jsToGl(uvMatrix));
+            }
         }
     }
 
