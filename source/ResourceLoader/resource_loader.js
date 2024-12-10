@@ -52,9 +52,18 @@ class ResourceLoader
         let filename = "";
         if (typeof gltfFile === "string")
         {
-            isGlb = getIsGlb(gltfFile);
             const response = await fetch(gltfFile);
-            json = data = await (isGlb ? response.arrayBuffer() : response.json());
+            const responseData = await response.arrayBuffer();
+            const uintData = new Uint8Array(responseData);
+            const fileMagicNumbers = new TextDecoder().decode(uintData.subarray(0, 5));
+
+            isGlb = fileMagicNumbers.startsWith("glTF");
+            if(isGlb) {
+                json = data = responseData;
+            } else {
+                json = data = JSON.parse(new TextDecoder().decode(uintData));
+            }
+
             filename = gltfFile;
         }
         else if (gltfFile instanceof ArrayBuffer)
