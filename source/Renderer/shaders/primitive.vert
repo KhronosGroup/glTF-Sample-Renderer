@@ -120,26 +120,21 @@ void main()
 #ifdef HAS_NORMAL_VEC3
 #ifdef HAS_TANGENT_VEC4
     vec3 tangent = getTangent();
-    vec3 normalW = vec3(normalMatrix * vec4(getNormal(), 0.0));
+    vec3 normalW = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
     vec3 tangentW = vec3(modelMatrix * vec4(tangent, 0.0));
     vec3 bitangentW = cross(normalW, tangentW) * a_tangent.w;
 
 #ifdef HAS_VERT_NORMAL_UV_TRANSFORM
-    normalW = u_vertNormalUVTransform * normalW;
     tangentW = u_vertNormalUVTransform * tangentW;
-    bitangentW = normalize(u_vertNormalUVTransform * bitangentW);
+    bitangentW = u_vertNormalUVTransform * bitangentW;
 #endif
 
-    normalW = normalize(normalW);
+    bitangentW = normalize(bitangentW);
     tangentW = normalize(tangentW);
 
     v_TBN = mat3(tangentW, bitangentW, normalW);
 #else
-    v_Normal = vec3(normalMatrix * vec4(getNormal(), 0.0));
-#ifdef HAS_VERT_NORMAL_UV_TRANSFORM
-    v_Normal = u_vertNormalUVTransform * v_Normal;
-#endif
-    v_Normal = normalize(v_Normal);
+    v_Normal = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
 #endif
 #endif
 
