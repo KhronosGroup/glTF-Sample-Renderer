@@ -450,6 +450,14 @@ class gltfRenderer
         if (instanceOffset !== undefined) {
             vertDefines.push("USE_INSTANCING 1");
         }
+        if (material.textureTransforms.length > 0) {
+            for (let i = 0; i < material.textureTransforms.length; i++) {
+                if (material.textureTransforms[i] !== undefined && material.textureTransforms[i].key === "Normal") {
+                    vertDefines.push("HAS_VERT_NORMAL_UV_TRANSFORM 1");
+                    break;
+                }
+            }
+        }
 
         let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
