@@ -152,7 +152,7 @@ class gltfAnimation extends GltfObject
                     }
                     animatedProperty.animate(array);
                 } else {
-                    if (interpolant.length == 1 && back !== "weights") {
+                    if (interpolant.length == 1 && !Array.isArray(animatedProperty.restValue)) {
                         animatedProperty.animate(interpolant[0]);
                     }
                     else {
