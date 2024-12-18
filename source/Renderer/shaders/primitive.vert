@@ -47,6 +47,10 @@ out vec4 v_Color;
 in mat4 a_instance_model_matrix;
 #endif
 
+#ifdef HAS_VERT_NORMAL_UV_TRANSFORM
+uniform mat3 u_vertNormalUVTransform;
+#endif
+
 vec4 getPosition()
 {
     vec4 pos = vec4(a_position, 1.0);
@@ -117,8 +121,17 @@ void main()
 #ifdef HAS_TANGENT_VEC4
     vec3 tangent = getTangent();
     vec3 normalW = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
-    vec3 tangentW = normalize(vec3(modelMatrix * vec4(tangent, 0.0)));
+    vec3 tangentW = vec3(modelMatrix * vec4(tangent, 0.0));
     vec3 bitangentW = cross(normalW, tangentW) * a_tangent.w;
+
+#ifdef HAS_VERT_NORMAL_UV_TRANSFORM
+    tangentW = u_vertNormalUVTransform * tangentW;
+    bitangentW = u_vertNormalUVTransform * bitangentW;
+#endif
+
+    bitangentW = normalize(bitangentW);
+    tangentW = normalize(tangentW);
+
     v_TBN = mat3(tangentW, bitangentW, normalW);
 #else
     v_Normal = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
