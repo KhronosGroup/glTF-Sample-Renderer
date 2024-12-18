@@ -140,8 +140,7 @@ class gltfAnimation extends GltfObject
                 // The interpolator will always return a `Float32Array`, even if the animated value is a scalar.
                 // For the renderer it's not a problem because uploading a single-element array is the same as uploading a scalar to a uniform.
                 // However, it becomes a problem if we use the animated value for further computation and assume is stays a scalar.
-                // Thus we explicitly convert the animated value back to a scalar if the interpolant is a single-element array.
-                // "weights" are a special case, because they can be arrays with a single element and should still stay arrays.
+                // Thus we explicitly convert the animated value back to a scalar if the interpolant is a single-element array and the rest value is not an array itself.
                 if (animatedArrayElement !== undefined) {
                     const array = animatedProperty.value();
                     if (interpolant.length == 1) {
