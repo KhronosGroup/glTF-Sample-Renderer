@@ -18,6 +18,7 @@ class gltfTexture extends GltfObject
         this.type = type;
         this.initialized = false;
         this.mipLevelCount = 0;
+        this.linear = true;
     }
 
     initGl(gltf, webGlContext)
@@ -78,6 +79,9 @@ class gltfTextureInfo extends GltfObject
 
     initGl(gltf, webGlContext)
     {
+        if (!this.linear) {
+            gltf.textures[this.index].linear = false;
+        }
         initGlForMembers(this, gltf, webGlContext);
     }
 
