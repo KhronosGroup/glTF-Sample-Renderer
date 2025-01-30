@@ -770,7 +770,6 @@ class KHR_materials_specular extends GltfObject {
         {
             const specularTexture = new gltfTextureInfo();
             specularTexture.fromJson(jsonSpecular.specularTexture);
-            specularTexture.linear = false;
             this.specularTexture = specularTexture;
         }
 
@@ -778,6 +777,7 @@ class KHR_materials_specular extends GltfObject {
         {
             const specularColorTexture = new gltfTextureInfo();
             specularColorTexture.fromJson(jsonSpecular.specularColorTexture);
+            specularColorTexture.linear = false;
             this.specularColorTexture = specularColorTexture;
         }
     }
