@@ -73,12 +73,13 @@ void main()
     materialInfo = getIorInfo(materialInfo);
 #endif
 
-#ifdef MATERIAL_SPECULARGLOSSINESS
-    materialInfo = getSpecularGlossinessInfo(materialInfo);
-#endif
-
 #ifdef MATERIAL_METALLICROUGHNESS
     materialInfo = getMetallicRoughnessInfo(materialInfo);
+#endif
+
+#ifdef MATERIAL_SPECULARGLOSSINESS
+    materialInfo = getSpecularGlossinessInfo(materialInfo);
+    baseColor.rgb = materialInfo.baseColor;
 #endif
 
 #ifdef MATERIAL_SHEEN
@@ -420,8 +421,7 @@ void main()
     g_finalColor.rgb = linearTosRGB(f_emissive);
 #endif
 
-    // MR:
-#ifdef MATERIAL_METALLICROUGHNESS
+
 #if DEBUG == DEBUG_METALLIC
     g_finalColor.rgb = vec3(materialInfo.metallic);
 #endif
@@ -430,7 +430,6 @@ void main()
 #endif
 #if DEBUG == DEBUG_BASE_COLOR
     g_finalColor.rgb = linearTosRGB(materialInfo.baseColor);
-#endif
 #endif
 
     // Clearcoat:
