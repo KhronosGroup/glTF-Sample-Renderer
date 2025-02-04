@@ -64,11 +64,6 @@ void main()
     materialInfo.f90 = vec3(1.0);
     materialInfo.f90_dielectric = materialInfo.f90;
 
-    // If the MR debug output is selected, we have to enforce evaluation of the non-iridescence BRDF functions.
-#if DEBUG == DEBUG_METALLIC_ROUGHNESS
-#undef MATERIAL_IRIDESCENCE
-#endif
-
 #ifdef MATERIAL_IOR
     materialInfo = getIorInfo(materialInfo);
 #endif
