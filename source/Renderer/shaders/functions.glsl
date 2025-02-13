@@ -91,8 +91,4 @@ vec3 rgb_mix(vec3 base, vec3 layer, vec3 rgb_alpha)
     return (1.0 - rgb_alpha_max) * base + rgb_alpha * layer;
 }
 
-float getPerceivedBrightness(vec3 color)
-{
-    return sqrt(0.299 * color.r * color.r + 0.587 * color.g * color.g + 0.114 * color.b * color.b);
-}
 
