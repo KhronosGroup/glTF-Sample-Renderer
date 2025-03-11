@@ -1,5 +1,3 @@
-#include <functions.glsl>
-
 // Metallic Roughness
 uniform float u_MetallicFactor;
 uniform float u_RoughnessFactor;
