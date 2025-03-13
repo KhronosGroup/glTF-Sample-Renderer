@@ -212,7 +212,8 @@ void main()
 #endif
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-    f_dielectric_brdf_ibl += diffuseTransmissionIBL * materialInfo.diffuseTransmissionFactor;
+    vec3 diffuse_transmission_fresnel_ibl = getIBLGGXFresnel(-n, -v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, materialInfo.specularWeight);
+    f_dielectric_brdf_ibl += diffuseTransmissionIBL * materialInfo.diffuseTransmissionFactor * (1.0 - diffuse_transmission_fresnel_ibl);
 #endif
     color = mix(f_dielectric_brdf_ibl, f_metal_brdf_ibl, materialInfo.metallic);
     color = f_sheen + color * albedoSheenScaling;
@@ -274,7 +275,8 @@ void main()
 
         
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-        vec3 diffuse_btdf = lightIntensity * clampedDot(-n, l) * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
+        float nNdotL = clampedDot(-n, l);
+        vec3 diffuse_btdf = lightIntensity * nNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
 
 #ifdef MATERIAL_VOLUME
         diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
@@ -329,7 +331,8 @@ void main()
             1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotL, materialInfo.sheenRoughnessFactor));
 #endif
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-        l_dielectric_brdf += diffuse_btdf * materialInfo.diffuseTransmissionFactor;
+        vec3 diffuse_transmission_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(nNdotL));
+        l_dielectric_brdf += diffuse_btdf * materialInfo.diffuseTransmissionFactor * (1.0 - diffuse_transmission_fresnel);
 #endif
         vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, materialInfo.metallic);
         l_color = l_sheen + l_color * l_albedoSheenScaling;
