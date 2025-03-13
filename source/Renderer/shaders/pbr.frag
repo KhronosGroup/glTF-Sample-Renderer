@@ -25,22 +25,6 @@ precision highp float;
 #include <ibl.glsl>
 #include <material_info.glsl>
 
-#ifdef MATERIAL_SPECULARGLOSSINESS
-#undef MATERIAL_ANISOTROPY
-#undef MATERIAL_CLEARCOAT
-#undef MATERIAL_DIFFUSE_TRANSMISSION
-#undef MATERIAL_DISPERSION
-#undef MATERIAL_EMISSIVE_STRENGTH
-#undef MATERIAL_IOR
-#undef MATERIAL_IRIDESCENCE
-#undef MATERIAL_METALLICROUGHNESS
-#undef MATERIAL_SHEEN
-#undef MATERIAL_SPECULAR
-#undef MATERIAL_TRANSMISSION
-#undef MATERIAL_UNLIT
-#undef MATERIAL_VOLUME
-#endif
-
 #ifdef MATERIAL_IRIDESCENCE
 #include <iridescence.glsl>
 #endif
@@ -91,11 +75,6 @@ void main()
 
 #ifdef MATERIAL_METALLICROUGHNESS
     materialInfo = getMetallicRoughnessInfo(materialInfo);
-#endif
-
-#ifdef MATERIAL_SPECULARGLOSSINESS
-    materialInfo = getSpecularGlossinessInfo(materialInfo);
-    baseColor.rgb = materialInfo.baseColor;
 #endif
 
 #ifdef MATERIAL_SHEEN

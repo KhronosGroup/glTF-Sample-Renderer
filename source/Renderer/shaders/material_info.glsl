@@ -200,46 +200,14 @@ vec3 getClearcoatNormal(NormalInfo normalInfo)
 
 vec4 getBaseColor()
 {
-    vec4 baseColor = vec4(1);
+    vec4 baseColor = u_BaseColorFactor;
 
-#if defined(MATERIAL_SPECULARGLOSSINESS)
-    baseColor = u_DiffuseFactor;
-#elif defined(MATERIAL_METALLICROUGHNESS)
-    baseColor = u_BaseColorFactor;
-#endif
-
-#if defined(MATERIAL_SPECULARGLOSSINESS) && defined(HAS_DIFFUSE_MAP)
-    baseColor *= texture(u_DiffuseSampler, getDiffuseUV());
-#elif defined(MATERIAL_METALLICROUGHNESS) && defined(HAS_BASE_COLOR_MAP)
+#if defined(HAS_BASE_COLOR_MAP)
     baseColor *= texture(u_BaseColorSampler, getBaseColorUV());
 #endif
 
     return baseColor * getVertexColor();
 }
-
-
-#ifdef MATERIAL_SPECULARGLOSSINESS
-// Convert specular glossiness to ior, specular, metallic workflow
-// https://github.com/KhronosGroup/glTF/pull/1719#issuecomment-674365677
-MaterialInfo getSpecularGlossinessInfo(MaterialInfo info)
-{
-    info.metallic = 0.0;
-    info.ior = 0.0;
-    vec3 specular = u_SpecularFactor;
-    float glossiness = u_GlossinessFactor;
-
-#ifdef HAS_SPECULAR_GLOSSINESS_MAP
-    vec4 sgSample = texture(u_SpecularGlossinessSampler, getSpecularGlossinessUV());
-    glossiness *= sgSample.a ; // glossiness to roughness
-    specular *= sgSample.rgb; // specular
-#endif // ! HAS_SPECULAR_GLOSSINESS_MAP
-
-    info.perceptualRoughness = 1.0 - glossiness;
-    info.f0_dielectric = min(specular, vec3(1.0)); // Use KHR_materials_specular calculation
-
-    return info;
-}
-#endif
 
 
 #ifdef MATERIAL_METALLICROUGHNESS
