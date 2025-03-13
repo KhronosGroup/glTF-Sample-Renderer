@@ -3,11 +3,6 @@ uniform float u_MetallicFactor;
 uniform float u_RoughnessFactor;
 uniform vec4 u_BaseColorFactor;
 
-// Specular Glossiness
-uniform vec3 u_SpecularFactor;
-uniform vec4 u_DiffuseFactor;
-uniform float u_GlossinessFactor;
-
 // Sheen
 uniform float u_SheenRoughnessFactor;
 uniform vec3 u_SheenColorFactor;

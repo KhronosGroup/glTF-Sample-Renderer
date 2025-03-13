@@ -12,6 +12,11 @@ precision highp float;
 
 out vec4 g_finalColor;
 
+// Specular Glossiness
+uniform vec3 u_SpecularFactor;
+uniform vec4 u_DiffuseFactor;
+uniform float u_GlossinessFactor;
+
 
 void main()
 {
@@ -61,23 +66,20 @@ void main()
 
 
     // LIGHTING
-    vec3 f_specular_dielectric = vec3(0.0);
-    vec3 f_diffuse = vec3(0.0);
-    vec3 f_dielectric_brdf_ibl = vec3(0.0);
     vec3 f_emissive = vec3(0.0);
 
     // Calculate lighting contribution from image based lighting source (IBL)
 
 #ifdef USE_IBL
 
-    f_diffuse = getDiffuseLight(n) * baseColor.rgb ;
+    vec3 f_diffuse = getDiffuseLight(n) * baseColor.rgb ;
 
-    f_specular_dielectric = getIBLRadianceGGX(n, v, materialInfo.perceptualRoughness);
+    vec3 f_specular_dielectric = getIBLRadianceGGX(n, v, materialInfo.perceptualRoughness);
 
     // Calculate fresnel mix for IBL  
  
     vec3 f_dielectric_fresnel_ibl = getIBLGGXFresnel(n, v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, 1.0);
-    f_dielectric_brdf_ibl = mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl);
+    vec3 f_dielectric_brdf_ibl = mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl);
 
     color = f_dielectric_brdf_ibl;
 
@@ -117,17 +119,15 @@ void main()
         vec3 lightIntensity = getLighIntensity(light, pointToLight);
         
         vec3 l_diffuse = lightIntensity * NdotL * BRDF_lambertian(baseColor.rgb);
-        vec3 l_specular_dielectric = vec3(0.0);
-        vec3 l_dielectric_brdf = vec3(0.0);
 
         // Calculation of analytical light
         // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#acknowledgments AppendixB
         vec3 intensity = getLighIntensity(light, pointToLight);
 
 
-        l_specular_dielectric = intensity * NdotL * BRDF_specularGGX(materialInfo.alphaRoughness, NdotL, NdotV, NdotH);
+        vec3 l_specular_dielectric = intensity * NdotL * BRDF_specularGGX(materialInfo.alphaRoughness, NdotL, NdotV, NdotH);
 
-        l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
+        vec3 l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
 
         color += l_dielectric_brdf;
     }
