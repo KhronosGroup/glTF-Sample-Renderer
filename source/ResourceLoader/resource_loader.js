@@ -378,10 +378,10 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
 
     environment.images.push(new gltfImage(luts.lut_sheen_E_file, GL.TEXTURE_2D, 0, undefined, undefined, ImageMimeType.PNG));
     const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
-    sheenELut.initialized = true; // iblsampler has already initialized the texture
+    sheenELut.initialized = false; // iblsampler does not create this texture
     environment.textures.push(sheenELut);
 
-    environment.sheenELUT = new gltfTextureInfo(environment.textures.length - 1);
+    environment.sheenELUT = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.sheenELUT.generateMips = false;
 
     await gltfLoader.loadImages(environment);
