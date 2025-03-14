@@ -214,6 +214,7 @@ class gltfMaterial extends GltfObject
         {
             const diffuseTexture = this.extensions.KHR_materials_pbrSpecularGlossiness.diffuseTexture;
             diffuseTexture.samplerName = "u_DiffuseSampler";
+            diffuseTexture.linear = false;
             this.parseTextureInfoExtensions(diffuseTexture, "Diffuse");
             this.textures.push(diffuseTexture);
             this.defines.push("HAS_DIFFUSE_MAP 1");
@@ -223,6 +224,7 @@ class gltfMaterial extends GltfObject
         {
             const specularGlossinessTexture = this.extensions.KHR_materials_pbrSpecularGlossiness.specularGlossinessTexture;
             specularGlossinessTexture.samplerName = "u_SpecularGlossinessSampler";
+            specularGlossinessTexture.linear = false;
             this.parseTextureInfoExtensions(specularGlossinessTexture, "SpecularGlossiness");
             this.textures.push(specularGlossinessTexture);
             this.defines.push("HAS_SPECULAR_GLOSSINESS_MAP 1");

@@ -17,6 +17,7 @@ import shaderFunctions from './shaders/functions.glsl';
 import animationShader from './shaders/animation.glsl';
 import cubemapVertShader from './shaders/cubemap.vert';
 import cubemapFragShader from './shaders/cubemap.frag';
+import specularGlossinesShader from './shaders/specular_glossiness.frag';
 import { gltfLight } from '../gltf/light.js';
 import { jsToGl } from '../gltf/utils.js';
 
@@ -54,6 +55,7 @@ class gltfRenderer
         shaderSources.set("animation.glsl", animationShader);
         shaderSources.set("cubemap.vert", cubemapVertShader);
         shaderSources.set("cubemap.frag", cubemapFragShader);
+        shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
 
         this.shaderCache = new ShaderCache(shaderSources, this.webGl);
 
@@ -476,7 +478,9 @@ class gltfRenderer
 
         this.pushFragParameterDefines(fragDefines, state);
         
-        const fragmentHash = this.shaderCache.selectShader("pbr.frag", fragDefines);
+        const fragmentShader = material.type === "SG" ? "specular_glossiness.frag" : "pbr.frag";
+
+        const fragmentHash = this.shaderCache.selectShader(fragmentShader, fragDefines);
         const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
 
         if (fragmentHash && vertexHash)

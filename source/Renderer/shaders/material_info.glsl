@@ -3,11 +3,6 @@ uniform float u_MetallicFactor;
 uniform float u_RoughnessFactor;
 uniform vec4 u_BaseColorFactor;
 
-// Specular Glossiness
-uniform vec3 u_SpecularFactor;
-uniform vec4 u_DiffuseFactor;
-uniform float u_GlossinessFactor;
-
 // Sheen
 uniform float u_SheenRoughnessFactor;
 uniform vec3 u_SheenColorFactor;
@@ -200,40 +195,14 @@ vec3 getClearcoatNormal(NormalInfo normalInfo)
 
 vec4 getBaseColor()
 {
-    vec4 baseColor = vec4(1);
+    vec4 baseColor = u_BaseColorFactor;
 
-#if defined(MATERIAL_SPECULARGLOSSINESS)
-    baseColor = u_DiffuseFactor;
-#elif defined(MATERIAL_METALLICROUGHNESS)
-    baseColor = u_BaseColorFactor;
-#endif
-
-#if defined(MATERIAL_SPECULARGLOSSINESS) && defined(HAS_DIFFUSE_MAP)
-    baseColor *= texture(u_DiffuseSampler, getDiffuseUV());
-#elif defined(MATERIAL_METALLICROUGHNESS) && defined(HAS_BASE_COLOR_MAP)
+#if defined(HAS_BASE_COLOR_MAP)
     baseColor *= texture(u_BaseColorSampler, getBaseColorUV());
 #endif
 
     return baseColor * getVertexColor();
 }
-
-
-#ifdef MATERIAL_SPECULARGLOSSINESS
-MaterialInfo getSpecularGlossinessInfo(MaterialInfo info)
-{
-    info.f0_dielectric = u_SpecularFactor;
-    info.perceptualRoughness = u_GlossinessFactor;
-
-#ifdef HAS_SPECULAR_GLOSSINESS_MAP
-    vec4 sgSample = texture(u_SpecularGlossinessSampler, getSpecularGlossinessUV());
-    info.perceptualRoughness *= sgSample.a ; // glossiness to roughness
-    info.f0_dielectric *= sgSample.rgb; // specular
-#endif // ! HAS_SPECULAR_GLOSSINESS_MAP
-
-    info.perceptualRoughness = 1.0 - info.perceptualRoughness; // 1 - glossiness
-    return info;
-}
-#endif
 
 
 #ifdef MATERIAL_METALLICROUGHNESS
