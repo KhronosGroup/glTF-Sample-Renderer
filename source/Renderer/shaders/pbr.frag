@@ -68,10 +68,6 @@ void main()
     materialInfo = getIorInfo(materialInfo);
 #endif
 
-#ifdef MATERIAL_SPECULARGLOSSINESS
-    materialInfo = getSpecularGlossinessInfo(materialInfo);
-#endif
-
 #ifdef MATERIAL_METALLICROUGHNESS
     materialInfo = getMetallicRoughnessInfo(materialInfo);
 #endif
@@ -174,8 +170,7 @@ void main()
     f_specular_transmission = getIBLVolumeRefraction(
         n, v,
         materialInfo.perceptualRoughness,
-        baseColor.rgb, materialInfo.f0_dielectric, materialInfo.f90,
-        v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix,
+        baseColor.rgb, v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix,
         materialInfo.ior, materialInfo.thickness, materialInfo.attenuationColor, materialInfo.attenuationDistance, materialInfo.dispersion);
     f_diffuse = mix(f_diffuse, f_specular_transmission, materialInfo.transmissionFactor);
 #endif
@@ -292,7 +287,7 @@ void main()
         pointToLight -= transmissionRay;
         l = normalize(pointToLight);
 
-        vec3 transmittedLight = lightIntensity * getPunctualRadianceTransmission(n, v, l, materialInfo.alphaRoughness, materialInfo.f0_dielectric, materialInfo.f90, baseColor.rgb, materialInfo.ior);
+        vec3 transmittedLight = lightIntensity * getPunctualRadianceTransmission(n, v, l, materialInfo.alphaRoughness, baseColor.rgb, materialInfo.ior);
 
 #ifdef MATERIAL_VOLUME
         transmittedLight = applyVolumeAttenuation(transmittedLight, length(transmissionRay), materialInfo.attenuationColor, materialInfo.attenuationDistance);
@@ -423,8 +418,7 @@ void main()
     g_finalColor.rgb = linearTosRGB(f_emissive);
 #endif
 
-    // MR:
-#ifdef MATERIAL_METALLICROUGHNESS
+
 #if DEBUG == DEBUG_METALLIC
     g_finalColor.rgb = vec3(materialInfo.metallic);
 #endif
@@ -433,7 +427,6 @@ void main()
 #endif
 #if DEBUG == DEBUG_BASE_COLOR
     g_finalColor.rgb = linearTosRGB(materialInfo.baseColor);
-#endif
 #endif
 
     // Clearcoat:
