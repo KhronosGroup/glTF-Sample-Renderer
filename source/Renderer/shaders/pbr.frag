@@ -273,10 +273,6 @@ void main()
 
             vec3 l_mirror = normalize(l + 2.0 * n * dot(-l, n)); // Mirror light reflection vector on surface
             float diffuseVdotH = clampedDot(v, normalize(l_mirror + v));
-            // Why not use the normal VdotH based on -l?
-            //vec3 diffuseH = normalize(-l + v);
-            //diffuseVdotH = clampedDot(v, diffuseH);
-
             dielectric_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(diffuseVdotH));
 
 #ifdef MATERIAL_VOLUME
