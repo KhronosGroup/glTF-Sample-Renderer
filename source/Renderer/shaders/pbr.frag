@@ -266,12 +266,21 @@ void main()
 
         
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-        vec3 diffuse_btdf = lightIntensity * clampedDot(-n, l) * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
+        l_diffuse = l_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
+        if (dot(n, l) < 0.0) {
+            float diffuseNdotL = clampedDot(-n, l);
+            vec3 diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
+
+            vec3 l_mirror = normalize(l + 2.0 * n * dot(-l, n)); // Mirror light reflection vector on surface
+            float diffuseVdotH = clampedDot(v, normalize(l_mirror + v));
+            dielectric_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(diffuseVdotH));
 
 #ifdef MATERIAL_VOLUME
-        diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
+            diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-        l_diffuse = mix(l_diffuse, diffuse_btdf, materialInfo.diffuseTransmissionFactor);
+            l_diffuse += diffuse_btdf * materialInfo.diffuseTransmissionFactor;
+        }
+        
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
 
         // BTDF (Bidirectional Transmittance Distribution Function)
