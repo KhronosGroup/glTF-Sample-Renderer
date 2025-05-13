@@ -27,6 +27,7 @@ class gltfMaterial extends GltfObject
         this.hasIOR = false;
         this.hasEmissiveStrength = false;
         this.hasVolume = false;
+        this.hasVolumeScatter = false;
         this.hasIridescence = false;
         this.hasAnisotropy = false;
         this.hasDispersion = false;
@@ -71,6 +72,9 @@ class gltfMaterial extends GltfObject
         if (this.hasVolume && renderingParameters.enabledExtensions.KHR_materials_volume)
         {
             defines.push("MATERIAL_VOLUME 1");
+        }
+        if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+            defines.push("MATERIAL_VOLUME_SCATTER 1");
         }
         if(this.hasIOR && renderingParameters.enabledExtensions.KHR_materials_ior)
         {
@@ -410,6 +414,11 @@ class gltfMaterial extends GltfObject
                 }
             }
 
+            if (this.extensions.KHR_materials_volume_scatter !== undefined)
+            {
+                this.hasVolumeScatter = true;
+            }
+
             // KHR Extension: Iridescence
             // See https://github.com/ux3d/glTF/tree/extensions/KHR_materials_iridescence/extensions/2.0/Khronos/KHR_materials_iridescence
             if(this.extensions.KHR_materials_iridescence !== undefined)
@@ -548,6 +557,12 @@ class gltfMaterial extends GltfObject
         {
             this.extensions.KHR_materials_volume = new KHR_materials_volume();
             this.extensions.KHR_materials_volume.fromJson(jsonExtensions.KHR_materials_volume);
+        }
+
+        if(jsonExtensions.KHR_materials_volume_scatter !== undefined)
+        {
+            this.extensions.KHR_materials_volume_scatter = new KHR_materials_volume_scatter();
+            this.extensions.KHR_materials_volume_scatter.fromJson(jsonExtensions.KHR_materials_volume_scatter);
         }
 
         if(jsonExtensions.KHR_materials_iridescence !== undefined)
@@ -823,6 +838,16 @@ class KHR_materials_volume extends GltfObject {
             thicknessTexture.fromJson(jsonVolume.thicknessTexture);
             this.thicknessTexture = thicknessTexture;
         }
+    }
+}
+
+class KHR_materials_volume_scatter extends GltfObject {
+    static animatedProperties = ["multiscatterColor", "scatterAnisotropy"];
+    constructor()
+    {
+        super();
+        this.multiscatterColor = vec3.fromValues(0, 0, 0);
+        this.scatterAnisotropy = 0;
     }
 }
 
