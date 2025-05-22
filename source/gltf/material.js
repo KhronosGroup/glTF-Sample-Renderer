@@ -37,6 +37,7 @@ class gltfMaterial extends GltfObject
         this.textures = [];
         this.textureTransforms = [];
         this.defines = [];
+        this.scatterSampleCount = 64;
     }
 
     static createDefault()
@@ -99,6 +100,10 @@ class gltfMaterial extends GltfObject
         if(this.hasDispersion && renderingParameters.enabledExtensions.KHR_materials_dispersion)
         {
             defines.push("MATERIAL_DISPERSION 1");
+        }
+        if(this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+        {
+            defines.push("MATERIAL_VOLUME_SCATTER 1");
         }
 
         return defines;
@@ -417,6 +422,8 @@ class gltfMaterial extends GltfObject
             if (this.extensions.KHR_materials_volume_scatter !== undefined)
             {
                 this.hasVolumeScatter = true;
+                this.defines.push("HAS_VOLUME_SCATTER 1");
+                this.scatterSamples = this.computeScatterSamples();
             }
 
             // KHR Extension: Iridescence
@@ -470,6 +477,53 @@ class gltfMaterial extends GltfObject
         }
 
         initGlForMembers(this, gltf, webGlContext);
+    }
+
+    /**
+     * https://zero-radiance.github.io/post/sampling-diffusion/
+     * Sample Normalized Burley diffusion profile.
+     * 'u' is a random number (the value of the CDF): [0, 1).
+     * rcp(s) = 1 / ShapeParam = ScatteringDistance.
+     * 'r' is = the sampled radial distance, s.t. (u = 0 -> r = 0) and (u = 1 -> r = Inf).
+     * rcp(Pdf) is the reciprocal of the corresponding PDF value.
+     */
+    _sampleBurleyDiffusionProfile(u, rcpS) {
+        u = 1 - u; // Convert CDF to CCDF
+
+        const g = 1 + 4 * u * (2 * u + Math.sqrt(1 + 4 * u * u));
+        const n = Math.pow(g, -1.0 / 3.0); // g^(-1/3)
+        const p = g * n * n; // g^(+1/3)
+        const c = 1 + p + n; // 1 + g^(+1/3) + g^(-1/3)
+        const x = 3 * Math.log(c / (4 * u));
+
+        const rcpExp = ((c * c) * c) * 1 / (((4.0 * u) * ((c * c) + (4.0 * u) * (4.0 * u))));
+
+        const r = x * rcpS;
+        const rcpPdf = (8.0 * Math.PI * rcpS) * rcpExp;
+        
+        return [r, rcpPdf];
+    }
+
+    computeScatterSamples() {
+        const scatterColor = this.extensions.KHR_materials_volume_scatter.multiscatterColor;
+        if (this.lastUsedScatterColor && vec3.exactEquals(scatterColor, this.lastUsedScatterColor)) {
+            return this.scatterSamples;
+        }
+        this.lastUsedScatterColor = vec3.clone(scatterColor);
+        const distance = Math.max(...scatterColor);
+        const uniformArray = [];
+        const goldenRatio = 1.618033988749895;
+        for (let i = 0; i < this.scatterSampleCount; i++)
+        {
+            const [r , pdf] = this._sampleBurleyDiffusionProfile(i / this.scatterSampleCount + 1 / (2 * this.scatterSampleCount), distance);
+            const fabAngle = 2 * Math.PI * ((i * goldenRatio) - Math.floor(i * goldenRatio));
+            const sinFab = Math.sin(fabAngle);
+            const cosFab = Math.cos(fabAngle);
+            const x = r * cosFab;
+            const y = r * sinFab;
+            uniformArray.push(x, y, pdf);
+        }
+        return uniformArray;
     }
 
     fromJson(jsonMaterial)

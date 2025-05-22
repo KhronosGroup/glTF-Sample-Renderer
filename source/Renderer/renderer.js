@@ -301,7 +301,7 @@ class gltfRenderer
         this.transmissionDrawables = drawables
             .filter(({primitive}) => state.gltf.materials[primitive.material].extensions !== undefined
                 && state.gltf.materials[primitive.material].extensions.KHR_materials_transmission !== undefined);
-
+        
         this.scatterDrawables = drawables
             .filter(({primitive}) => state.gltf.materials[primitive.material].extensions !== undefined
                 && state.gltf.materials[primitive.material].extensions.KHR_materials_volume_scatter !== undefined
@@ -467,7 +467,13 @@ class gltfRenderer
             renderpassConfiguration.linearOutput = false;
             const instanceOffset = instanceWorldTransforms[drawableCounter];
             drawableCounter++;
-            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
+            let sampledTextures = {};
+            if (this.scatterDrawables.length > 0) {
+                sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
+                sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
+                sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+            }
+            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures, instanceOffset);
         }
 
         // filter materials with transmission extension
@@ -476,7 +482,9 @@ class gltfRenderer
         {
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
-            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, this.opaqueRenderTexture);
+            let sampledTextures = {};
+            sampledTextures.transmissionSampleTexture = this.opaqueRenderTexture;
+            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures);
         }
 
 
@@ -490,7 +498,7 @@ class gltfRenderer
     }
 
     // vertices with given material
-    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, transmissionSampleTexture, instanceOffset = undefined)
+    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, sampledTextures, instanceOffset = undefined)
     {
         if (primitive.skip) return;
 
@@ -786,7 +794,31 @@ class gltfRenderer
             this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
         }
 
-        if(transmissionSampleTexture !== undefined &&
+        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+        {
+            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterFramebufferSampler"), textureCount);
+            textureCount++;
+
+            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterIBLSampleTexture);
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterIBLFramebufferSampler"), textureCount);
+            textureCount++;
+
+            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterDepthSampleTexture);
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterDepthFramebufferSampler"), textureCount);
+            textureCount++;
+
+            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_ScatterFramebufferSize"), this.currentWidth, this.currentHeight);
+
+            const scatterSamples = material.computeScatterSamples();
+            this.shader.updateUniformArray("u_ScatterSamples", scatterSamples);
+            this.shader.updateUniform("u_ScatterSamplesCount", scatterSamples.length);
+        }
+
+        if(sampledTextures?.transmissionSampleTexture !== undefined &&
             state.environment &&
             state.renderingParameters.enabledExtensions.KHR_materials_transmission)
         {
