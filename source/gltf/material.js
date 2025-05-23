@@ -517,11 +517,7 @@ class gltfMaterial extends GltfObject
         {
             const [r , pdf] = this._sampleBurleyDiffusionProfile(i / this.scatterSampleCount + 1 / (2 * this.scatterSampleCount), distance);
             const fabAngle = 2 * Math.PI * ((i * goldenRatio) - Math.floor(i * goldenRatio));
-            const sinFab = Math.sin(fabAngle);
-            const cosFab = Math.cos(fabAngle);
-            const x = r * cosFab;
-            const y = r * sinFab;
-            uniformArray.push(x, y, pdf);
+            uniformArray.push(fabAngle, r, pdf);
         }
         return uniformArray;
     }

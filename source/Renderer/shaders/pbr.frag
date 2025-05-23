@@ -189,7 +189,13 @@ void main()
     f_metal_brdf_ibl = f_metal_fresnel_ibl * f_specular_metal;
  
     vec3 f_dielectric_fresnel_ibl = getIBLGGXFresnel(n, v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, materialInfo.specularWeight);
+
+#ifdef MATERIAL_VOLUME_SCATTER
+    f_dielectric_brdf_ibl = f_specular_dielectric * f_dielectric_fresnel_ibl;
+    f_dielectric_brdf_ibl += getSubsurfaceScattering(v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
+#else
     f_dielectric_brdf_ibl = mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl);
+#endif
 
 #ifdef MATERIAL_IRIDESCENCE
     f_metal_brdf_ibl = mix(f_metal_brdf_ibl, f_specular_metal * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);

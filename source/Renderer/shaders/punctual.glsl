@@ -25,6 +25,9 @@ const int LightType_Spot = 2;
 uniform Light u_Lights[LIGHT_COUNT + 1]; //Array [0] is not allowed
 #endif
 
+#ifdef MATERIAL_VOLUME_SCATTER
+uniform vec3 u_ScatterSamples[SCATTER_SAMPLES_COUNT];
+#endif
 
 // https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md#range-property
 float getRangeAttenuation(float range, float distance)
@@ -137,4 +140,22 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
 
     // The thickness is specified in local space.
     return normalize(refractionVector) * thickness * modelScale;
+}
+
+vec3 getSubsurfaceScattering(v_Position, modelMatrix, viewMatrix, projectionMatrix, attenuationDistance, scatterLUT) {
+    vec2 uv = projMatrix * viewMatrix * v_Position;
+    float centerDepth = texture(u_ScatterDepthFramebuffer, uv).x;
+    vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebuffer, 0));
+    vec2 centerVector = uv * centerDepth;
+    vec2 cornerVector = (uv + 0.5 * texelSize) * centerDepth;
+    vec2 pixelPerM = abs(cornerVector - centerVector) * 2.0;
+    for (int i = 0; i < u_ScatterSamplesCount; i++) {
+        vec3 scatterSample = u_ScatterSamples[i];
+        float fabAngle = scatterSample.x;
+        float r = scatterSample.y;
+        float rcpPdf = scatterSample.z;
+        vec2 samplePos = vec2(cos(fabAngle), sin(fabAngle));
+        samplePos = uv + round(r * pixelPerM * attenuationDistance) * samplePos;
+
+    }
 }
