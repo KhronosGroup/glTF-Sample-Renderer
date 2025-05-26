@@ -142,20 +142,41 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
     return normalize(refractionVector) * thickness * modelScale;
 }
 
-vec3 getSubsurfaceScattering(v_Position, modelMatrix, viewMatrix, projectionMatrix, attenuationDistance, scatterLUT) {
-    vec2 uv = projMatrix * viewMatrix * v_Position;
+vec3 getSubsurfaceScattering(vec3 v_Position, mat4 modelMatrix, mat4 viewMatrix, mat4 projectionMatrix, float attenuationDistance, sampler scatterLUT, vec3 baseColor) {
+    vec2 uv = (projMatrix * viewMatrix * vec4(v_Position, 1.0)).xy;
     float centerDepth = texture(u_ScatterDepthFramebuffer, uv).x;
+    vec4 centerSample = texture(scatterLUT, uv);
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebuffer, 0));
     vec2 centerVector = uv * centerDepth;
     vec2 cornerVector = (uv + 0.5 * texelSize) * centerDepth;
     vec2 pixelPerM = abs(cornerVector - centerVector) * 2.0;
+    mat4 inverseProjectionMatrix = inverse(projectionMatrix);
+    mat4 inverseViewMatrix = inverse(viewMatrix);
+    vec3 totalWeight = vec3(0.0);
+    vec3 totalDiffuse = vec3(0.0);
     for (int i = 0; i < u_ScatterSamplesCount; i++) {
         vec3 scatterSample = u_ScatterSamples[i];
         float fabAngle = scatterSample.x;
-        float r = scatterSample.y;
+        float r = scatterSample.y * attenuationDistance;
         float rcpPdf = scatterSample.z;
         vec2 samplePos = vec2(cos(fabAngle), sin(fabAngle));
-        samplePos = uv + round(r * pixelPerM * attenuationDistance) * samplePos;
+        samplePos = uv + round(r * pixelPerM) * samplePos;
+        vec4 textureSample = texture(scatterLUT, samplePos);
+        float sampleDepth = texture(u_ScatterDepthFramebuffer, samplePos).x;
+        if (centerSample.w == textureSample.w) {
+            vec4 realSampleDepth = inverseViewMatrix * inverseProjectionMatrix * vec4(0.0 , 0.0, sampleDepth, 1.0);
+            vec4 realCenterDepth = inverseViewMatrix * inverseProjectionMatrix * vec4(0.0 , 0.0, centerDepth, 1.0);
+            float b = realSampleDepth.z - realCenterDepth.z;
+            float c = sqrt(r * r + b * b);
 
+            vec3 exp_13 = exp2(((1.4426950408889634 * (-1.0/3.0)) * c) * u_MultiScatterColor); 
+            vec3 expSum = exp_13 * (1.0 + exp_13 * exp_13);        
+
+            vec3 weight = (u_MultiScatterColor / ((8.0 * PI))) * expSum * rcpPdf; 
+            totalWeight += weight;
+            totalDiffuse += weight * textureSample.rgb;
+        }
     }
+    totalWeight = max(totalWeight, vec3(0.0001)); // Avoid division by zero
+    return centerSample.xyz + baseColor * (totalDiffuse / totalWeight);
 }
