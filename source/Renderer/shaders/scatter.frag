@@ -113,16 +113,6 @@ void main()
     f_diffuse = mix(f_diffuse, diffuseTransmissionIBL, materialInfo.diffuseTransmissionFactor);
 #endif
 
-
-#if defined(MATERIAL_TRANSMISSION)
-    vec3 f_specular_transmission = getIBLVolumeRefraction(
-        n, v,
-        materialInfo.perceptualRoughness,
-        baseColor.rgb, v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix,
-        materialInfo.ior, materialInfo.thickness, materialInfo.attenuationColor, materialInfo.attenuationDistance, materialInfo.dispersion);
-    f_diffuse = mix(f_diffuse, f_specular_transmission, materialInfo.transmissionFactor);
-#endif
-
     // Calculate fresnel mix for IBL  
  
     vec3 f_dielectric_fresnel_ibl = getIBLGGXFresnel(n, v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, materialInfo.specularWeight);
@@ -181,21 +171,6 @@ void main()
         
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
 
-        // BTDF (Bidirectional Transmittance Distribution Function)
-#ifdef MATERIAL_TRANSMISSION
-        // If the light ray travels through the geometry, use the point it exits the geometry again.
-        // That will change the angle to the light source, if the material refracts the light ray.
-        vec3 transmissionRay = getVolumeTransmissionRay(n, v, materialInfo.thickness, materialInfo.ior, u_ModelMatrix);
-        pointToLight -= transmissionRay;
-        l = normalize(pointToLight);
-
-        vec3 transmittedLight = lightIntensity * getPunctualRadianceTransmission(n, v, l, materialInfo.alphaRoughness, baseColor.rgb, materialInfo.ior);
-
-#ifdef MATERIAL_VOLUME
-        transmittedLight = applyVolumeAttenuation(transmittedLight, length(transmissionRay), materialInfo.attenuationColor, materialInfo.attenuationDistance);
-#endif
-        l_diffuse = mix(l_diffuse, transmittedLight, materialInfo.transmissionFactor);
-#endif
         l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
         color += l_dielectric_brdf;
     }
