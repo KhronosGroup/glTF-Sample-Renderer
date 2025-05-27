@@ -192,7 +192,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
     f_dielectric_brdf_ibl = f_specular_dielectric * f_dielectric_fresnel_ibl;
-    f_dielectric_brdf_ibl += getSubsurfaceScattering(v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
+    f_dielectric_brdf_ibl += getSubsurfaceScattering(v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterIBLFramebufferSampler, baseColor.rgb); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
 #else
     f_dielectric_brdf_ibl = mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl);
 #endif

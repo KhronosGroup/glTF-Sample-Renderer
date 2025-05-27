@@ -50,7 +50,7 @@ class gltfMaterial extends GltfObject
         return defaultMaterial;
     }
 
-    getDefines(renderingParameters)
+    getDefines(renderingParameters, renderpassConfiguration)
     {
         const defines = Array.from(this.defines);
 
@@ -74,8 +74,9 @@ class gltfMaterial extends GltfObject
         {
             defines.push("MATERIAL_VOLUME 1");
         }
-        if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+        if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter && renderpassConfiguration?.scatter === undefined) {
             defines.push("MATERIAL_VOLUME_SCATTER 1");
+            defines.push(`SCATTER_SAMPLES_COUNT ${this.scatterSampleCount}`);
         }
         if(this.hasIOR && renderingParameters.enabledExtensions.KHR_materials_ior)
         {
@@ -100,10 +101,6 @@ class gltfMaterial extends GltfObject
         if(this.hasDispersion && renderingParameters.enabledExtensions.KHR_materials_dispersion)
         {
             defines.push("MATERIAL_DISPERSION 1");
-        }
-        if(this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
-        {
-            defines.push("MATERIAL_VOLUME_SCATTER 1");
         }
 
         return defines;

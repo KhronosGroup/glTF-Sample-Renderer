@@ -306,7 +306,6 @@ class gltfRenderer
             .filter(({primitive}) => state.gltf.materials[primitive.material].extensions !== undefined
                 && state.gltf.materials[primitive.material].extensions.KHR_materials_volume_scatter !== undefined
                 && state.gltf.materials[primitive.material].extensions.KHR_materials_volume !== undefined);
-        this.scatterDrawables = drawables;
     }
 
     // render complete gltf scene with given camera
@@ -538,7 +537,7 @@ class gltfRenderer
             }
         }
 
-        let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
+        let fragDefines = material.getDefines(state.renderingParameters, renderpassConfiguration).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
         {
             fragDefines.push("LINEAR_OUTPUT 1");
@@ -754,6 +753,8 @@ class gltfRenderer
         this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
         this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
         this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
+
+        this.shader.updateUniform("u_MultiScatterColor", jsToGl(material.extensions?.KHR_materials_volume_scatter?.multiscatterColor));
     
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
@@ -815,7 +816,6 @@ class gltfRenderer
 
             const scatterSamples = material.computeScatterSamples();
             this.shader.updateUniformArray("u_ScatterSamples", scatterSamples);
-            this.shader.updateUniform("u_ScatterSamplesCount", scatterSamples.length);
         }
 
         if(sampledTextures?.transmissionSampleTexture !== undefined &&
