@@ -145,10 +145,10 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
 
 #ifdef MATERIAL_VOLUME_SCATTER
 vec3 getSubsurfaceScattering(vec3 position, mat4 modelMatrix, mat4 viewMatrix, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 baseColor) {
-    vec2 uv = (projectionMatrix * viewMatrix * vec4(position, 1.0)).xy;
+    vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
+    vec2 uv = gl_FragCoord.xy * texelSize;
     float centerDepth = texture(u_ScatterDepthFramebufferSampler, uv).x;
     vec4 centerSample = texture(scatterLUT, uv);
-    vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
     vec2 centerVector = uv * centerDepth;
     vec2 cornerVector = (uv + 0.5 * texelSize) * centerDepth;
     vec2 pixelPerM = abs(cornerVector - centerVector) * 2.0;
