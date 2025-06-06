@@ -27,6 +27,8 @@ precision highp float;
 layout(location = 0) out vec4 frontColor;
 layout(location = 1) out vec4 frontIBLColor;
 
+uniform int u_MaterialID;
+
 
 void main()
 {
@@ -116,7 +118,7 @@ void main()
     // Calculate fresnel mix for IBL  
  
     vec3 f_dielectric_fresnel_ibl = getIBLGGXFresnel(n, v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, materialInfo.specularWeight);
-    frontIBLColor = vec4(mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl), 1.0);
+    frontIBLColor = vec4(mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl), float(u_MaterialID) / 255.0);
 
 #endif //end USE_IBL
 
@@ -175,6 +177,6 @@ void main()
         color += l_dielectric_brdf;
     }
     
-    frontColor = vec4(color.rgb, baseColor.a);
+    frontColor = vec4(color.rgb, float(u_MaterialID) / 255.0);
 #endif // USE_PUNCTUAL
 }

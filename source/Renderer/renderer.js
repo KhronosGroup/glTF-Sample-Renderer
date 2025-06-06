@@ -401,13 +401,17 @@ class gltfRenderer
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
             this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
 
+            let counter = 1;
             for (const drawable of this.scatterDrawables)
             {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.linearOutput = true;
                 renderpassConfiguration.scatter = true;
+                renderpassConfiguration.drawID = counter;
                 this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+                ++counter;
             }
+            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         }
 
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
@@ -579,6 +583,10 @@ class gltfRenderer
         if (state.renderingParameters.usePunctual)
         {
             this.applyLights();
+        }
+
+        if (renderpassConfiguration.scatter) {
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_MaterialID"), renderpassConfiguration.drawID);
         }
 
         // update model dependant matrices once per node
@@ -813,6 +821,9 @@ class gltfRenderer
             textureCount++;
 
             this.webGl.context.uniform2i(this.shader.getUniformLocation("u_ScatterFramebufferSize"), this.currentWidth, this.currentHeight);
+            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
+            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
+            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 
             const scatterSamples = material.computeScatterSamples();
             this.shader.updateUniformArray("u_ScatterSamples", scatterSamples);
