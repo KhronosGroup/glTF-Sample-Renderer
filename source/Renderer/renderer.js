@@ -820,6 +820,7 @@ class gltfRenderer
             this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterDepthFramebufferSampler"), textureCount);
             textureCount++;
 
+            this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), material.scatterMinRadius);
             this.webGl.context.uniform2i(this.shader.getUniformLocation("u_ScatterFramebufferSize"), this.currentWidth, this.currentHeight);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);

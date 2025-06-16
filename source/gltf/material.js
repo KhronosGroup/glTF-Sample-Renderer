@@ -476,47 +476,89 @@ class gltfMaterial extends GltfObject
         initGlForMembers(this, gltf, webGlContext);
     }
 
+
+
     /**
-     * https://zero-radiance.github.io/post/sampling-diffusion/
-     * Sample Normalized Burley diffusion profile.
-     * 'u' is a random number (the value of the CDF): [0, 1).
-     * rcp(s) = 1 / ShapeParam = ScatteringDistance.
-     * 'r' is = the sampled radial distance, s.t. (u = 0 -> r = 0) and (u = 1 -> r = Inf).
-     * rcp(Pdf) is the reciprocal of the corresponding PDF value.
+     * Using blender implementation of Burley diffusion profile.
      */
-    _sampleBurleyDiffusionProfile(u, rcpS) {
-        u = 1 - u; // Convert CDF to CCDF
+    computeScatterSamples()
+    {
+        /* Precompute sample position with white albedo. */
+        const d = this.burleySsetup(1.0, 1.0);
 
-        const g = 1 + 4 * u * (2 * u + Math.sqrt(1 + 4 * u * u));
-        const n = Math.pow(g, -1.0 / 3.0); // g^(-1/3)
-        const p = g * n * n; // g^(+1/3)
-        const c = 1 + p + n; // 1 + g^(+1/3) + g^(-1/3)
-        const x = 3 * Math.log(c / (4 * u));
+        const randU = 0.2; // Random value between 0 and 1, fixed here for determinism.
+        const randV = 0.5; 
 
-        const rcpExp = ((c * c) * c) * 1 / (((4.0 * u) * ((c * c) + (4.0 * u) * (4.0 * u))));
+        /* Find minimum radius that we can represent because we are only sampling the largest radius. */
+        let min_radius = 1.0;
 
-        const r = x * rcpS;
-        const rcpPdf = (8.0 * Math.PI * rcpS) * rcpExp;
-        
-        return [r, rcpPdf];
+        const goldenAngle = Math.PI * (3.0 - Math.sqrt(5.0));
+        const uniformArray = [];
+        for (let i = 0; i < this.scatterSampleCount; i++) {
+            const theta = goldenAngle * i + Math.PI * 2.0 * randU;
+            const x = (randV + i) / this.scatterSampleCount;
+            const r = this.burleySample(d, x);
+            min_radius = Math.min(min_radius, r);
+            uniformArray.push(theta, r , 1.0 / this.burleyPdf(d, r));
+        }
+        /* Avoid float imprecision. */
+        min_radius = Math.max(min_radius, 0.00001);
+        this.scatterMinRadius = min_radius;
+        return uniformArray;
     }
 
-    computeScatterSamples() {
-        const scatterColor = this.extensions.KHR_materials_volume_scatter.multiscatterColor;
-        if (this.lastUsedScatterColor && vec3.exactEquals(scatterColor, this.lastUsedScatterColor)) {
-            return this.scatterSamples;
+    burleySample(d, xRand)
+    {
+        xRand *= 0.9963790093708328;
+
+        const tolerance = 1e-6;
+        const maxIterationCount = 10;
+        let r;
+        if (xRand <= 0.9) {
+            r = Math.exp(xRand * xRand * 2.4) - 1.0;
         }
-        this.lastUsedScatterColor = vec3.clone(scatterColor);
-        const distance = Math.max(...scatterColor);
-        const uniformArray = [];
-        const goldenRatio = 1.618033988749895;
-        for (let i = 0; i < this.scatterSampleCount; i++)
-        {
-            const [r , pdf] = this._sampleBurleyDiffusionProfile(i / this.scatterSampleCount + 1 / (2 * this.scatterSampleCount), distance);
-            const fabAngle = 2 * Math.PI * ((i * goldenRatio) - Math.floor(i * goldenRatio));
-            uniformArray.push(fabAngle, r, pdf);
+        else {
+            r = 15.0;
         }
-        return uniformArray;
+        /* Solve against scaled radius. */
+        for (let i = 0; i < maxIterationCount; i++) {
+            const exp_r_3 = Math.exp(-r / 3.0);
+            const exp_r = exp_r_3 * exp_r_3 * exp_r_3;
+            const f = 1.0 - 0.25 * exp_r - 0.75 * exp_r_3 - xRand;
+            const f_ = 0.25 * exp_r + 0.25 * exp_r_3;
+
+            if (Math.abs(f) < tolerance || f_ == 0.0) {
+                break;
+            }
+
+            r = r - f / f_;
+            r = Math.max(r, 0.0);
+        }
+
+        return r * d;
+    }
+
+    burleyEval(d, r)
+    {
+        if (r >= 16 * d) {
+            return 0.0;
+        }
+
+        const exp_r_3_d = Math.exp(-r / (3.0 * d));
+        const exp_r_d = exp_r_3_d * exp_r_3_d * exp_r_3_d;
+        return (exp_r_d + exp_r_3_d) / (8.0 * Math.PI * d);
+    }
+
+    burleyPdf(d, r)
+    {
+        return this.burleyEval(d, r) / 0.9963790093708328;
+    }
+
+    burleySetup(radius, albedo) {
+        const m_1_pi = 0.318309886183790671538;
+        const s = 1.9 - albedo + 3.5 * ((albedo - 0.8) * (albedo - 0.8));
+        const l = 0.25 * m_1_pi * radius;
+        return l / s;
     }
 
     fromJson(jsonMaterial)
