@@ -318,7 +318,11 @@ void main()
 #endif
 
         l_metal_brdf = metal_fresnel * l_specular_metal;
+#ifdef MATERIAL_VOLUME_SCATTER
+        l_dielectric_brdf = l_specular_dielectric * dielectric_fresnel;
+#else
         l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
+#endif // MATERIAL_VOLUME_SCATTER
 
 #ifdef MATERIAL_IRIDESCENCE
         l_metal_brdf = mix(l_metal_brdf, l_specular_metal * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);
@@ -342,6 +346,11 @@ void main()
         color += l_color;
     }
 #endif // USE_PUNCTUAL
+
+#ifdef MATERIAL_VOLUME_SCATTER
+        vec3 l_color = getSubsurfaceScattering(v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, baseColor.rgb); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
+        color += l_color * (1.0 - materialInfo.metallic);
+#endif // MATERIAL_VOLUME_SCATTER
 
     f_emissive = u_EmissiveFactor;
 #ifdef MATERIAL_EMISSIVE_STRENGTH
