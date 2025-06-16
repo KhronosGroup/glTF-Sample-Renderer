@@ -106,7 +106,7 @@ void main()
 
 #if defined(USE_IBL) || defined(MATERIAL_TRANSMISSION)
 
-    f_diffuse = getDiffuseLight(n) * baseColor.rgb ;
+    f_diffuse = getDiffuseLight(n);
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
     vec3 diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
 #ifdef MATERIAL_VOLUME
@@ -151,7 +151,7 @@ void main()
         
         vec3 lightIntensity = getLighIntensity(light, pointToLight);
         
-        vec3 l_diffuse = lightIntensity * NdotL * BRDF_lambertian(baseColor.rgb);
+        vec3 l_diffuse = lightIntensity * NdotL / M_PI;
         vec3 l_specular_dielectric = vec3(0.0);
         vec3 l_dielectric_brdf = vec3(0.0);
 
