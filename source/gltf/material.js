@@ -484,7 +484,7 @@ class gltfMaterial extends GltfObject
     computeScatterSamples()
     {
         /* Precompute sample position with white albedo. */
-        const d = this.burleySsetup(1.0, 1.0);
+        const d = this.burleySetup(1.0, 1.0);
 
         const randU = 0.2; // Random value between 0 and 1, fixed here for determinism.
         const randV = 0.5; 
