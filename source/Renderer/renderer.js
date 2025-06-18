@@ -151,7 +151,7 @@ class gltfRenderer
                 context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
                 context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
                 context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
-                context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.UNSIGNED_BYTE, null);
+                context.texImage2D(context.TEXTURE_2D, 0, context.RGBA16F, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.HALF_FLOAT, null);
                 context.bindTexture(context.TEXTURE_2D, null);
             }
 
@@ -228,9 +228,9 @@ class gltfRenderer
             if (this.initialized) {
                 this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterFrontIBLTexture);
-                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, null);
+                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA16F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.HALF_FLOAT, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterFrontTexture);
-                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, null);
+                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA16F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.HALF_FLOAT, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterDepthTexture);
                 this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.DEPTH_COMPONENT24, this.currentWidth, this.currentHeight, 0, this.webGl.context.DEPTH_COMPONENT, this.webGl.context.UNSIGNED_INT, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
