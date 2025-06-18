@@ -192,6 +192,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
     f_dielectric_brdf_ibl = f_specular_dielectric * f_dielectric_fresnel_ibl;
+    f_dielectric_brdf_ibl += (1.0 - f_dielectric_fresnel_ibl) * f_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
     f_dielectric_brdf_ibl += getSubsurfaceScattering(v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterIBLFramebufferSampler, baseColor.rgb); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
 #else
     f_dielectric_brdf_ibl = mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl);
@@ -320,6 +321,7 @@ void main()
         l_metal_brdf = metal_fresnel * l_specular_metal;
 #ifdef MATERIAL_VOLUME_SCATTER
         l_dielectric_brdf = l_specular_dielectric * dielectric_fresnel;
+        l_dielectric_brdf += (1.0 - dielectric_fresnel) * l_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
 #else
         l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
 #endif // MATERIAL_VOLUME_SCATTER
