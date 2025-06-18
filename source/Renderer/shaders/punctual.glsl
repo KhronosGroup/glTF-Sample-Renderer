@@ -183,7 +183,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 modelMatrix, mat4 viewMatrix, m
     float mPerPixel = distance(fragViewPosition, offsetViewPosition);
     float maxRadiusPixels = maxColor / mPerPixel; // Calculate the maximum radius in pixels
     if (maxRadiusPixels <= 1.0) {
-        return baseColor; // If the maximum color is less than or equal to the pixel size, return the base color
+        return baseColor * centerSample.rgb; // If the maximum color is less than or equal to the pixel size, return the base color
     }
 
     centerDepth = fragViewPosition.z; // Extract the depth value
