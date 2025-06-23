@@ -351,7 +351,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
         vec3 l_color = getSubsurfaceScattering(v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, baseColor.rgb); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
-        color += l_color * (1.0 - materialInfo.metallic);
+        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel);
 #endif // MATERIAL_VOLUME_SCATTER
 
     f_emissive = u_EmissiveFactor;
