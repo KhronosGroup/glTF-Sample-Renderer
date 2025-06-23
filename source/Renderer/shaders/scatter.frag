@@ -65,6 +65,10 @@ void main()
     materialInfo = getMetallicRoughnessInfo(materialInfo);
 #endif
 
+#ifdef MATERIAL_SHEEN
+    materialInfo = getSheenInfo(materialInfo);
+#endif
+
 #ifdef MATERIAL_SPECULAR
     materialInfo = getSpecularInfo(materialInfo);
 #endif
@@ -92,6 +96,7 @@ void main()
     vec3 f_specular_dielectric = vec3(0.0);
     vec3 f_diffuse = vec3(0.0);
     vec3 f_dielectric_brdf_ibl = vec3(0.0);
+    float albedoSheenScaling = 1.0;
 
     float diffuseTransmissionThickness = 1.0;
 
@@ -174,8 +179,14 @@ void main()
         
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
 
+// We need to multiply with sheen scaling, since we aggregate all lights in one texture, for IBL this can be done in the normal PBR shader
+#ifdef MATERIAL_SHEEN
+        albedoSheenScaling = min(1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotV, materialInfo.sheenRoughnessFactor),
+            1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotL, materialInfo.sheenRoughnessFactor));
+#endif
+
         l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
-        color += l_dielectric_brdf;
+        color += l_dielectric_brdf * albedoSheenScaling;
     }
     
     frontColor = vec4(color.rgb, float(u_MaterialID) / 255.0);
