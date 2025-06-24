@@ -163,7 +163,7 @@ vec3 burley_eval(vec3 d, float r)
 }
 
 
-vec3 getSubsurfaceScattering(vec3 position, mat4 modelMatrix, mat4 viewMatrix, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 baseColor) {
+vec3 getSubsurfaceScattering(vec3 position, mat4 modelMatrix, mat4 viewMatrix, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor) {
     vec3 scatterDistance = attenuationDistance * u_MultiScatterColor; // Scale the attenuation distance by the multi-scatter color
     float maxColor = max3(scatterDistance); // = maxRadius
     vec3 vMaxColor = max(vec3(maxColor, maxColor, maxColor), vec3(0.00001));
@@ -183,14 +183,14 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 modelMatrix, mat4 viewMatrix, m
     float mPerPixel = distance(fragViewPosition, offsetViewPosition);
     float maxRadiusPixels = maxColor / mPerPixel; // Calculate the maximum radius in pixels
     if (maxRadiusPixels <= 1.0) {
-        return baseColor * centerSample.rgb; // If the maximum color is less than or equal to the pixel size, return the base color
+        return diffuseColor * centerSample.rgb; // If the maximum color is less than or equal to the pixel size, return the base color
     }
 
     centerDepth = fragViewPosition.z; // Extract the depth value
     vec3 totalWeight = vec3(0.0);
     vec3 totalDiffuse = vec3(0.0);
 
-    vec3 albedo = baseColor / max(0.00001, max3(baseColor)); // Normalize the albedo color to avoid division by zero
+    vec3 albedo = diffuseColor / max(0.00001, max3(diffuseColor)); // Normalize the albedo color to avoid division by zero
     vec3 clampedScatterDistance = max(vec3(u_MinRadius), scatterDistance / maxColor) * maxColor;
     vec3 d = burley_setup(clampedScatterDistance, albedo); // Setup the Burley model parameters
 
@@ -234,6 +234,6 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 modelMatrix, mat4 viewMatrix, m
         }
     }
     totalWeight = max(totalWeight, vec3(0.0001)); // Avoid division by zero
-    return baseColor * (totalDiffuse / totalWeight);
+    return diffuseColor * (totalDiffuse / totalWeight);
 }
 #endif // MATERIAL_VOLUME_SCATTER

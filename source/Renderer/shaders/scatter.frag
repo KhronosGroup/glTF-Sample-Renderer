@@ -111,14 +111,14 @@ void main()
 
 #if defined(USE_IBL) || defined(MATERIAL_TRANSMISSION)
 
-    f_diffuse = getDiffuseLight(n);
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
+    f_diffuse = getDiffuseLight(n) * materialInfo.diffuseTransmissionColorFactor;
     vec3 diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-    f_diffuse *= (materialInfo.diffuseTransmissionFactor);
-    f_diffuse += diffuseTransmissionIBL * materialInfo.diffuseTransmissionFactor;
+    f_diffuse += diffuseTransmissionIBL;
+    f_diffuse *= materialInfo.diffuseTransmissionFactor;
 #endif
 
     // Calculate fresnel mix for IBL  
@@ -156,13 +156,13 @@ void main()
         
         vec3 lightIntensity = getLighIntensity(light, pointToLight);
         
-        vec3 l_diffuse = lightIntensity * NdotL / M_PI;
+        vec3 l_diffuse = vec3(0.0);
         vec3 l_specular_dielectric = vec3(0.0);
         vec3 l_dielectric_brdf = vec3(0.0);
 
         
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-        l_diffuse = l_diffuse * materialInfo.diffuseTransmissionFactor;
+        l_diffuse = lightIntensity * NdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
         if (dot(n, l) < 0.0) {
             float diffuseNdotL = clampedDot(-n, l);
             vec3 diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
@@ -174,7 +174,8 @@ void main()
 #ifdef MATERIAL_VOLUME
             diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-            l_diffuse += diffuse_btdf * materialInfo.diffuseTransmissionFactor;
+            l_diffuse += diffuse_btdf;
+            l_diffuse *= materialInfo.diffuseTransmissionFactor;
         }
         
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
