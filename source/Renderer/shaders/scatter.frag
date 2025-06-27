@@ -32,6 +32,8 @@ uniform int u_MaterialID;
 
 void main()
 {
+    frontColor = vec4(0.0);
+    frontIBLColor = vec4(0.0);
     vec4 baseColor = getBaseColor();
     baseColor.a = 1.0;
     vec3 color = vec3(0);
