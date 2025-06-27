@@ -1,4 +1,4 @@
-import { mat4, vec3, quat } from 'gl-matrix';
+import { mat4, vec3 } from 'gl-matrix';
 import { GltfObject } from './gltf_object.js';
 
 class gltfCamera extends GltfObject
@@ -138,12 +138,16 @@ class gltfCamera extends GltfObject
         return direction;
     }
 
+    getRotationMatrix(gltf)
+    {
+        const node = this.getNode(gltf);
+        return node.worldRotation;
+    }
+
     getRotation(gltf)
     {
-        const rotation = quat.create();
         const node = this.getNode(gltf);
-        mat4.getRotation(rotation, node.worldTransform);
-        return rotation;
+        return node.worldQuaternion;
     }
 
     getNode(gltf)
@@ -154,11 +158,17 @@ class gltfCamera extends GltfObject
     getTransformMatrix(gltf)
     {
         const node = this.getNode(gltf);
-        if (node !== undefined && node.worldTransform !== undefined)
-        {
-            return node.worldTransform;
+        if (node === undefined || node.worldTransform === undefined){
+            return mat4.create();
         }
-        return mat4.create();
+
+        // Compose transform from rotation and position as we want to ignore scale
+        return mat4.fromRotationTranslationScale(
+            mat4.create(),
+            this.getRotation(gltf),
+            this.getPosition(gltf),
+            vec3.fromValues(1, 1, 1)
+        );
 
     }
 

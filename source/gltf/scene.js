@@ -1,4 +1,4 @@
-import { mat4 } from 'gl-matrix';
+import { mat4, quat } from 'gl-matrix';
 import { GltfObject } from './gltf_object';
 
 class gltfScene extends GltfObject
@@ -49,12 +49,28 @@ class gltfScene extends GltfObject
                 applyTransform(gltf, gltf.nodes[child], node.worldTransform);
             }
         }
-
         for (const node of this.nodes)
         {
             applyTransform(gltf, gltf.nodes[node], rootTransform);
         }
+
+
+        function applyWorldRotation(gltf, node, parentRotation) 
+        {
+            quat.multiply(node.worldQuaternion, parentRotation,  node.rotation);
+
+            // Recurse into children
+            for (const child of node.children) {
+                applyWorldRotation(gltf, gltf.nodes[child], node.worldQuaternion);
+            }
+        }
+
+        for (const node of this.nodes)
+        {  
+            applyWorldRotation(gltf, gltf.nodes[node], quat.create());
+        }
     }
+
 
     gatherNodes(gltf)
     {
