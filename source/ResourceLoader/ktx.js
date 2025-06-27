@@ -77,16 +77,12 @@ class KtxDecoder {
         this.transcode(texture);
         let uploadResult = texture.glUpload();
         if (uploadResult.error != this.gl.NO_ERROR) {
-            alert('WebGL error when uploading texture, code = '
+            console.error('WebGL error when uploading texture, code = '
                 + uploadResult.error.toString(16));
             return undefined;
         }
         if (uploadResult.object === undefined) {
-            alert('Texture upload failed. See console for details.');
-            return undefined;
-        }
-        if (uploadResult.target != this.gl.TEXTURE_2D) {
-            alert('Loaded texture is not a TEXTURE2D.');
+            console.error('Texture upload failed. See console for details.');
             return undefined;
         }
         uploadResult.object.levels = Math.log2(texture.baseWidth);
@@ -99,16 +95,12 @@ class KtxDecoder {
         this.transcode(texture);
         const uploadResult = texture.glUpload();
         if (uploadResult.error != this.gl.NO_ERROR) {
-            alert('WebGL error when uploading texture, code = '
+            console.error('WebGL error when uploading texture, code = '
                 + uploadResult.error.toString(16));
             return undefined;
         }
         if (uploadResult.object === undefined) {
-            alert('Texture upload failed. See console for details.');
-            return undefined;
-        }
-        if (uploadResult.target != this.gl.TEXTURE_2D) {
-            alert('Loaded texture is not a TEXTURE2D.');
+            console.error('Texture upload failed. See console for details.');
             return undefined;
         }
         return uploadResult.object;
