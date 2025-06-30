@@ -145,6 +145,11 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
 }
 
 #ifdef MATERIAL_VOLUME_SCATTER
+vec3 multiToSingleScatter() {
+    vec3 s = 4.09712 + 4.20863 * u_MultiScatterColor - sqrt(9.59217 + 41.6808 * u_MultiScatterColor + 17.7126 * u_MultiScatterColor * u_MultiScatterColor);
+    return 1.0 - s*s;
+}
+
 vec3 burley_setup(vec3 radius, vec3 albedo) {
     float m_1_pi = 0.318309886183790671538;
     vec3 s = 1.9 - albedo + 3.5 * ((albedo - 0.8) * (albedo - 0.8));

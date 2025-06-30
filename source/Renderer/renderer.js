@@ -397,7 +397,7 @@ class gltfRenderer
             instanceWorldTransforms.push(instanceOffset);
         }
 
-        if (this.scatterDrawables.length > 0) {
+        if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
             this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
 

@@ -74,7 +74,7 @@ class gltfMaterial extends GltfObject
         {
             defines.push("MATERIAL_VOLUME 1");
         }
-        if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter && renderpassConfiguration?.scatter === undefined) {
+        if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
             defines.push("MATERIAL_VOLUME_SCATTER 1");
             defines.push(`SCATTER_SAMPLES_COUNT ${this.scatterSampleCount}`);
         }
