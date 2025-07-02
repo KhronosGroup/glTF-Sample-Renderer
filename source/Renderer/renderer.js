@@ -796,7 +796,7 @@ class gltfRenderer
         if (state.renderingParameters.skinning && state.gltf.skins !== undefined)
         {
             const skin = state.gltf.skins[node.skin];
-            skin.computeJoints(state.gltf, node, this.webGl.context);
+            skin.computeJoints(state.gltf, this.webGl.context);
         }
     }
 
