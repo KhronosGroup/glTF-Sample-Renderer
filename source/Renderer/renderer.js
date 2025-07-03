@@ -17,6 +17,7 @@ import shaderFunctions from './shaders/functions.glsl';
 import animationShader from './shaders/animation.glsl';
 import cubemapVertShader from './shaders/cubemap.vert';
 import cubemapFragShader from './shaders/cubemap.frag';
+import scatterShader from './shaders/scatter.frag';
 import specularGlossinesShader from './shaders/specular_glossiness.frag';
 import { gltfLight } from '../gltf/light.js';
 import { jsToGl } from '../gltf/utils.js';
@@ -41,6 +42,11 @@ class gltfRenderer
         this.opaqueFramebufferWidth = 1024;
         this.opaqueFramebufferHeight = 1024;
 
+        // create render target for subsurface scattering
+        this.scatterFrontTexture = 0;
+        this.scatterFrontIBLTexture = 0;
+        this.scatterDepthTexture = 0;
+
         const shaderSources = new Map();
         shaderSources.set("primitive.vert", primitiveShader);
         shaderSources.set("pbr.frag", pbrShader);
@@ -53,6 +59,7 @@ class gltfRenderer
         shaderSources.set("textures.glsl", texturesShader);
         shaderSources.set("functions.glsl", shaderFunctions);
         shaderSources.set("animation.glsl", animationShader);
+        shaderSources.set("scatter.frag", scatterShader);
         shaderSources.set("cubemap.vert", cubemapVertShader);
         shaderSources.set("cubemap.frag", cubemapFragShader);
         shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
@@ -127,6 +134,35 @@ class gltfRenderer
             context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
+            this.scatterDepthTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.scatterDepthTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
+            const scatterTextureNames = ["scatterFrontTexture", "scatterFrontIBLTexture"];
+            for (const textureName of scatterTextureNames) {
+                this[textureName] = context.createTexture();
+                context.bindTexture(context.TEXTURE_2D, this[textureName]);
+                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+                context.texImage2D(context.TEXTURE_2D, 0, context.RGBA16F, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.HALF_FLOAT, null);
+                context.bindTexture(context.TEXTURE_2D, null);
+            }
+
+            this.scatterFramebuffer = context.createFramebuffer();
+            context.bindFramebuffer(context.FRAMEBUFFER, this.scatterFramebuffer);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.scatterFrontTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.scatterFrontIBLTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.scatterDepthTexture, 0);
+            context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
+            
+
 
             this.colorRenderBuffer = context.createRenderbuffer();
             context.bindRenderbuffer(context.RENDERBUFFER, this.colorRenderBuffer);
@@ -189,20 +225,33 @@ class gltfRenderer
             this.currentHeight = height;
             this.currentWidth = width;
             this.webGl.context.viewport(0, 0, width, height);
+            if (this.initialized) {
+                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
+                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterFrontIBLTexture);
+                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA16F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.HALF_FLOAT, null);
+                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterFrontTexture);
+                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA16F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.HALF_FLOAT, null);
+                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterDepthTexture);
+                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.DEPTH_COMPONENT24, this.currentWidth, this.currentHeight, 0, this.webGl.context.DEPTH_COMPONENT, this.webGl.context.UNSIGNED_INT, null);
+                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
+                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+            }
         }
     }
 
     // frame state
     clearFrame(clearColor)
     {
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        this.webGl.context.clearColor(...clearColor);
-        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.opaqueFramebuffer);
         this.webGl.context.clearColor(...clearColor);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.opaqueFramebufferMSAA);
+        this.webGl.context.clearColor(...clearColor);
+        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
+        this.webGl.context.clearColor(0, 0, 0, 0);
+        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.clearColor(...clearColor);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
@@ -226,6 +275,7 @@ class gltfRenderer
                 && (state.gltf.materials[primitive.material].extensions === undefined
                     || state.gltf.materials[primitive.material].extensions.KHR_materials_transmission === undefined));
         
+                    
         let counter = 0;
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
             const winding = Math.sign(mat4.determinant(a.node.worldTransform));
@@ -251,6 +301,11 @@ class gltfRenderer
         this.transmissionDrawables = drawables
             .filter(({primitive}) => state.gltf.materials[primitive.material].extensions !== undefined
                 && state.gltf.materials[primitive.material].extensions.KHR_materials_transmission !== undefined);
+        
+        this.scatterDrawables = drawables
+            .filter(({primitive}) => state.gltf.materials[primitive.material].extensions !== undefined
+                && state.gltf.materials[primitive.material].extensions.KHR_materials_volume_scatter !== undefined
+                && state.gltf.materials[primitive.material].extensions.KHR_materials_volume !== undefined);
     }
 
     // render complete gltf scene with given camera
@@ -342,6 +397,23 @@ class gltfRenderer
             instanceWorldTransforms.push(instanceOffset);
         }
 
+        if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
+            this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
+
+            let counter = 1;
+            for (const drawable of this.scatterDrawables)
+            {
+                let renderpassConfiguration = {};
+                renderpassConfiguration.linearOutput = true;
+                renderpassConfiguration.scatter = true;
+                renderpassConfiguration.drawID = counter;
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+                ++counter;
+            }
+            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+        }
+
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
         if (this.transmissionDrawables.length > 0) {
             // Render transmission sample texture
@@ -359,7 +431,14 @@ class gltfRenderer
                 renderpassConfiguration.linearOutput = true;
                 const instanceOffset = instanceWorldTransforms[drawableCounter];
                 drawableCounter++;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
+
+                let sampledTextures = {};
+                if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+                    sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
+                    sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
+                    sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+                }
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures, instanceOffset);
             }
 
             this.transparentDrawables = currentCamera.sortPrimitivesByDepth(state.gltf, this.transparentDrawables);
@@ -398,7 +477,13 @@ class gltfRenderer
             renderpassConfiguration.linearOutput = false;
             const instanceOffset = instanceWorldTransforms[drawableCounter];
             drawableCounter++;
-            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
+            let sampledTextures = {};
+            if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+                sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
+                sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
+                sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+            }
+            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures, instanceOffset);
         }
 
         // filter materials with transmission extension
@@ -407,7 +492,9 @@ class gltfRenderer
         {
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
-            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, this.opaqueRenderTexture);
+            let sampledTextures = {};
+            sampledTextures.transmissionSampleTexture = this.opaqueRenderTexture;
+            this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures);
         }
 
 
@@ -421,7 +508,7 @@ class gltfRenderer
     }
 
     // vertices with given material
-    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, transmissionSampleTexture, instanceOffset = undefined)
+    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, sampledTextures, instanceOffset = undefined)
     {
         if (primitive.skip) return;
 
@@ -461,7 +548,7 @@ class gltfRenderer
             }
         }
 
-        let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
+        let fragDefines = material.getDefines(state.renderingParameters, renderpassConfiguration).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
         {
             fragDefines.push("LINEAR_OUTPUT 1");
@@ -478,7 +565,12 @@ class gltfRenderer
 
         this.pushFragParameterDefines(fragDefines, state);
         
-        const fragmentShader = material.type === "SG" ? "specular_glossiness.frag" : "pbr.frag";
+        let fragmentShader = "pbr.frag";
+        if (material.type === "SG") {
+            fragmentShader = "specular_glossiness.frag";
+        } else if (renderpassConfiguration.scatter) {
+            fragmentShader = "scatter.frag";
+        }
 
         const fragmentHash = this.shaderCache.selectShader(fragmentShader, fragDefines);
         const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
@@ -498,6 +590,10 @@ class gltfRenderer
         if (state.renderingParameters.usePunctual)
         {
             this.applyLights();
+        }
+
+        if (renderpassConfiguration.scatter) {
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_MaterialID"), renderpassConfiguration.drawID);
         }
 
         // update model dependant matrices once per node
@@ -672,6 +768,8 @@ class gltfRenderer
         this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
         this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
         this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
+
+        this.shader.updateUniform("u_MultiScatterColor", jsToGl(material.extensions?.KHR_materials_volume_scatter?.multiscatterColor));
     
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
@@ -712,7 +810,33 @@ class gltfRenderer
             this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
         }
 
-        if(transmissionSampleTexture !== undefined &&
+        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+        {
+            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterFramebufferSampler"), textureCount);
+            textureCount++;
+
+            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterIBLSampleTexture);
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterIBLFramebufferSampler"), textureCount);
+            textureCount++;
+
+            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterDepthSampleTexture);
+            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterDepthFramebufferSampler"), textureCount);
+            textureCount++;
+
+            this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), material.scatterMinRadius);
+            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_ScatterFramebufferSize"), this.currentWidth, this.currentHeight);
+            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
+            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
+            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
+
+            this.shader.updateUniformArray("u_ScatterSamples", material.scatterSamples);
+        }
+
+        if(sampledTextures?.transmissionSampleTexture !== undefined &&
             state.environment &&
             state.renderingParameters.enabledExtensions.KHR_materials_transmission)
         {
