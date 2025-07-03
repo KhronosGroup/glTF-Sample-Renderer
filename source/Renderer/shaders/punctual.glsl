@@ -227,7 +227,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
             // Distance between center and sample in comparison to maximum radius is used for weighting the scattering contribution
             float sampleDistance = distance(sampleViewPosition, fragViewPosition);
             vec3 weight = burley_eval(d, sampleDistance) * rcpPdf;
-            
+
             totalWeight += weight;
             totalDiffuse += weight * textureSample.rgb;
         }
