@@ -170,8 +170,8 @@ void main()
             diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
             l_diffuse += diffuse_btdf * (1.0 - singleScatter) * singleScatter;
-            l_diffuse *= materialInfo.diffuseTransmissionFactor;
         }
+        l_diffuse *= materialInfo.diffuseTransmissionFactor;
         
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
 
