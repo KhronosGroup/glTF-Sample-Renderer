@@ -431,7 +431,14 @@ class gltfRenderer
                 renderpassConfiguration.linearOutput = true;
                 const instanceOffset = instanceWorldTransforms[drawableCounter];
                 drawableCounter++;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, undefined, instanceOffset);
+
+                let sampledTextures = {};
+                if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+                    sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
+                    sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
+                    sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+                }
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures, instanceOffset);
             }
 
             this.transparentDrawables = currentCamera.sortPrimitivesByDepth(state.gltf, this.transparentDrawables);
@@ -471,7 +478,7 @@ class gltfRenderer
             const instanceOffset = instanceWorldTransforms[drawableCounter];
             drawableCounter++;
             let sampledTextures = {};
-            if (this.scatterDrawables.length > 0) {
+            if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
                 sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
                 sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
                 sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
