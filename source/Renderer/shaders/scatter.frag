@@ -1,18 +1,7 @@
-//
-// This fragment shader defines a reference implementation for Physically Based Shading of
-// a microfacet surface material defined by a glTF model.
-//
-// References:
-// [1] Real Shading in Unreal Engine 4
-//     http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
-// [2] Physically Based Shading at Disney
-//     http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
-// [3] README.md - Environment Maps
-//     https://github.com/KhronosGroup/glTF-WebGL-PBR/#environment-maps
-// [4] "An Inexpensive BRDF Model for Physically based Rendering" by Christophe Schlick
-//     https://www.cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf
-// [5] "KHR_materials_clearcoat"
-//     https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_clearcoat
+// This fragment shader accumulates the diffuse light contribution for subsurface scattering in two color attachments for ibl and punctual lighting.
+// Light passing the surface is modulated by diffuseTransmissionColorFactor
+// diffuseTransmissionFactor defines the ratio of diffuse light passing the surface
+// Light which is scattered at the surface is modulated by the single scatter color, while diffuse transmission is additionally modulated by the absorption ratio (1 - singleScatter).
 
 precision highp float;
 
@@ -35,6 +24,7 @@ void main()
     frontColor = vec4(0.0);
     frontIBLColor = vec4(0.0);
 #ifdef MATERIAL_VOLUME_SCATTER
+    // The single scatter color defines the ratio of scattering. 1 - singleScatter is the ratio of absorption.
     vec3 singleScatter = multiToSingleScatter();
 #endif
     vec4 baseColor = getBaseColor();
@@ -191,7 +181,7 @@ void main()
             1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotL, materialInfo.sheenRoughnessFactor));
 #endif
 
-        l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
+        l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel);
         color += l_dielectric_brdf * albedoSheenScaling;
     }
     
