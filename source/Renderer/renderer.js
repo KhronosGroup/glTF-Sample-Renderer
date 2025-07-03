@@ -833,8 +833,7 @@ class gltfRenderer
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 
-            const scatterSamples = material.computeScatterSamples();
-            this.shader.updateUniformArray("u_ScatterSamples", scatterSamples);
+            this.shader.updateUniformArray("u_ScatterSamples", material.scatterSamples);
         }
 
         if(sampledTextures?.transmissionSampleTexture !== undefined &&
