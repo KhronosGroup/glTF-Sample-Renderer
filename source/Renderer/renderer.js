@@ -44,7 +44,6 @@ class gltfRenderer
 
         // create render target for subsurface scattering
         this.scatterFrontTexture = 0;
-        this.scatterFrontIBLTexture = 0;
         this.scatterDepthTexture = 0;
 
         const shaderSources = new Map();
@@ -143,24 +142,23 @@ class gltfRenderer
             context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
-            const scatterTextureNames = ["scatterFrontTexture", "scatterFrontIBLTexture"];
-            for (const textureName of scatterTextureNames) {
-                this[textureName] = context.createTexture();
-                context.bindTexture(context.TEXTURE_2D, this[textureName]);
-                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
-                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
-                context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
-                context.texImage2D(context.TEXTURE_2D, 0, context.RGBA16F, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.HALF_FLOAT, null);
-                context.bindTexture(context.TEXTURE_2D, null);
-            }
+            this.scatterInternalFormat = this.webGl.context.supports_EXT_color_buffer_half_float ? context.RGBA16F : context.RGBA;
+            this.scatterType = this.webGl.context.supports_EXT_color_buffer_half_float ? context.HALF_FLOAT : context.UNSIGNED_BYTE;
+            
+            this.scatterFrontTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.scatterFrontTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texImage2D(context.TEXTURE_2D, 0, this.scatterInternalFormat, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, this.scatterType, null);
+            context.bindTexture(context.TEXTURE_2D, null);
 
             this.scatterFramebuffer = context.createFramebuffer();
             context.bindFramebuffer(context.FRAMEBUFFER, this.scatterFramebuffer);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.scatterFrontTexture, 0);
-            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.scatterFrontIBLTexture, 0);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.scatterDepthTexture, 0);
-            context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
+            context.drawBuffers([context.COLOR_ATTACHMENT0]);
             
 
 
@@ -227,10 +225,8 @@ class gltfRenderer
             this.webGl.context.viewport(0, 0, width, height);
             if (this.initialized) {
                 this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterFrontIBLTexture);
-                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA16F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.HALF_FLOAT, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterFrontTexture);
-                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA16F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.HALF_FLOAT, null);
+                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.scatterInternalFormat, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.scatterType, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.scatterDepthTexture);
                 this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.DEPTH_COMPONENT24, this.currentWidth, this.currentHeight, 0, this.webGl.context.DEPTH_COMPONENT, this.webGl.context.UNSIGNED_INT, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
@@ -435,7 +431,6 @@ class gltfRenderer
                 let sampledTextures = {};
                 if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
                     sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
-                    sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
                     sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
                 }
                 this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures, instanceOffset);
@@ -480,7 +475,6 @@ class gltfRenderer
             let sampledTextures = {};
             if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
                 sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
-                sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
                 sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
             }
             this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures, instanceOffset);
@@ -495,7 +489,6 @@ class gltfRenderer
             let sampledTextures = {};
             sampledTextures.transmissionSampleTexture = this.opaqueRenderTexture;
             sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
-            sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
             sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
             this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures);
         }
@@ -818,11 +811,6 @@ class gltfRenderer
             this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
             this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
             this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterFramebufferSampler"), textureCount);
-            textureCount++;
-
-            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterIBLSampleTexture);
-            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterIBLFramebufferSampler"), textureCount);
             textureCount++;
 
             this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);

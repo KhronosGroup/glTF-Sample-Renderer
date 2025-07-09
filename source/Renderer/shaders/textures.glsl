@@ -314,7 +314,6 @@ vec2 getThicknessUV()
 
 #ifdef MATERIAL_VOLUME_SCATTER
 uniform sampler2D u_ScatterFramebufferSampler;
-uniform sampler2D u_ScatterIBLFramebufferSampler;
 uniform sampler2D u_ScatterDepthFramebufferSampler;
 #endif
 
