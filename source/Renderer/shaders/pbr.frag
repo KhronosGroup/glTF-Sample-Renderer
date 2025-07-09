@@ -167,6 +167,9 @@ void main()
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
+#ifdef MATERIAL_VOLUME_SCATTER
+    diffuseTransmissionIBL *= (1.0 - singleScatter);
+#endif
     f_diffuse = mix(f_diffuse, diffuseTransmissionIBL, materialInfo.diffuseTransmissionFactor);
 #endif
 
@@ -194,14 +197,9 @@ void main()
     f_metal_brdf_ibl = f_metal_fresnel_ibl * f_specular_metal;
  
     vec3 f_dielectric_fresnel_ibl = getIBLGGXFresnel(n, v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, materialInfo.specularWeight);
-
-#ifdef MATERIAL_VOLUME_SCATTER
-    f_dielectric_brdf_ibl = f_specular_dielectric * f_dielectric_fresnel_ibl;
-    f_dielectric_brdf_ibl += (1.0 - f_dielectric_fresnel_ibl) * f_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
-    f_dielectric_brdf_ibl += getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterIBLFramebufferSampler, materialInfo.diffuseTransmissionColorFactor); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
-    f_dielectric_brdf_ibl += diffuseTransmissionIBL * (1.0 - singleScatter);
-#else
     f_dielectric_brdf_ibl = mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl);
+#ifdef MATERIAL_VOLUME_SCATTER
+    f_dielectric_brdf_ibl += getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterIBLFramebufferSampler, materialInfo.diffuseTransmissionColorFactor) * ( 1.0 - materialInfo.transmissionFactor); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
 #endif
 
 #ifdef MATERIAL_IRIDESCENCE
@@ -291,6 +289,9 @@ void main()
 #ifdef MATERIAL_VOLUME
             l_diffuse_btdf = applyVolumeAttenuation(l_diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
+#ifdef MATERIAL_VOLUME_SCATTER
+            l_diffuse_btdf *= (1.0 - singleScatter);
+#endif
             l_diffuse += l_diffuse_btdf * materialInfo.diffuseTransmissionFactor;
         }
         
@@ -325,13 +326,7 @@ void main()
 #endif
 
         l_metal_brdf = metal_fresnel * l_specular_metal;
-#ifdef MATERIAL_VOLUME_SCATTER
-        l_dielectric_brdf = l_specular_dielectric * dielectric_fresnel;
-        l_dielectric_brdf += (1.0 - dielectric_fresnel) * l_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
-        l_dielectric_brdf += l_diffuse_btdf * (1.0 - singleScatter);
-#else
         l_dielectric_brdf = mix(l_diffuse, l_specular_dielectric, dielectric_fresnel); // Do we need to handle vec3 fresnel here?
-#endif // MATERIAL_VOLUME_SCATTER
 
 #ifdef MATERIAL_IRIDESCENCE
         l_metal_brdf = mix(l_metal_brdf, l_specular_metal * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);
@@ -358,7 +353,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
         vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor); // Subsurface scattering is calculated based on fresnel weighted diffuse terms
-        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor);
+        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor) * (1.0 - materialInfo.transmissionFactor);
 #endif // MATERIAL_VOLUME_SCATTER
 
     f_emissive = u_EmissiveFactor;
