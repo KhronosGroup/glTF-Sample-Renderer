@@ -494,6 +494,9 @@ class gltfRenderer
             renderpassConfiguration.linearOutput = false;
             let sampledTextures = {};
             sampledTextures.transmissionSampleTexture = this.opaqueRenderTexture;
+            sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
+            sampledTextures.scatterIBLSampleTexture = this.scatterFrontIBLTexture;
+            sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
             this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures);
         }
 
