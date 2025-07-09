@@ -67,7 +67,7 @@ class gltfSkin extends GltfObject
         this.jointTextureInfo.generateMips = false;
     }
 
-    computeJoints(gltf, parentNode, webGlContext)
+    computeJoints(gltf, webGlContext)
     {
         let ibmAccessor = null;
         if (this.inverseBindMatrices !== undefined) {
@@ -90,7 +90,6 @@ class gltfSkin extends GltfObject
             if (ibmAccessor !== null) {
                 let ibm = jsToGlSlice(ibmAccessor, i * 16, 16);
                 mat4.mul(jointMatrix, jointMatrix, ibm);
-                mat4.mul(jointMatrix, parentNode.inverseWorldTransform, jointMatrix);
             }
 
             let normalMatrix = mat4.create();

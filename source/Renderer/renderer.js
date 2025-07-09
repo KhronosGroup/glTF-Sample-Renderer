@@ -131,7 +131,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.scatterDepthTexture = context.createTexture();
@@ -172,7 +172,7 @@ class gltfRenderer
             context.bindRenderbuffer(context.RENDERBUFFER, this.depthRenderBuffer);
             context.renderbufferStorageMultisample( context.RENDERBUFFER,
                 samples,
-                context.DEPTH_COMPONENT16, 
+                context.DEPTH_COMPONENT24, 
                 this.opaqueFramebufferWidth,
                 this.opaqueFramebufferHeight);
 
@@ -923,7 +923,7 @@ class gltfRenderer
         if (state.renderingParameters.skinning && state.gltf.skins !== undefined)
         {
             const skin = state.gltf.skins[node.skin];
-            skin.computeJoints(state.gltf, node, this.webGl.context);
+            skin.computeJoints(state.gltf, this.webGl.context);
         }
     }
 

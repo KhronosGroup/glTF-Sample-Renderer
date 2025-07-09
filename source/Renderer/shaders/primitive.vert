@@ -114,7 +114,12 @@ void main()
     mat4 modelMatrix = u_ModelMatrix;
     mat4 normalMatrix = u_NormalMatrix;
 #endif
+
+#ifdef USE_SKINNING
+    vec4 pos = getPosition();
+#else
     vec4 pos = modelMatrix * getPosition();
+#endif
     v_Position = vec3(pos.xyz) / pos.w;
 
 #ifdef HAS_NORMAL_VEC3

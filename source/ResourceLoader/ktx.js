@@ -7,9 +7,9 @@ class KtxDecoder {
         this.libktx = null;
         if (context !== undefined)
         {
-            if (externalKtxlib === undefined && LIBKTX !== undefined)
+            if (externalKtxlib === undefined && createKtxModule !== undefined)
             {
-                externalKtxlib = LIBKTX;
+                externalKtxlib = createKtxModule;
             }
             if (externalKtxlib !== undefined)
             {
@@ -61,7 +61,7 @@ class KtxDecoder {
             } else if (etcSupported) {
                 format = this.libktx.TranscodeTarget.ETC;
             } else {
-                format = this.libktx.TranscodeTarget.RGBA8888;
+                format = this.libktx.TranscodeTarget.RGBA4444;
             }
             if (ktexture.transcodeBasis(format, 0) != this.libktx.ErrorCode.SUCCESS) {
                 console.warn('Texture transcode failed. See console for details.');
@@ -76,13 +76,17 @@ class KtxDecoder {
         const texture = new this.libktx.ktxTexture(data);
         this.transcode(texture);
         let uploadResult = texture.glUpload();
-        if (uploadResult.texture == null)
-        {
-            console.error("Could not load KTX data");
+        if (uploadResult.error != this.gl.NO_ERROR) {
+            console.error('WebGL error when uploading texture, code = '
+                + uploadResult.error.toString(16));
             return undefined;
         }
-        uploadResult.texture.levels = Math.log2(texture.baseWidth);
-        return uploadResult.texture;
+        if (uploadResult.object === undefined) {
+            console.error('Texture upload failed. See console for details.');
+            return undefined;
+        }
+        uploadResult.object.levels = Math.log2(texture.baseWidth);
+        return uploadResult.object;
     }
 
     async loadKtxFromBuffer(data) {
@@ -90,12 +94,16 @@ class KtxDecoder {
         const texture = new this.libktx.ktxTexture(data);
         this.transcode(texture);
         const uploadResult = texture.glUpload();
-        if (uploadResult.texture == null)
-        {
-            console.error("Could not load KTX data");
+        if (uploadResult.error != this.gl.NO_ERROR) {
+            console.error('WebGL error when uploading texture, code = '
+                + uploadResult.error.toString(16));
             return undefined;
         }
-        return uploadResult.texture;
+        if (uploadResult.object === undefined) {
+            console.error('Texture upload failed. See console for details.');
+            return undefined;
+        }
+        return uploadResult.object;
     }
 }
 
