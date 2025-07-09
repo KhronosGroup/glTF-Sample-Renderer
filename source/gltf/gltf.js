@@ -67,6 +67,9 @@ class glTF extends GltfObject
         this.animations = [];
         this.skins = [];
         this.path = file;
+
+        // Generated tangent cache
+        this.tangentCache = new Map();
     }
 
     initGl(webGlContext)
