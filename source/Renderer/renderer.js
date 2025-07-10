@@ -21,6 +21,7 @@ import scatterShader from './shaders/scatter.frag';
 import specularGlossinesShader from './shaders/specular_glossiness.frag';
 import { gltfLight } from '../gltf/light.js';
 import { jsToGl } from '../gltf/utils.js';
+import { gltfMaterial } from '../gltf/material.js';
 
 class gltfRenderer
 {
@@ -544,7 +545,7 @@ class gltfRenderer
             }
         }
 
-        let fragDefines = material.getDefines(state.renderingParameters, renderpassConfiguration).concat(vertDefines);
+        let fragDefines = material.getDefines(state.renderingParameters).concat(vertDefines);
         if (renderpassConfiguration.linearOutput)
         {
             fragDefines.push("LINEAR_OUTPUT 1");
@@ -824,7 +825,7 @@ class gltfRenderer
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 
-            this.shader.updateUniformArray("u_ScatterSamples", material.scatterSamples);
+            this.shader.updateUniformArray("u_ScatterSamples", gltfMaterial.scatterSamples);
         }
 
         if(sampledTextures?.transmissionSampleTexture !== undefined &&

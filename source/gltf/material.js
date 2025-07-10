@@ -6,6 +6,8 @@ import { GltfObject } from './gltf_object.js';
 class gltfMaterial extends GltfObject
 {
     static animatedProperties = ["alphaCutoff", "emissiveFactor"];
+    static scatterSampleCount = 55;
+    static scatterSamples = undefined;
     constructor()
     {
         super();
@@ -37,7 +39,6 @@ class gltfMaterial extends GltfObject
         this.textures = [];
         this.textureTransforms = [];
         this.defines = [];
-        this.scatterSampleCount = 64;
     }
 
     static createDefault()
@@ -50,7 +51,7 @@ class gltfMaterial extends GltfObject
         return defaultMaterial;
     }
 
-    getDefines(renderingParameters, renderpassConfiguration)
+    getDefines(renderingParameters)
     {
         const defines = Array.from(this.defines);
 
@@ -76,7 +77,7 @@ class gltfMaterial extends GltfObject
         }
         if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
             defines.push("MATERIAL_VOLUME_SCATTER 1");
-            defines.push(`SCATTER_SAMPLES_COUNT ${this.scatterSampleCount}`);
+            defines.push(`SCATTER_SAMPLES_COUNT ${gltfMaterial.scatterSampleCount}`);
         }
         if(this.hasIOR && renderingParameters.enabledExtensions.KHR_materials_ior)
         {
@@ -420,7 +421,9 @@ class gltfMaterial extends GltfObject
             {
                 this.hasVolumeScatter = true;
                 this.defines.push("HAS_VOLUME_SCATTER 1");
-                this.scatterSamples = this.computeScatterSamples();
+                if (!gltfMaterial.scatterSamples) {
+                    gltfMaterial.scatterSamples = gltfMaterial.computeScatterSamples();
+                }
             }
 
             // KHR Extension: Iridescence
@@ -481,7 +484,7 @@ class gltfMaterial extends GltfObject
     /**
      * Using blender implementation of Burley diffusion profile.
      */
-    computeScatterSamples()
+    static computeScatterSamples()
     {
         /* Precompute sample position with white albedo. */
         const d = this.burleySetup(1.0, 1.0);
@@ -507,7 +510,7 @@ class gltfMaterial extends GltfObject
         return uniformArray;
     }
 
-    burleySample(d, xRand)
+    static burleySample(d, xRand)
     {
         xRand *= 0.9963790093708328;
 
@@ -538,7 +541,7 @@ class gltfMaterial extends GltfObject
         return r * d;
     }
 
-    burleyEval(d, r)
+    static burleyEval(d, r)
     {
         if (r >= 16 * d) {
             return 0.0;
@@ -549,12 +552,12 @@ class gltfMaterial extends GltfObject
         return (exp_r_d + exp_r_3_d) / (8.0 * Math.PI * d);
     }
 
-    burleyPdf(d, r)
+    static burleyPdf(d, r)
     {
         return this.burleyEval(d, r) / 0.9963790093708328;
     }
 
-    burleySetup(radius, albedo) {
+    static burleySetup(radius, albedo) {
         const m_1_pi = 0.318309886183790671538;
         const s = 1.9 - albedo + 3.5 * ((albedo - 0.8) * (albedo - 0.8));
         const l = 0.25 * m_1_pi * radius;
