@@ -197,22 +197,12 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     vec3 clampedScatterDistance = max(vec3(u_MinRadius), scatterDistance / maxColor) * maxColor;
     vec3 d = burley_setup(clampedScatterDistance, albedo); // Setup the Burley model parameters
 
-    float golden_angle = M_PI * (3.0f - sqrt(5.0f));
-
-    // Use random noise to generate a pseudo-random angle for rotation
-    float PHI = 1.61803398874989484820459; 
-    float randomTheta = fract(52.9829189 * fract(0.06711056 * uv.x + 0.00583715 * uv.y)) * golden_angle;
-    randomTheta = fract(tan(distance(uv*PHI, uv)*1.0)*uv.x) * golden_angle;
-
-    mat2 rotationMatrix = mat2(cos(randomTheta), -sin(randomTheta), sin(randomTheta), cos(randomTheta));
-
     for (int i = 0; i < SCATTER_SAMPLES_COUNT; i++) {
         vec3 scatterSample = u_ScatterSamples[i];
         float fabAngle = scatterSample.x;
         float r = scatterSample.y * maxRadiusPixels * texelSize.x;
         float rcpPdf = scatterSample.z;
         vec2 sampleCoords = vec2(cos(fabAngle) * r, sin(fabAngle) * r);
-        sampleCoords = rotationMatrix * sampleCoords; // Rotate the sample coordinates
         vec2 sampleUV = uv + sampleCoords; // + (randomTheta * 2.0 - 1.0) * 0.01;
         vec4 textureSample = texture(scatterLUT, sampleUV);
 
