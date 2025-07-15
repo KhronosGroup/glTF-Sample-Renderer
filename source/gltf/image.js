@@ -68,7 +68,7 @@ class gltfImage extends GltfObject
         return new Promise( (resolve, reject) => {
             const image = new Image();
             image.addEventListener('load', () => resolve(image) );
-            image.addEventListener('error', reject);
+            image.addEventListener('error', () => reject());
             image.src = url;
             image.crossOrigin = "";
         });
@@ -120,9 +120,11 @@ class gltfImage extends GltfObject
         {
             const blob = new Blob([array], { "type": this.mimeType });
             const objectURL = URL.createObjectURL(blob);
-            this.image = await gltfImage.loadHTMLImage(objectURL).catch( () => {
-                console.error("Could not load image from buffer view");
-            });
+            try {
+                this.image = await gltfImage.loadHTMLImage(objectURL);
+            } catch {
+                throw new Error(`Could not load image "${this.name}" from buffer`);
+            }
         }
         else if(this.mimeType === ImageMimeType.JPEG)
         {
@@ -197,9 +199,11 @@ class gltfImage extends GltfObject
         }
         else if (typeof(Image) !== 'undefined' && (this.mimeType === ImageMimeType.JPEG || this.mimeType === ImageMimeType.PNG || this.mimeType === ImageMimeType.WEBP))
         {
-            this.image = await gltfImage.loadHTMLImage(this.uri).catch( (error) => {
-                console.error(error);
-            });
+            try {
+                this.image = await gltfImage.loadHTMLImage(this.uri);
+            } catch {
+                throw new Error(`Could not load image from ${this.uri}`);
+            }
         }
         else if(this.mimeType === ImageMimeType.JPEG && this.uri instanceof ArrayBuffer)
         {
@@ -272,9 +276,11 @@ class gltfImage extends GltfObject
             const imageData = await AsyncFileReader.readAsDataURL(foundFile[1]).catch( () => {
                 console.error("Could not load image with FileReader");
             });
-            this.image = await gltfImage.loadHTMLImage(imageData).catch( () => {
-                console.error("Could not create image from FileReader image data");
-            });
+            try {
+                this.image = await gltfImage.loadHTMLImage(imageData);
+            } catch {
+                console.error("Error while reading image from file " + this.uri);
+            }
         }
         else
         {
