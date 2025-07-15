@@ -167,7 +167,7 @@ vec3 burley_eval(vec3 d, float r)
 }
 
 
-vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT) {
+vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor) {
     vec3 scatterDistance = attenuationDistance * u_MultiScatterColor; // Scale the attenuation distance by the multi-scatter color
     float maxColor = max3(scatterDistance);
     vec3 vMaxColor = max(vec3(maxColor), vec3(0.00001));
@@ -193,6 +193,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     vec3 totalWeight = vec3(0.0);
     vec3 totalDiffuse = vec3(0.0);
 
+    vec3 albedo = diffuseColor / max(0.00001, max3(diffuseColor)); // Normalize the albedo color to avoid division by zero
     vec3 clampedScatterDistance = max(vec3(u_MinRadius), scatterDistance / maxColor) * maxColor;
     vec3 d = burley_setup(clampedScatterDistance, vec3(1.0)); // Setup the Burley model parameters
 
