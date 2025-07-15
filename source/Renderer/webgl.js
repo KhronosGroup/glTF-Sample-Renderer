@@ -49,27 +49,35 @@ class gltfWebGl
             return false;
         }
 
-        if (gltfTex.glTexture === undefined)
+        if ((gltfTex.glTexture === undefined && textureInfo.linear) || (gltfTex.glTextureSRGB === undefined && !textureInfo.linear))
         {
             if (image.mimeType === ImageMimeType.KTX2 ||
                 image.mimeType === ImageMimeType.GLTEXTURE)
             {
                 // these image resources are directly loaded to a GPU resource by resource loader
-                gltfTex.glTexture = image.image;
+                if (textureInfo.linear) {
+                    gltfTex.glTexture = image.image;
+                } else {
+                    gltfTex.glTextureSRGB = image.image;
+                }
             }
             else
             {
                 // other images will be uploaded in a later step
-                gltfTex.glTexture = this.context.createTexture();
+                if (textureInfo.linear) {
+                    gltfTex.glTexture = this.context.createTexture();
+                } else {
+                    gltfTex.glTextureSRGB = this.context.createTexture();
+                }
             }
         }
 
         this.context.activeTexture(GL.TEXTURE0 + texSlot);
-        this.context.bindTexture(gltfTex.type, gltfTex.glTexture);
+        this.context.bindTexture(gltfTex.type, textureInfo.linear ? gltfTex.glTexture : gltfTex.glTextureSRGB);
 
         this.context.uniform1i(loc, texSlot);
 
-        if (!gltfTex.initialized)
+        if ((!gltfTex.initialized && textureInfo.linear) || (!gltfTex.initializedSRGB && !textureInfo.linear))
         {
             const gltfSampler = gltf.samplers[gltfTex.sampler];
 
@@ -88,7 +96,7 @@ class gltfWebGl
                 image.mimeType === ImageMimeType.HDR)
             {
                 // the check `GL.SRGB8_ALPHA8 === undefined` is needed as at the moment node-gles does not define the full format enum
-                const internalformat = (gltfTex.linear || GL.SRGB8_ALPHA8 === undefined) ? GL.RGBA : GL.SRGB8_ALPHA8;
+                const internalformat = (textureInfo.linear || GL.SRGB8_ALPHA8 === undefined) ? GL.RGBA : GL.SRGB8_ALPHA8;
                 this.context.texImage2D(image.type, image.miplevel, internalformat, GL.RGBA, GL.UNSIGNED_BYTE, image.image);
             }
 
@@ -109,10 +117,16 @@ class gltfWebGl
                 }
             }
 
-            gltfTex.initialized = true;
+            if (textureInfo.linear) {
+                gltfTex.initialized = true;
+            } else {
+                gltfTex.initializedSRGB = true;
+            }
         }
-
-        return gltfTex.initialized;
+        if (textureInfo.linear) {
+            return gltfTex.initialized;
+        }
+        return gltfTex.initializedSRGB;
     }
 
     setIndices(gltf, accessorIndex)

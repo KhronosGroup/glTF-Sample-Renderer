@@ -214,7 +214,6 @@ class gltfMaterial extends GltfObject
         {
             const diffuseTexture = this.extensions.KHR_materials_pbrSpecularGlossiness.diffuseTexture;
             diffuseTexture.samplerName = "u_DiffuseSampler";
-            diffuseTexture.linear = false;
             this.parseTextureInfoExtensions(diffuseTexture, "Diffuse");
             this.textures.push(diffuseTexture);
             this.defines.push("HAS_DIFFUSE_MAP 1");
@@ -224,7 +223,6 @@ class gltfMaterial extends GltfObject
         {
             const specularGlossinessTexture = this.extensions.KHR_materials_pbrSpecularGlossiness.specularGlossinessTexture;
             specularGlossinessTexture.samplerName = "u_SpecularGlossinessSampler";
-            specularGlossinessTexture.linear = false;
             this.parseTextureInfoExtensions(specularGlossinessTexture, "SpecularGlossiness");
             this.textures.push(specularGlossinessTexture);
             this.defines.push("HAS_SPECULAR_GLOSSINESS_MAP 1");
@@ -316,7 +314,6 @@ class gltfMaterial extends GltfObject
                 {
                     sheenColorTexture.samplerName = "u_SheenColorSampler";
                     this.parseTextureInfoExtensions(sheenColorTexture, "SheenColor");
-                    sheenColorTexture.linear = false;
                     this.textures.push(sheenColorTexture);
                     this.defines.push("HAS_SHEEN_COLOR_MAP 1");
                 }
@@ -339,7 +336,6 @@ class gltfMaterial extends GltfObject
                 {
                     this.extensions.KHR_materials_specular.specularColorTexture.samplerName = "u_SpecularColorSampler";
                     this.parseTextureInfoExtensions(this.extensions?.KHR_materials_specular.specularColorTexture, "SpecularColor");
-                    this.extensions.KHR_materials_specular.specularColorTexture.linear = false;
                     this.textures.push(this.extensions.KHR_materials_specular.specularColorTexture);
                     this.defines.push("HAS_SPECULAR_COLOR_MAP 1");
                 }
@@ -741,7 +737,7 @@ class KHR_materials_sheen extends GltfObject {
         super.fromJson(jsonSheen);
         if(jsonSheen.sheenColorTexture !== undefined)
         {
-            const sheenColorTexture = new gltfTextureInfo();
+            const sheenColorTexture = new gltfTextureInfo(undefined, 0, false);
             sheenColorTexture.fromJson(jsonSheen.sheenColorTexture);
             this.sheenColorTexture = sheenColorTexture;
         }
@@ -777,7 +773,7 @@ class KHR_materials_specular extends GltfObject {
 
         if(jsonSpecular.specularColorTexture !== undefined)
         {
-            const specularColorTexture = new gltfTextureInfo();
+            const specularColorTexture = new gltfTextureInfo(undefined, 0, false);
             specularColorTexture.fromJson(jsonSpecular.specularColorTexture);
             this.specularColorTexture = specularColorTexture;
         }
@@ -850,7 +846,7 @@ class KHR_materials_diffuse_transmission extends GltfObject {
 
         if(jsonDiffuseTransmission.diffuseTransmissionColorTexture !== undefined)
         {
-            const diffuseTransmissionColorTexture = new gltfTextureInfo();
+            const diffuseTransmissionColorTexture = new gltfTextureInfo(undefined, 0, false);
             diffuseTransmissionColorTexture.fromJson(jsonDiffuseTransmission.diffuseTransmissionColorTexture);
             this.diffuseTransmissionColorTexture = diffuseTransmissionColorTexture;
         }
@@ -873,7 +869,7 @@ class KHR_materials_pbrSpecularGlossiness extends GltfObject {
         super.fromJson(jsonSpecularGlossiness);
         if(jsonSpecularGlossiness.diffuseTexture !== undefined)
         {
-            const diffuseTexture = new gltfTextureInfo();
+            const diffuseTexture = new gltfTextureInfo(undefined, 0, false);
             diffuseTexture.fromJson(jsonSpecularGlossiness.diffuseTexture);
             this.diffuseTexture = diffuseTexture;
         }
