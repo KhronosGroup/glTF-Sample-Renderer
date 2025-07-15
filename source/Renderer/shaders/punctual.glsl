@@ -174,8 +174,8 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
     mat4 inverseProjectionMatrix = inverse(projectionMatrix);
     vec2 uv = gl_FragCoord.xy * texelSize;
-    vec4 centerSample = texture(scatterLUT, uv); // Sample the LUT at the current UV coordinates
-    float centerDepth = texture(u_ScatterDepthFramebufferSampler, uv).r; // Get depth from the framebuffer
+    vec4 centerSample = textureLod(scatterLUT, uv, 0.0); // Sample the LUT at the current UV coordinates
+    float centerDepth = textureLod(u_ScatterDepthFramebufferSampler, uv, 0.0).r; // Get depth from the framebuffer
     centerDepth = centerDepth * 2.0 - 1.0; // Convert to normalized device coordinates
     vec2 clipUV = uv * 2.0 - 1.0; // Convert to clip space coordinates
     vec4 clipSpacePosition = vec4(clipUV.x, clipUV.y, centerDepth, 1.0);
@@ -204,11 +204,11 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
         float rcpPdf = scatterSample.z;
         vec2 sampleCoords = vec2(cos(fabAngle) * r, sin(fabAngle) * r);
         vec2 sampleUV = uv + sampleCoords; // + (randomTheta * 2.0 - 1.0) * 0.01;
-        vec4 textureSample = texture(scatterLUT, sampleUV);
+        vec4 textureSample = textureLod(scatterLUT, sampleUV, 0.0);
 
         // Check if sample originates from same mesh/material
         if (centerSample.w == textureSample.w) {
-            float sampleDepth = texture(u_ScatterDepthFramebufferSampler, sampleUV).r;
+            float sampleDepth = textureLod(u_ScatterDepthFramebufferSampler, sampleUV, 0.0).r;
             sampleDepth = sampleDepth * 2.0 - 1.0; // Convert to normalized device coordinates
             vec2 sampleClipUV = sampleUV * 2.0 - 1.0; // Convert to clip space coordinates
             vec4 sampleUpos = inverseProjectionMatrix * vec4(sampleClipUV.x, sampleClipUV.y, sampleDepth, 1.0);
