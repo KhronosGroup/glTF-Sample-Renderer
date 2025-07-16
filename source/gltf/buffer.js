@@ -24,17 +24,17 @@ class gltfBuffer extends GltfObject
         }
 
         const self = this;
-        return new Promise(function(resolve)
+        return new Promise(function(resolve, reject)
         {
             if (!self.setBufferFromFiles(additionalFiles, resolve) &&
-                !self.setBufferFromUri(gltf, resolve))
+                !self.setBufferFromUri(gltf, resolve, reject))
             {
-                resolve();
+                reject("Buffer data missing for '" + self.name + "' in " + gltf.path);
             }
         });
     }
 
-    setBufferFromUri(gltf, callback)
+    setBufferFromUri(gltf, resolve, reject)
     {
         if (this.uri === undefined)
         {
@@ -42,10 +42,15 @@ class gltfBuffer extends GltfObject
         }
         const parentPath = this.uri.startsWith("data:") ? "" : getContainingFolder(gltf.path);
         fetch(parentPath + this.uri)
-            .then(response => response.arrayBuffer())
-            .then(buffer => {
-                this.buffer = buffer;
-                callback();
+            .then(response =>  {
+                if (!response.ok) {
+                    reject(`Failed to fetch buffer from ${parentPath + this.uri}: ${response.statusText}`);
+                    return;
+                }
+                response.arrayBuffer().then(buffer => {
+                    this.buffer = buffer;
+                    resolve();
+                });
             });
 
         return true;
