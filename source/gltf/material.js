@@ -8,6 +8,7 @@ class gltfMaterial extends GltfObject
     static animatedProperties = ["alphaCutoff", "emissiveFactor"];
     static scatterSampleCount = 55;
     static scatterSamples = undefined;
+    static scatterMinRadius = 1.0;
     constructor()
     {
         super();
