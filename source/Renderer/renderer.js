@@ -405,6 +405,7 @@ class gltfRenderer
                 renderpassConfiguration.linearOutput = true;
                 renderpassConfiguration.scatter = true;
                 renderpassConfiguration.drawID = counter;
+                renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
                 this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
                 ++counter;
             }
@@ -426,6 +427,7 @@ class gltfRenderer
                 const drawable = instance[0];
                 let renderpassConfiguration = {};
                 renderpassConfiguration.linearOutput = true;
+                renderpassConfiguration.frameBufferSize = [this.opaqueFramebufferWidth, this.opaqueFramebufferHeight];
                 const instanceOffset = instanceWorldTransforms[drawableCounter];
                 drawableCounter++;
 
@@ -442,6 +444,7 @@ class gltfRenderer
             {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.linearOutput = true;
+                renderpassConfiguration.frameBufferSize = [this.opaqueFramebufferWidth, this.opaqueFramebufferHeight];
                 this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
             }
 
@@ -471,6 +474,7 @@ class gltfRenderer
             const drawable = instance[0];
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
+            renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
             const instanceOffset = instanceWorldTransforms[drawableCounter];
             drawableCounter++;
             let sampledTextures = {};
@@ -487,6 +491,7 @@ class gltfRenderer
         {
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
+            renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
             let sampledTextures = {};
             sampledTextures.transmissionSampleTexture = this.opaqueRenderTexture;
             sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
@@ -500,6 +505,7 @@ class gltfRenderer
         {
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = false;
+            renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
             this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
         }
     }
@@ -820,7 +826,7 @@ class gltfRenderer
             textureCount++;
 
             this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), gltfMaterial.scatterMinRadius);
-            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_ScatterFramebufferSize"), this.currentWidth, this.currentHeight);
+            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_FramebufferSize"), renderpassConfiguration.frameBufferSize[0], renderpassConfiguration.frameBufferSize[1]);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);

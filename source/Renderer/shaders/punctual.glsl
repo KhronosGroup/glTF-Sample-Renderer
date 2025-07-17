@@ -29,6 +29,7 @@ uniform Light u_Lights[LIGHT_COUNT + 1]; //Array [0] is not allowed
 uniform vec3 u_ScatterSamples[SCATTER_SAMPLES_COUNT];
 uniform vec3 u_MultiScatterColor;
 uniform float u_MinRadius;
+uniform ivec2 u_FramebufferSize;
 #endif
 
 // https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md#range-property
@@ -173,7 +174,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     vec3 vMaxColor = max(vec3(maxColor), vec3(0.00001));
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
     mat4 inverseProjectionMatrix = inverse(projectionMatrix);
-    vec2 uv = gl_FragCoord.xy * texelSize;
+    vec2 uv = gl_FragCoord.xy * (1.0 / vec2(u_FramebufferSize));
     vec4 centerSample = textureLod(scatterLUT, uv, 0.0); // Sample the LUT at the current UV coordinates
     float centerDepth = textureLod(u_ScatterDepthFramebufferSampler, uv, 0.0).r; // Get depth from the framebuffer
     centerDepth = centerDepth * 2.0 - 1.0; // Convert to normalized device coordinates
