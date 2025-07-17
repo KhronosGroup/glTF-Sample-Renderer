@@ -143,8 +143,8 @@ class gltfRenderer
             context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
-            this.scatterInternalFormat = this.webGl.context.supports_EXT_color_buffer_half_float ? context.RGBA16F : context.RGBA;
-            this.scatterType = this.webGl.context.supports_EXT_color_buffer_half_float ? context.HALF_FLOAT : context.UNSIGNED_BYTE;
+            this.scatterInternalFormat = context.supports_EXT_color_buffer_half_float ? context.RGBA16F : context.RGBA;
+            this.scatterType = context.supports_EXT_color_buffer_half_float ? context.HALF_FLOAT : context.UNSIGNED_BYTE;
             
             this.scatterFrontTexture = context.createTexture();
             context.bindTexture(context.TEXTURE_2D, this.scatterFrontTexture);
