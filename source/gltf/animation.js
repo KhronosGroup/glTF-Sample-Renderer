@@ -98,10 +98,6 @@ class gltfAnimation extends GltfObject
             }
 
             if (property != null) {
-                if (property.startsWith("/extensions/KHR_lights_punctual/")) {
-                    const suffix = property.substring("/extensions/KHR_lights_punctual/".length);
-                    property = "/" + suffix;
-                }
                 let jsonPointer = JsonPointer.create(property);
                 let parentObject = jsonPointer.parent(gltf);
                 let back = jsonPointer.path.at(-1);
