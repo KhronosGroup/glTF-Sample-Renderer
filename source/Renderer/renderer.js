@@ -426,9 +426,9 @@ class gltfRenderer
         if (primitive.skip) return;
 
         let material;
-        if(primitive.mappings !== undefined && state.variant != "default")
+        if(primitive.mappings !== undefined && state.variant != "default" && state.gltf.extensions?.KHR_materials_variants.variants !== undefined)
         {
-            const names = state.gltf.variants.map(obj => obj.name);
+            const names = state.gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
             const idx = names.indexOf(state.variant);
             let materialIdx = primitive.material;
             primitive.mappings.forEach(element => {
@@ -784,7 +784,7 @@ class gltfRenderer
             if (lightIndex === undefined) {
                 continue;
             }
-            const light = gltf.lights[lightIndex];
+            const light = gltf.extensions?.KHR_lights_punctual?.lights[lightIndex];
             nodeLights.push([node, light]);
         }
 

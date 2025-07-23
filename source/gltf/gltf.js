@@ -4,7 +4,6 @@ import { gltfBufferView } from './buffer_view.js';
 import { gltfCamera } from './camera.js';
 import { gltfImage } from './image.js';
 import { gltfLight } from './light.js';
-import { ImageBasedLight } from './image_based_light.js';
 import { gltfMaterial } from './material.js';
 import { gltfMesh } from './mesh.js';
 import { gltfNode } from './node.js';
@@ -95,13 +94,17 @@ class glTF extends GltfObject
         this.scenes = objectsFromJsons(json.scenes, gltfScene);
         this.textures = objectsFromJsons(json.textures, gltfTexture);
         this.nodes = objectsFromJsons(json.nodes, gltfNode);
-        this.lights = objectsFromJsons(getJsonLightsFromExtensions(json.extensions), gltfLight);
-        this.imageBasedLights = objectsFromJsons(getJsonIBLsFromExtensions(json.extensions), ImageBasedLight);
         this.images = objectsFromJsons(json.images, gltfImage);
         this.animations = objectsFromJsons(json.animations, gltfAnimation);
         this.skins = objectsFromJsons(json.skins, gltfSkin);
-        this.variants = objectsFromJsons(getJsonVariantsFromExtension(json.extensions), gltfVariant);
-        this.variants = enforceVariantsUniqueness(this.variants);
+
+        if (json.extensions?.KHR_lights_punctual !== undefined) {
+            this.extensions.KHR_lights_punctual.lights = objectsFromJsons(json.extensions.KHR_lights_punctual.lights, gltfLight);
+        }
+        if (json.extensions?.KHR_materials_variants !== undefined) {
+            this.extensions.KHR_materials_variants.variants = objectsFromJsons(json.extensions.KHR_materials_variants?.variants, gltfVariant);
+            this.extensions.KHR_materials_variants.variants = enforceVariantsUniqueness(this.extensions.KHR_materials_variants.variants);
+        }
 
         this.materials.push(gltfMaterial.createDefault());
         this.samplers.push(gltfSampler.createDefault());
@@ -214,45 +217,6 @@ class glTF extends GltfObject
 
         return nonDisjointAnimations;
     }
-}
-
-function getJsonLightsFromExtensions(extensions)
-{
-    if (extensions === undefined)
-    {
-        return [];
-    }
-    if (extensions.KHR_lights_punctual === undefined)
-    {
-        return [];
-    }
-    return extensions.KHR_lights_punctual.lights;
-}
-
-function getJsonIBLsFromExtensions(extensions)
-{
-    if (extensions === undefined)
-    {
-        return [];
-    }
-    if (extensions.KHR_lights_image_based === undefined)
-    {
-        return [];
-    }
-    return extensions.KHR_lights_image_based.imageBasedLights;
-}
-
-function getJsonVariantsFromExtension(extensions)
-{
-    if (extensions === undefined)
-    {
-        return [];
-    }
-    if (extensions.KHR_materials_variants === undefined)
-    {
-        return [];
-    }
-    return extensions.KHR_materials_variants.variants;
 }
 
 function enforceVariantsUniqueness(variants)

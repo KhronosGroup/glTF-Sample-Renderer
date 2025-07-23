@@ -9,21 +9,11 @@ class gltfScene extends GltfObject
         super();
         this.nodes = nodes;
         this.name = name;
-
-        // non gltf
-        this.imageBasedLight = undefined;
     }
 
     initGl(gltf, webGlContext)
     {
         super.initGl(gltf, webGlContext);
-
-        if (this.extensions !== undefined &&
-            this.extensions.KHR_lights_image_based !== undefined)
-        {
-            const index = this.extensions.KHR_lights_image_based.imageBasedLight;
-            this.imageBasedLight = gltf.imageBasedLights[index];
-        }
     }
 
     applyTransformHierarchy(gltf, rootTransform = mat4.create())
