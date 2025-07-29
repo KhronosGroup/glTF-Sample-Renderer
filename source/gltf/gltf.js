@@ -16,10 +16,12 @@ import { GltfObject } from './gltf_object.js';
 import { gltfAnimation } from './animation.js';
 import { gltfSkin } from './skin.js';
 import { gltfVariant } from './variant.js';
+import { gltfGraph } from './interactivity.js';
 
 const allowedExtensions = [
     "KHR_animation_pointer",
     "KHR_draco_mesh_compression",
+    "KHR_interactivity",
     "KHR_lights_image_based",
     "KHR_lights_punctual",
     "KHR_materials_anisotropy",
@@ -54,7 +56,6 @@ class glTF extends GltfObject
         this.scene = undefined; // the default scene to show.
         this.scenes = [];
         this.cameras = [];
-        this.lights = [];
         this.imageBasedLights = [];
         this.textures = [];
         this.images = [];
@@ -104,6 +105,10 @@ class glTF extends GltfObject
         if (json.extensions?.KHR_materials_variants !== undefined) {
             this.extensions.KHR_materials_variants.variants = objectsFromJsons(json.extensions.KHR_materials_variants?.variants, gltfVariant);
             this.extensions.KHR_materials_variants.variants = enforceVariantsUniqueness(this.extensions.KHR_materials_variants.variants);
+        }
+        if (json.extensions?.KHR_interactivity !== undefined) {
+            this.extensions.KHR_interactivity.graphs = objectFromJson(json.extensions.KHR_interactivity?.graphs, gltfGraph);
+            this.extensions.KHR_interactivity.graph = json.extensions.KHR_interactivity?.graph ?? 0;
         }
 
         this.materials.push(gltfMaterial.createDefault());
@@ -254,5 +259,6 @@ export {
     GltfObject,
     gltfAnimation,
     gltfSkin,
-    gltfVariant
+    gltfVariant,
+    gltfGraph
 };

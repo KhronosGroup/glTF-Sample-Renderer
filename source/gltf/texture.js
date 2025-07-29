@@ -3,6 +3,7 @@
 import { fromKeys, initGlForMembers } from './utils.js';
 import { GL } from '../Renderer/webgl.js';
 import { GltfObject } from './gltf_object.js';
+import { vec2 } from 'gl-matrix';
 
 class gltfTexture extends GltfObject
 {
@@ -101,8 +102,8 @@ class KHR_texture_transform extends GltfObject {
     static animatedProperties = ["offset", "scale", "rotation"];
     constructor() {
         super();
-        this.offset = [0, 0];
-        this.scale = [1, 1];
+        this.offset = vec2.fromValues(0, 0);
+        this.scale = vec2.fromValues(1, 1);
         this.rotation = 0;
     }
 }

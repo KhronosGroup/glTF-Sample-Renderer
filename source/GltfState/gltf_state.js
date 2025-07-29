@@ -33,6 +33,9 @@ class GltfState
         /** KHR_materials_variants */
         this.variant = undefined;
 
+        /** the active graph for interactivity */
+        this.graphIndex = 0;
+
         /** parameters used to configure the rendering */
         this.renderingParameters = {
             /** morphing between vertices */
@@ -61,6 +64,7 @@ class GltfState
                 /** KHR_materials_dispersion defines configuring the strength of the angular separation of colors (chromatic abberation)*/
                 KHR_materials_dispersion: true,
                 KHR_materials_emissive_strength: true,
+                KHR_interactivity: true,
             },
             /** clear color expressed as list of ints in the range [0, 255] */
             clearColor: [58, 64, 74, 255],
