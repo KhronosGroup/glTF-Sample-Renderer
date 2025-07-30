@@ -146,13 +146,13 @@ class Timer {
     }
 
     start() {
-        this.startTime = new Date().getTime() / 1000;
+        this.startTime = performance.now() / 1000;
         this.endTime = undefined;
         this.seconds = undefined;
     }
 
     stop() {
-        this.endTime = new Date().getTime() / 1000;
+        this.endTime = performance.now() / 1000;
         this.seconds = this.endTime - this.startTime;
     }
 }
@@ -170,7 +170,7 @@ class AnimationTimer {
             return this.pausedTime / 1000;
         }
         else {
-            return this.fixedTime || (new Date().getTime() - this.startTime) / 1000;
+            return this.fixedTime || (performance.now() - this.startTime) / 1000;
         }
     }
 
@@ -184,24 +184,24 @@ class AnimationTimer {
     }
 
     start() {
-        this.startTime = new Date().getTime();
+        this.startTime = performance.now();
         this.paused = false;
     }
 
     pause() {
-        this.pausedTime = new Date().getTime() - this.startTime;
+        this.pausedTime = performance.now() - this.startTime;
         this.paused = true;
     }
 
     unpause() {
-        this.startTime += new Date().getTime() - this.startTime - this.pausedTime;
+        this.startTime += performance.now() - this.startTime - this.pausedTime;
         this.paused = false;
     }
 
     reset() {
         if (!this.paused) {
             // Animation is running.
-            this.startTime = new Date().getTime();
+            this.startTime = performance.now();
         }
         else {
             this.startTime = 0;
