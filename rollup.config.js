@@ -27,7 +27,7 @@ export default {
         resolve({
             browser: true,
             preferBuiltins: false,
-            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png']
+            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png', '@khronosgroup/khr_interactivity_authoring_engine']
         }),
         copy({
             targets: [

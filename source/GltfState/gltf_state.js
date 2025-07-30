@@ -1,3 +1,4 @@
+import { GraphController } from '../gltf/interactivity.js';
 import { UserCamera } from '../gltf/user_camera.js';
 import { AnimationTimer } from '../gltf/utils.js';
 
@@ -33,8 +34,8 @@ class GltfState
         /** KHR_materials_variants */
         this.variant = undefined;
 
-        /** the active graph for interactivity */
-        this.graphIndex = 0;
+        /** the graph controller allows selecting and playing graphs from KHR_interactivity */
+        this.graphController = new GraphController();
 
         /** parameters used to configure the rendering */
         this.renderingParameters = {

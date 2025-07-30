@@ -107,7 +107,7 @@ class glTF extends GltfObject
             this.extensions.KHR_materials_variants.variants = enforceVariantsUniqueness(this.extensions.KHR_materials_variants.variants);
         }
         if (json.extensions?.KHR_interactivity !== undefined) {
-            this.extensions.KHR_interactivity.graphs = objectFromJson(json.extensions.KHR_interactivity?.graphs, gltfGraph);
+            this.extensions.KHR_interactivity.graphs = objectsFromJsons(json.extensions.KHR_interactivity?.graphs, gltfGraph);
             this.extensions.KHR_interactivity.graph = json.extensions.KHR_interactivity?.graph ?? 0;
         }
 
