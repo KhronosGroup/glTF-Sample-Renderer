@@ -17,6 +17,10 @@ class GraphController {
         this.fps = fps;
         this.graphIndex = undefined;
         this.playing = false;
+        this.customEvents = [];
+        this.eventBus = undefined;
+        this.engine = undefined;
+        this.decorator = undefined;
     }
 
     /**
@@ -34,16 +38,29 @@ class GraphController {
 
     /**
      * Starts playing the specified graph. Resets the engine.
-     * @param {number} graphIndex 
+     * @param {number} graphIndex
+     * @return {Array} An array of custom events defined in the graph.
      */
     startGraph(graphIndex) {
         this.engine.clearCustomEventListeners();
         try {
-            this.decorator.loadGraph(graphIndex);
+            this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
             this.playing = true;
         } catch (error) {
             console.error("Error loading graph:", error);
+        }
+        return this.customEvents;
+    }
+
+    /**
+     * Stops the currently playing graph.
+     */
+    stopGraph() {
+        this.graphIndex = undefined;
+        this.playing = false;
+        if (this.engine !== undefined) {
+            this.engine.clearCustomEventListeners();
         }
     }
 
@@ -71,6 +88,15 @@ class GraphController {
             return;
         }
         this.startGraph(this.graphIndex);
+    }
+
+    /**
+     * Dispatches an event to the behavior engine.
+     * @param {string} eventName 
+     * @param {*} data 
+     */
+    dispatchEvent(eventName, data) {
+        this.behaveEngine.dispatchEvent(eventName, data);
     }
 
 }
@@ -111,8 +137,18 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         const graphArray = this.world?.gltf?.extensions?.KHR_interactivity.graphs;
         if (graphArray && graphArray.length > graphIndex) {
             const graphCopy = JSON.parse(JSON.stringify(graphArray[graphIndex]));
+            let events = graphCopy.events ?? [];
+            events = events.filter(event => event.id !== undefined);
+            events = JSON.parse(JSON.stringify(events)); // Deep copy to avoid mutation
+            for (const event of events) {
+                for (const value of Object.values(event.values)) {
+                    value.type = graphCopy.types[value.type].signature;
+                }
+            }
             this.behaveEngine.loadBehaveGraph(graphCopy);
+            return events;
         }
+        throw new Error(`Graph with index ${graphIndex} does not exist.`);
     }
 
     processNodeStarted(node) {
