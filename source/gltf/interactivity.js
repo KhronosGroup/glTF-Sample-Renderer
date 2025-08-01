@@ -96,7 +96,9 @@ class GraphController {
      * @param {*} data 
      */
     dispatchEvent(eventName, data) {
-        this.behaveEngine.dispatchEvent(eventName, data);
+        if (this.decorator !== undefined) {
+            this.decorator.dispatchCustomEvent(eventName, data);
+        }
     }
 
 }
