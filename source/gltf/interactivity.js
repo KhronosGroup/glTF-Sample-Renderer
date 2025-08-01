@@ -153,6 +153,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         throw new Error(`Graph with index ${graphIndex} does not exist.`);
     }
 
+    dispatchCustomEvent(eventName, data) {
+        this.behaveEngine.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
+    }
+
     processNodeStarted(node) {
         console.log("Node started:", node);
     }
