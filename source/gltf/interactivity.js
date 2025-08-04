@@ -97,7 +97,7 @@ class GraphController {
      */
     dispatchEvent(eventName, data) {
         if (this.decorator !== undefined) {
-            this.decorator.dispatchCustomEvent(eventName, data);
+            this.decorator.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
         }
     }
 
@@ -108,6 +108,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     constructor(behaveEngine, world, debug = false) {
         super(behaveEngine);
         this.world = world;
+        this.dispatchCustomEvent = this.dispatchCustomEvent.bind(this);
 
         this.registerKnownPointers();
 
@@ -151,10 +152,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             return events;
         }
         throw new Error(`Graph with index ${graphIndex} does not exist.`);
-    }
-
-    dispatchCustomEvent(eventName, data) {
-        this.behaveEngine.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
     }
 
     processNodeStarted(node) {
