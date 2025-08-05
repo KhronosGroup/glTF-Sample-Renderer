@@ -13,14 +13,15 @@ class gltfGraph extends GltfObject {
  * A controller for managing KHR_interactivity graphs in a glTF scene.
  */
 class GraphController {
-    constructor(fps = 60) {
+    constructor(fps = 60, debug = false) {
         this.fps = fps;
         this.graphIndex = undefined;
         this.playing = false;
+        this.reset = false;
         this.customEvents = [];
-        this.eventBus = undefined;
-        this.engine = undefined;
-        this.decorator = undefined;
+        this.eventBus = new interactivity.DOMEventBus();
+        this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
+        this.decorator = new SampleViewerDecorator(this.engine, debug);
     }
 
     /**
@@ -29,11 +30,17 @@ class GraphController {
      * @param {GltfState} state - The state of the application.
      * @param {boolean} debug - Whether to enable debug mode.
      */
-    initializeGraphs(state, debug = false) {
-        this.eventBus = new interactivity.DOMEventBus();
-        this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
-        this.decorator = new SampleViewerDecorator(this.engine, state, debug);
+    initializeGraphs(state) {
+        this.graphIndex = undefined;
         this.playing = false;
+        this.reset = false;
+        this.decorator.setWorld(state);
+        this.engine.clearCustomEventListeners();
+        this.engine.clearEventList();
+        this.engine.clearPointerInterpolation();
+        this.engine.clearVariableInterpolation();
+        this.engine.clearScheduledDelays();
+        this.engine.clearValueEvaluationCache();
     }
 
     /**
@@ -47,6 +54,7 @@ class GraphController {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
             this.playing = true;
+            this.reset = false;
         } catch (error) {
             console.error("Error loading graph:", error);
         }
@@ -57,27 +65,38 @@ class GraphController {
      * Stops the currently playing graph.
      */
     stopGraph() {
+        if (this.graphIndex === undefined) {
+            return;
+        }
         this.graphIndex = undefined;
         this.playing = false;
-        if (this.engine !== undefined) {
-            this.engine.clearCustomEventListeners();
-        }
+        this.engine.clearCustomEventListeners();
     }
 
     /**
      * Pauses the currently playing graph.
      */
     pauseGraph() {
-        //TODO
+        if (this.graphIndex === undefined || !this.playing) {
+            return;
+        }
+        this.decorator.pauseEventQueue();
         this.playing = false;
     }
     
     /**
      * Resumes the currently paused graph.
      */
-    playGraph() {
-        //TODO
-        this.playing = true;
+    resumeGraph() {
+        if (this.graphIndex === undefined || this.playing) {
+            return;
+        }
+        if (this.reset) {
+            this.startGraph(this.graphIndex);
+        } else {
+            this.decorator.resumeEventQueue();
+            this.playing = true;
+        }
     }
 
     /**
@@ -87,7 +106,11 @@ class GraphController {
         if (this.graphIndex === undefined) {
             return;
         }
-        this.startGraph(this.graphIndex);
+        this.decorator.resetGraph();
+        this.reset = true;
+        if (this.playing) {
+            this.startGraph(this.graphIndex);
+        }
     }
 
     /**
@@ -96,7 +119,7 @@ class GraphController {
      * @param {*} data 
      */
     dispatchEvent(eventName, data) {
-        if (this.decorator !== undefined) {
+        if (this.graphIndex !== undefined) {
             this.decorator.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
         }
     }
@@ -105,12 +128,9 @@ class GraphController {
 
 class SampleViewerDecorator extends interactivity.ADecorator {
     
-    constructor(behaveEngine, world, debug = false) {
+    constructor(behaveEngine, debug = false) {
         super(behaveEngine);
-        this.world = world;
         this.dispatchCustomEvent = this.dispatchCustomEvent.bind(this);
-
-        this.registerKnownPointers();
 
         if (debug) {
             this.behaveEngine.processNodeStarted = this.processNodeStarted;
@@ -136,6 +156,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         //this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
     }
 
+    setWorld(world) {
+        this.resetGraph();
+        this.world = world;
+        this.registerKnownPointers();
+    }
+
     loadGraph(graphIndex) {
         const graphArray = this.world?.gltf?.extensions?.KHR_interactivity.graphs;
         if (graphArray && graphArray.length > graphIndex) {
@@ -152,6 +178,17 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             return events;
         }
         throw new Error(`Graph with index ${graphIndex} does not exist.`);
+    }
+
+    resetGraph() {
+        this.behaveEngine.loadBehaveGraph({nodes: [], types: [], events: [], declarations: [], variables: []});
+        if (this.world === undefined) {
+            return;
+        }
+        const resetAnimatedProperty = (path, propertyName, parent) => {
+            parent.animatedPropertyObjects[propertyName].rest();
+        };
+        this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
     }
 
     processNodeStarted(node) {
@@ -237,13 +274,13 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             }
         }
         if (value !== undefined) {
-            currentNode[lastPiece] = value;
+            currentNode.animatedPropertyObjects[lastPiece].animate(value);
         }
         return currentNode;
     }
 
 
-    registerKnownPointersHelper(gltfObject, currentPath = "") {
+    recurseAllAnimatedProperties(gltfObject, callable, currentPath = "") {
         if (gltfObject === undefined || !(gltfObject instanceof GltfObject)) {
             return;
         }
@@ -251,10 +288,38 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             if (gltfObject[property] === undefined) {
                 continue;
             }
-            const jsonPtr = currentPath + "/" + property;
-            const type = this.getTypeFromValue(gltfObject[property]);
+            callable(currentPath, property, gltfObject);
+        }
+        for (const key in gltfObject) {
+            if (gltfObject[key] instanceof GltfObject) {
+                this.recurseAllAnimatedProperties(gltfObject[key], callable,currentPath + "/" + key);
+            } else if (Array.isArray(gltfObject[key])) {
+                if (gltfObject[key].length === 0 || !(gltfObject[key][0] instanceof GltfObject)) {
+                    continue;
+                }
+                for (let i = 0; i < gltfObject[key].length; i++) {
+                    this.recurseAllAnimatedProperties(gltfObject[key][i], callable, currentPath + "/" + key + "/" + i);
+                }
+            }
+        }
+        for (const extensionName in gltfObject.extensions) {
+            const extension = gltfObject.extensions[extensionName];
+            if (extension instanceof GltfObject) {
+                this.recurseAllAnimatedProperties(extension, callable, currentPath + "/extensions/" + extensionName);
+            }
+        }
+        
+    }
+
+    registerKnownPointers() {
+        if (this.world === undefined) {
+            return;
+        }
+        const registerFunction = (currentPath, propertyName, parent) => {
+            const jsonPtr = currentPath + "/" + propertyName;
+            const type = this.getTypeFromValue(parent[propertyName]);
             if (type === undefined) {
-                continue;
+                return;
             }
             this.registerJsonPointer(jsonPtr, (path) => {
                 const result = this.traversePath(path);
@@ -265,33 +330,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             }, (path, value) => {
                 this.traversePath(path, value);
             }, type, false);
-        }
-        for (const key in gltfObject) {
-            if (gltfObject[key] instanceof GltfObject) {
-                this.registerKnownPointersHelper(gltfObject[key], currentPath + "/" + key);
-            } else if (Array.isArray(gltfObject[key])) {
-                if (gltfObject[key].length === 0 || !(gltfObject[key][0] instanceof GltfObject)) {
-                    continue;
-                }
-                for (let i = 0; i < gltfObject[key].length; i++) {
-                    this.registerKnownPointersHelper(gltfObject[key][i], currentPath + "/" + key + "/" + i);
-                }
-            }
-        }
-        for (const extensionName in gltfObject.extensions) {
-            const extension = gltfObject.extensions[extensionName];
-            if (extension instanceof GltfObject) {
-                this.registerKnownPointersHelper(extension, currentPath + "/extensions/" + extensionName);
-            }
-        }
-        
-    }
-
-    registerKnownPointers() {
-        if (this.world === undefined) {
-            return;
-        }
-        this.registerKnownPointersHelper(this.world.gltf);
+        };
+        this.recurseAllAnimatedProperties(this.world.gltf, registerFunction);
     }
 
     registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly) {
