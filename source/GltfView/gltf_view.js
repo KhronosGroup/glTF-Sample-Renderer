@@ -156,33 +156,41 @@ class GltfView
 
     _animate(state)
     {
-        if(state.gltf === undefined)
+        if(state.gltf === undefined || state.gltf.animations === undefined)
         {
             return;
         }
+        let disabledAnimations = [];
+        let enabledAnimations = [];
 
-        if(state.gltf.animations !== undefined && state.animationIndices !== undefined)
+        if (state.gltf?.extensions?.KHR_interactivity !== undefined && state.renderingParameters.enabledExtensions.KHR_interactivity) {
+            for (const animation of state.gltf.animations) {
+                if (animation.createdTimestamp !== undefined) {
+                    enabledAnimations.push(animation);
+                }
+            }
+        } else if(state.animationIndices !== undefined)
         {
-            const disabledAnimations = state.gltf.animations.filter( (anim, index) => {
+            disabledAnimations = state.gltf.animations.filter( (anim, index) => {
                 return false === state.animationIndices.includes(index);
             });
-
-            for(const disabledAnimation of disabledAnimations)
-            {
-                disabledAnimation.advance(state.gltf, undefined);
-            }
-
-            const t = state.animationTimer.elapsedSec();
-
-            const animations = state.animationIndices.map(index => {
+            enabledAnimations = state.animationIndices.map(index => {
                 return state.gltf.animations[index];
             }).filter(animation => animation !== undefined);
-
-            for(const animation of animations)
-            {
-                animation.advance(state.gltf, t);
-            }
         }
+
+        for(const disabledAnimation of disabledAnimations)
+        {
+            disabledAnimation.advance(state.gltf, undefined);
+        }
+
+        const t = state.animationTimer.elapsedSec();
+
+        for(const animation of enabledAnimations)
+        {
+            animation.advance(state.gltf, t);
+        }
+        
     }
 }
 

@@ -16,6 +16,15 @@ class gltfAnimation extends GltfObject
         this.samplers = [];
         this.name = '';
 
+        // For KHR_interactivity
+        this.createdTimestamp = undefined; // Time in seconds after graph creation when the animation was created. Computed via animation timer.
+        this.startTime = 0;
+        this.stopTime = undefined;
+        this.endTime = Infinity;
+        this.speed = 1.0;
+        this.endCallback = undefined; // Callback to call when the animation ends.
+        this.stopCallback = undefined; // Callback to call when the animation stops.
+
         // not gltf
         this.interpolators = [];
         this.maxTime = 0;
@@ -44,6 +53,16 @@ class gltfAnimation extends GltfObject
         }
     }
 
+    reset() {
+        this.createdTimestamp = undefined;
+        this.startTime = 0;
+        this.stopTime = undefined;
+        this.endTime = Infinity;
+        this.speed = 1.0;
+        this.endCallback = undefined;
+        this.stopCallback = undefined;
+    }
+
     // advance the animation, if totalTime is undefined, the animation is deactivated
     advance(gltf, totalTime)
     {
@@ -66,6 +85,37 @@ class gltfAnimation extends GltfObject
                 }
             }
         }
+
+        let stopAnimation = false;
+        let endAnimation = false;
+        let elapsedTime = totalTime;
+
+
+        if (this.createdTimestamp !== undefined) {
+            if (this.createdTimestamp !== undefined) {
+                elapsedTime = totalTime - this.createdTimestamp;
+            }
+            elapsedTime *= this.speed;
+            if (this.startTime > this.endTime) {
+                elapsedTime *= -1;
+            }
+            elapsedTime += this.startTime;
+            if (this.startTime === this.endTime) {
+                elapsedTime = this.startTime;
+                endAnimation = true;
+            } else if (this.stopTime !== undefined) {
+                if ((this.startTime < this.endTime && elapsedTime >= this.stopTime && this.stopTime >= this.startTime && this.stopTime < this.endTime)
+                    || (this.startTime > this.endTime && elapsedTime <= this.stopTime && this.stopTime <= this.startTime && this.stopTime > this.endTime)) {
+                    elapsedTime = this.stopTime;
+                    stopAnimation = true;
+                }
+            } else if ((this.startTime < this.endTime && elapsedTime >= this.endTime) || (this.startTime > this.endTime && elapsedTime <= this.endTime)) {
+                elapsedTime = this.endTime;
+                endAnimation = true;
+            }
+        }
+
+
 
         for(let i = 0; i < this.interpolators.length; ++i)
         {
@@ -128,7 +178,7 @@ class gltfAnimation extends GltfObject
                     stride = animatedProperty.restValue[animatedArrayElement]?.length ?? 1;
                 }
                 
-                const interpolant = interpolator.interpolate(gltf, channel, sampler, totalTime, stride, this.maxTime);
+                const interpolant = interpolator.interpolate(gltf, channel, sampler, elapsedTime, stride, this.maxTime);
                 if (interpolant === undefined) {
                     animatedProperty.rest();
                     continue;
@@ -155,6 +205,18 @@ class gltfAnimation extends GltfObject
                     }
                 }
             }
+        }
+
+        if (stopAnimation) {
+            this.createdTimestamp = undefined;
+            this.stopCallback?.();
+            this.reset();
+            return;
+        }
+        if (endAnimation) {
+            this.createdTimestamp = undefined;
+            this.endCallback?.();
+            this.reset();
         }
     }
 }

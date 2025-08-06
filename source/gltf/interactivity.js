@@ -335,11 +335,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly) {
-        // Register a custom JSON pointer for property access
-        // Store or use the callbacks as needed for Sample Viewer
-        if (typeof this.behaveEngine.registerJsonPointer === "function") {
-            this.behaveEngine.registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly);
-        }
+        this.behaveEngine.registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly);
     }
 
     animateProperty(path, easingParameters, callback) {
@@ -350,26 +346,68 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     animateCubicBezier(path, p1, p2, initialValue, targetValue, duration, valueType, callback) {
-        // Animate a property using a cubic bezier curve
-        // Implement animation logic for Sample Viewer properties
-        if (callback) callback();
+        this.behaveEngine.clearPointerInterpolation(path);
+        const startTime = performance.now();
+
+        const action = async () => {
+            const elapsedDuration = (performance.now() - startTime) / 1000;
+            const t = Math.min(elapsedDuration / duration, 1);
+            const p = interactivity.cubicBezier(t, {x: 0, y:0}, {x: p1[0], y:p1[1]}, {x: p2[0], y:p2[1]}, {x: 1, y:1});
+            if (valueType === "float3") {
+                const value = [interactivity.linearFloat(p.y, initialValue[0], targetValue[0]), interactivity.linearFloat(p.y, initialValue[1], targetValue[1]), interactivity.linearFloat(p.y, initialValue[2], targetValue[2])];
+                this.behaveEngine.setPathValue(path, value);
+            } else if (valueType === "float4") {
+                if (this.isSlerpPath(path)) {
+                    const value = interactivity.slerpFloat4(p.y, initialValue, targetValue);
+                    this.behaveEngine.setPathValue(path, value);
+                } else {
+                    const value = [interactivity.linearFloat(p.y, initialValue[0], targetValue[0]), interactivity.linearFloat(p.y, initialValue[1], targetValue[1]), interactivity.linearFloat(p.y, initialValue[2], targetValue[2]), interactivity.linearFloat(p.y, initialValue[3], targetValue[3])];
+                    this.behaveEngine.setPathValue(path, value);
+                }
+            } else if (valueType === "float") {
+                const value = [interactivity.linearFloat(p.y, initialValue[0], targetValue[0])];
+                this.behaveEngine.setPathValue(path, value);
+            } else if (valueType == "float2") {
+                const value = [interactivity.linearFloat(p.y, initialValue[0], targetValue[0]), interactivity.linearFloat(p.y, initialValue[1], targetValue[1])];
+                this.behaveEngine.setPathValue(path, value);
+            }
+
+            if (elapsedDuration >= duration) {
+                this.behaveEngine.setPathValue(path, targetValue);
+                this.behaveEngine.clearPointerInterpolation(path);
+                callback();
+            }
+        };
+
+        this.behaveEngine.setPointerInterpolationCallback(path, {action: action} );
     }
 
     getWorld() {
-        // Return the world or scene context for the Sample Viewer
         return this.world;
     }
 
     stopAnimation(animationIndex) {
-
+        const animation = this.world.gltf.animations[animationIndex];
+        animation.reset();
     }
 
     stopAnimationAt(animationIndex, stopTime, callback) {
-        // Stop animation at a specific time
+        const animation = this.world.gltf.animations[animationIndex];
+        if (animation.createdTimestamp === undefined) {
+            return;
+        }
+        animation.stopTime = stopTime;
+        animation.stopCallback = callback;
     }
 
     startAnimation(animationIndex, startTime, endTime, speed, callback) {
-    
+        const animation = this.world.gltf.animations[animationIndex];
+        animation.createdTimestamp = undefined;
+        animation.startTime = startTime;
+        animation.endTime = endTime;
+        animation.speed = speed;
+        animation.endCallback = callback;
+        animation.createdTimestamp = this.world.animationTimer.elapsedSec();
     }
 
     alertParentOnSelect(selectionPoint, selectedNodeIndex, controllerIndex, selectionRayOrigin, childNodeIndex) {
