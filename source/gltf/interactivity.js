@@ -34,7 +34,7 @@ class GraphController {
         this.graphIndex = undefined;
         this.playing = false;
         this.reset = false;
-        this.decorator.setWorld(state);
+        this.decorator.setState(state);
         this.engine.clearCustomEventListeners();
         this.engine.clearEventList();
         this.engine.clearPointerInterpolation();
@@ -131,12 +131,14 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     constructor(behaveEngine, debug = false) {
         super(behaveEngine);
         this.dispatchCustomEvent = this.dispatchCustomEvent.bind(this);
+        this.world = undefined;
 
         if (debug) {
             this.behaveEngine.processNodeStarted = this.processNodeStarted;
             this.behaveEngine.processAddingNodeToQueue = this.processAddingNodeToQueue;
             this.behaveEngine.processExecutingNextNode = this.processExecutingNextNode;
         }
+        this.behaveEngine.getWorld = this.getWorld;
 
         this.behaveEngine.stopAnimation = this.stopAnimation;
         this.behaveEngine.stopAnimationAt = this.stopAnimationAt;
@@ -156,9 +158,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         //this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
     }
 
-    setWorld(world) {
+    setState(state) {
         this.resetGraph();
-        this.world = world;
+        this.world = state;
+        this.behaveEngine.world = state;
         this.registerKnownPointers();
     }
 
@@ -184,6 +187,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.behaveEngine.loadBehaveGraph({nodes: [], types: [], events: [], declarations: [], variables: []});
         if (this.world === undefined) {
             return;
+        }
+        for (const animation of this.world.gltf.animations) {
+            animation.reset();
         }
         const resetAnimatedProperty = (path, propertyName, parent) => {
             parent.animatedPropertyObjects[propertyName].rest();
@@ -332,6 +338,15 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             }, type, false);
         };
         this.recurseAllAnimatedProperties(this.world.gltf, registerFunction);
+        this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/rotation`, (path) => {
+            let activeCamera = this.world.userCamera;
+            if (this.world.cameraIndex !== undefined && this.world.gltf.cameras.length > this.world.cameraIndex) {
+                activeCamera = this.world.gltf.cameras[this.world.cameraIndex];
+            }
+            return activeCamera.getRotation();
+        }, (path, value) => {
+            //no-op
+        }, "float4", true);
     }
 
     registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly) {
@@ -383,7 +398,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     getWorld() {
-        return this.world;
+        return this.world?.gltf;
     }
 
     stopAnimation(animationIndex) {

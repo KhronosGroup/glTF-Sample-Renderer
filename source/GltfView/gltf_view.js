@@ -164,9 +164,11 @@ class GltfView
         let enabledAnimations = [];
 
         if (state.gltf?.extensions?.KHR_interactivity !== undefined && state.renderingParameters.enabledExtensions.KHR_interactivity) {
-            for (const animation of state.gltf.animations) {
-                if (animation.createdTimestamp !== undefined) {
-                    enabledAnimations.push(animation);
+            if (state.graphController.playing){
+                for (const animation of state.gltf.animations) {
+                    if (animation.createdTimestamp !== undefined) {
+                        enabledAnimations.push(animation);
+                    }
                 }
             }
         } else if(state.animationIndices !== undefined)
@@ -177,6 +179,11 @@ class GltfView
             enabledAnimations = state.animationIndices.map(index => {
                 return state.gltf.animations[index];
             }).filter(animation => animation !== undefined);
+            for (const animation of enabledAnimations) {
+                if (animation.createdTimestamp !== undefined) {
+                    animation.reset();
+                }
+            }
         }
 
         for(const disabledAnimation of disabledAnimations)

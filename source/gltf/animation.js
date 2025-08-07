@@ -92,9 +92,7 @@ class gltfAnimation extends GltfObject
 
 
         if (this.createdTimestamp !== undefined) {
-            if (this.createdTimestamp !== undefined) {
-                elapsedTime = totalTime - this.createdTimestamp;
-            }
+            elapsedTime = totalTime - this.createdTimestamp;
             elapsedTime *= this.speed;
             if (this.startTime > this.endTime) {
                 elapsedTime *= -1;
