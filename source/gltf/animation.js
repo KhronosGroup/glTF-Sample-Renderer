@@ -27,7 +27,8 @@ class gltfAnimation extends GltfObject
 
         // not gltf
         this.interpolators = [];
-        this.maxTime = 0;
+        this.maxTime = NaN;
+        this.minTime = NaN;
         this.disjointAnimations = [];
 
         this.errors = [];
@@ -63,6 +64,31 @@ class gltfAnimation extends GltfObject
         this.stopCallback = undefined;
     }
 
+    computeMinMaxTime(gltf)
+    {
+        if(isNaN(this.maxTime) || isNaN(this.minTime))
+        {
+            this.maxTime = -Infinity;
+            this.minTime = Infinity;
+            for(let i = 0; i < this.channels.length; ++i)
+            {
+                const channel = this.channels[i];
+                const sampler = this.samplers[channel.sampler];
+                const input = gltf.accessors[sampler.input];
+                const max = input.max;
+                const min = input.min;
+                if(max > this.maxTime)
+                {
+                    this.maxTime = max;
+                }
+                if(min < this.minTime)
+                {
+                    this.minTime = min;
+                }
+            }
+        }
+    }
+
     // advance the animation, if totalTime is undefined, the animation is deactivated
     advance(gltf, totalTime)
     {
@@ -71,20 +97,7 @@ class gltfAnimation extends GltfObject
             return;
         }
 
-        if(this.maxTime == 0)
-        {
-            for(let i = 0; i < this.channels.length; ++i)
-            {
-                const channel = this.channels[i];
-                const sampler = this.samplers[channel.sampler];
-                const input = gltf.accessors[sampler.input].getDeinterlacedView(gltf);
-                const max = input[input.length - 1];
-                if(max > this.maxTime)
-                {
-                    this.maxTime = max;
-                }
-            }
-        }
+        this.computeMinMaxTime(gltf);
 
         let stopAnimation = false;
         let endAnimation = false;

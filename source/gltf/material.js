@@ -6,6 +6,7 @@ import { GltfObject } from './gltf_object.js';
 class gltfMaterial extends GltfObject
 {
     static animatedProperties = ["alphaCutoff", "emissiveFactor"];
+    static readOnlyAnimatedProperties = ["doubleSided"];
     constructor()
     {
         super();

@@ -190,7 +190,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         for (const animation of this.world.gltf.animations) {
             animation.reset();
         }
-        const resetAnimatedProperty = (path, propertyName, parent) => {
+        const resetAnimatedProperty = (path, propertyName, parent, readOnly) => {
+            if (readOnly) {
+                return;
+            }
             parent.animatedPropertyObjects[propertyName].rest();
         };
         this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
@@ -293,7 +296,13 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             if (gltfObject[property] === undefined) {
                 continue;
             }
-            callable(currentPath, property, gltfObject);
+            callable(currentPath, property, gltfObject, false);
+        }
+        for (const property in gltfObject.constructor.readOnlyAnimatedProperties) {
+            if (gltfObject[property] === undefined) {
+                continue;
+            }
+            callable(currentPath, property, gltfObject, true);
         }
         for (const key in gltfObject) {
             if (gltfObject[key] instanceof GltfObject) {
@@ -320,9 +329,30 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         if (this.world === undefined) {
             return;
         }
-        const registerFunction = (currentPath, propertyName, parent) => {
-            const jsonPtr = currentPath + "/" + propertyName;
-            const type = this.getTypeFromValue(parent[propertyName]);
+        const registerFunction = (currentPath, propertyName, parent, readOnly) => {
+            let jsonPtr = currentPath + "/" + propertyName;
+            let type = this.getTypeFromValue(parent[propertyName]);
+            if (readOnly) {
+                if (Array.isArray(parent[propertyName])) {
+                    jsonPtr += ".length";
+                    type = "int";
+                    this.registerJsonPointer(jsonPtr, (path) => {
+                        const result = this.traversePath(path);
+                        if (result === undefined) {
+                            return 0;
+                        }
+                        return result.length;
+                    }, (path, value) => {}, "int", true);
+                    return;
+                }
+                this.registerJsonPointer(jsonPtr, (path) => {
+                    const result = this.traversePath(path);
+                    if (result === undefined) {
+                        return this.getDefaultValueFromType(type);
+                    }
+                    return result;
+                }, (path, value) => {}, type, true);
+            }
             if (type === undefined) {
                 return;
             }
@@ -337,6 +367,106 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             }, type, false);
         };
         this.recurseAllAnimatedProperties(this.world.gltf, registerFunction);
+
+        this.registerJsonPointer(`/extensions/KHR_lights_punctual/lights.length`, (path) => {
+            const lights = this.world.gltf.extensions?.KHR_lights_punctual?.lights;
+            if (lights === undefined) {
+                return 0;
+            }
+            return lights.length;
+        }, (path, value) => {}, "int", true);
+
+        const nodeCount = this.world.gltf.nodes.length;
+        this.registerJsonPointer(`/nodes/${nodeCount}/children/${nodeCount}`, (path) => {
+            return this.traversePath(path);
+        }, (path, value) => {}, "int", true);
+        this.registerJsonPointer(`/nodes/${nodeCount}/globalMatrix`, (path) => {
+            const node = this.traversePath(path);
+            if (node === undefined) {
+                return undefined;
+            }
+            //Should we call applyWorldTransform for all scenes here?
+            return node.worldTransform; // gl-matrix uses column-major order
+        }, (path, value) => {}, "float4x4", true);
+        this.registerJsonPointer(`/nodes/${nodeCount}/matrix`, (path) => {
+            const node = this.traversePath(path);
+            if (node === undefined) {
+                return undefined;
+            }
+            return node.getLocalTransform(); // gl-matrix uses column-major order
+        }, (path, value) => {}, "float4x4", true);
+        this.registerJsonPointer(`/nodes/${nodeCount}/parent`, (path) => {
+            // TODO Use implementation from gltfx demo
+        }, (path, value) => {}, "int", true);
+        this.registerJsonPointer(`/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`, (path) => {
+            return this.traversePath(path);
+        }, (path, value) => {}, "int", true);
+
+        const sceneCount = this.world.gltf.scenes.length;
+        this.registerJsonPointer(`/scenes/${sceneCount}/nodes/${nodeCount}`, (path) => {
+            return this.traversePath(path);
+        }, (path, value) => {}, "int", true);
+
+        const skinCount = this.world.gltf.skins.length;
+        this.registerJsonPointer(`/skins/${skinCount}/joints/${nodeCount}`, (path) => {
+            return this.traversePath(path);
+        }, (path, value) => {}, "int", true);
+
+        const animationCount = this.world.gltf.animations.length;
+        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/isPlaying`, (path) => {
+            const pathParts = path.split('/');
+            const animationIndex = parseInt(pathParts[2]);
+            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
+                return undefined;
+            }
+            const animation = this.world.gltf.animations[animationIndex];
+            return animation.createdTimestamp !== undefined;
+        }, (path, value) => {}, "bool", true);
+        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/minTime`, (path) => {
+            const pathParts = path.split('/');
+            const animationIndex = parseInt(pathParts[2]);
+            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
+                return NaN;
+            }
+            const animation = this.world.gltf.animations[animationIndex];
+            animation.computeMinMaxTime();
+            return animation.minTime;
+        }, (path, value) => {}, "float", true);
+        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/maxTime`, (path) => {
+            const pathParts = path.split('/');
+            const animationIndex = parseInt(pathParts[2]);
+            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
+                return NaN;
+            }
+            const animation = this.world.gltf.animations[animationIndex];
+            animation.computeMinMaxTime();
+            return animation.maxTime;
+        }, (path, value) => {}, "float", true);
+        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/playhead`, (path) => {
+            const pathParts = path.split('/');
+            const animationIndex = parseInt(pathParts[2]);
+            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
+                return NaN;
+            }
+            const animation = this.world.gltf.animations[animationIndex];
+            if (animation.interpolators.length === 0) {
+                return NaN;
+            }
+            return animation.interpolators[0].prevT;
+        }, (path, value) => {}, "float", true);
+        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/virtualPlayhead`, (path) => {
+            const pathParts = path.split('/');
+            const animationIndex = parseInt(pathParts[2]);
+            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
+                return NaN;
+            }
+            const animation = this.world.gltf.animations[animationIndex];
+            if (animation.interpolators.length === 0) {
+                return NaN;
+            }
+            return animation.interpolators[0].prevRequestedT;
+        }, (path, value) => {}, "float", true);
+
         this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/rotation`, (path) => {
             let activeCamera = this.world.userCamera;
             if (this.world.cameraIndex !== undefined && this.world.gltf.cameras.length > this.world.cameraIndex) {
@@ -346,6 +476,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         }, (path, value) => {
             //no-op
         }, "float4", true);
+
+        this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/position`, (path) => {
+
+        }, (path, value) => {
+            //no-op
+        }, "float3", true);
     }
 
     registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly) {

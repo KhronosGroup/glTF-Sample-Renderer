@@ -24,6 +24,7 @@ class GltfObject
     }
     
     static animatedProperties = undefined;
+    static readOnlyAnimatedProperties = []; // If an array property is defined here, the length can be queried
 
     fromJson(json)
     {

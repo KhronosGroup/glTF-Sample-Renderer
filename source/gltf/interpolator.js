@@ -10,6 +10,7 @@ class gltfInterpolator
     {
         this.prevKey = 0;
         this.prevT = 0.0;
+        this.prevRequestedT = 0.0;
     }
 
     slerpQuat(q1, q2, t)
@@ -95,6 +96,8 @@ class gltfInterpolator
 
         const input = gltf.accessors[sampler.input].getNormalizedDeinterlacedView(gltf);
         const output = gltf.accessors[sampler.output].getNormalizedDeinterlacedView(gltf);
+
+        this.prevRequestedT = t;
 
         if(output.length === stride) // no interpolation for single keyFrame animations
         {

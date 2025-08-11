@@ -47,6 +47,7 @@ const allowedExtensions = [
 class glTF extends GltfObject
 {
     static animatedProperties = [];
+    static readOnlyAnimatedProperties = ["animations", "cameras", "materials", "meshes", "nodes", "scene", "scenes", "skins"];
     constructor(file)
     {
         super();

@@ -14,6 +14,13 @@ class gltfNode extends GltfObject
         "translation",
         "weights"
     ];
+    static readOnlyAnimatedProperties = [
+        "camera",
+        "children",
+        "mesh",
+        "skin",
+        "weights"
+    ];
     constructor()
     {
         super();

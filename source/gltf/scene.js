@@ -4,6 +4,7 @@ import { GltfObject } from './gltf_object';
 class gltfScene extends GltfObject
 {
     static animatedProperties = [];
+    static readOnlyAnimatedProperties = ["nodes"];
     constructor(nodes = [], name = undefined)
     {
         super();
