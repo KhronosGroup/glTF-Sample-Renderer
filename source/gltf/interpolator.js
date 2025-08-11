@@ -1,3 +1,4 @@
+import { max } from 'rxjs/operators';
 import { InterpolationModes } from './animation_sampler.js';
 import { InterpolationPath } from './channel.js';
 import { clamp, jsToGlSlice } from './utils.js';
@@ -102,32 +103,55 @@ class gltfInterpolator
 
         // Wrap t around, so the animation loops.
         // Make sure that t is never earlier than the first keyframe and never later then the last keyframe.
+        const isNegative = t < 0;
         t = t % maxTime;
+        if (isNegative) {
+            t += maxTime;
+        }
         t = clamp(t, input[0], input[input.length - 1]);
 
-        if (this.prevT > t)
+        if (this.prevT > t && !isNegative)
         {
             this.prevKey = 0;
+        }
+
+        if (isNegative && this.prevT < t)
+        {
+            this.prevKey = input.length - 1;
         }
 
         this.prevT = t;
 
         // Find next keyframe: min{ t of input | t > prevKey }
         let nextKey = null;
-        for (let i = this.prevKey; i < input.length; ++i)
-        {
-            if (t <= input[i])
+        if (isNegative) {
+            for (let i = this.prevKey; i >= 0; --i)
             {
-                nextKey = clamp(i, 1, input.length - 1);
-                break;
+                if (t >= input[i])
+                {
+                    nextKey = i;
+                    break;
+                }
             }
+            this.prevKey = clamp(nextKey + 1, nextKey, input.length - 1);
+        } else {
+            for (let i = this.prevKey; i < input.length; ++i)
+            {
+                if (t <= input[i])
+                {
+                    nextKey = clamp(i, 1, input.length - 1);
+                    break;
+                }
+            }
+            this.prevKey = clamp(nextKey - 1, 0, nextKey);
         }
-        this.prevKey = clamp(nextKey - 1, 0, nextKey);
 
-        const keyDelta = input[nextKey] - input[this.prevKey];
+       
+
+        const keyDelta = Math.abs(input[nextKey] - input[this.prevKey]);
 
         // Normalize t: [t0, t1] -> [0, 1]
-        const tn = (t - input[this.prevKey]) / keyDelta;
+        const tn = Math.abs(t - input[this.prevKey]) / keyDelta;
 
         if(channel.target.path === InterpolationPath.ROTATION)
         {
