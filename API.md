@@ -108,7 +108,7 @@ GltfState containing a state for visualization in GltfView
         * [.environment](#GltfState+environment)
         * [.userCamera](#GltfState+userCamera)
         * [.sceneIndex](#GltfState+sceneIndex)
-        * [.cameraIndex](#GltfState+cameraIndex)
+        * [.cameraNodeIndex](#GltfState+cameraNodeIndex)
         * [.animationIndices](#GltfState+animationIndices)
         * [.animationTimer](#GltfState+animationTimer)
         * [.variant](#GltfState+variant)
@@ -209,10 +209,10 @@ user camera @see UserCamera, convenient camera controls
 gltf scene that is visible in the view
 
 **Kind**: instance property of [<code>GltfState</code>](#GltfState)  
-<a name="GltfState+cameraIndex"></a>
+<a name="GltfState+cameraNodeIndex"></a>
 
-### gltfState.cameraIndex
-index of the camera that is used to render the view. a
+### gltfState.cameraNodeIndex
+index of the camera node that is used to render the view. a
 value of 'undefined' enables the user camera
 
 **Kind**: instance property of [<code>GltfState</code>](#GltfState)  
