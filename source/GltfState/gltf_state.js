@@ -23,10 +23,10 @@ class GltfState
         /** gltf scene that is visible in the view */
         this.sceneIndex = 0;
         /**
-         * index of the camera that is used to render the view. a
+         * index of the camera node that is used to render the view. a
          * value of 'undefined' enables the user camera
          */
-        this.cameraIndex = undefined;
+        this.cameraNodeIndex = undefined;
         /** indices of active animations */
         this.animationIndices = [];
         /** animation timer allows to control the animation time */

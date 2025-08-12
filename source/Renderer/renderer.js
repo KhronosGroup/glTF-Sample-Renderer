@@ -263,14 +263,18 @@ class gltfRenderer
 
         let currentCamera = undefined;
 
-        if (state.cameraIndex === undefined)
+        if (state.cameraNodeIndex === undefined)
         {
             currentCamera = state.userCamera;
             currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
         }
         else
         {
-            currentCamera = state.gltf.cameras[state.cameraIndex];
+            currentCamera = state.gltf.cameras[state.gltf.nodes[state.cameraNodeIndex].camera];
+            if (currentCamera === undefined) {
+                throw new Error("Camera is misconfigured.");
+            }
+            currentCamera.setNode(state.gltf, state.cameraNodeIndex);
         }
 
         let aspectHeight = this.currentHeight;
