@@ -469,8 +469,15 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
         this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/rotation`, (path) => {
             let activeCamera = this.world.userCamera;
-            if (this.world.cameraIndex !== undefined && this.world.gltf.cameras.length > this.world.cameraIndex) {
-                activeCamera = this.world.gltf.cameras[this.world.cameraIndex];
+            if (this.world.cameraNodeIndex !== undefined) {
+                if (this.world.cameraNodeIndex < 0 || this.world.cameraNodeIndex >= this.world.gltf.nodes.length) {
+                    return [NaN, NaN, NaN, NaN];
+                }
+                const cameraIndex = this.world.gltf.nodes[this.world.cameraNodeIndex].camera;
+                if (cameraIndex === undefined) {
+                    return [NaN, NaN, NaN, NaN];
+                }
+                activeCamera = this.world.gltf.cameras[cameraIndex];
             }
             return activeCamera.getRotation();
         }, (path, value) => {
@@ -478,7 +485,18 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         }, "float4", true);
 
         this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/position`, (path) => {
-
+            let activeCamera = this.world.userCamera;
+            if (this.world.cameraNodeIndex !== undefined) {
+                if (this.world.cameraNodeIndex < 0 || this.world.cameraNodeIndex >= this.world.gltf.nodes.length) {
+                    return [NaN, NaN, NaN];
+                }
+                const cameraIndex = this.world.gltf.nodes[this.world.cameraNodeIndex].camera;
+                if (cameraIndex === undefined) {
+                    return [NaN, NaN, NaN];
+                }
+                activeCamera = this.world.gltf.cameras[cameraIndex];
+            }
+            return activeCamera.getPosition();
         }, (path, value) => {
             //no-op
         }, "float3", true);
