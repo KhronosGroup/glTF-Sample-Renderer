@@ -49,6 +49,8 @@ class GltfState
                 KHR_materials_transmission: true,
                 /** KHR_materials_volume */
                 KHR_materials_volume: true,
+                /** KHR_materials_volume_scatter */
+                KHR_materials_volume_scatter: true,
                 /** KHR_materials_ior makes the index of refraction configurable */
                 KHR_materials_ior: true,
                 /** KHR_materials_specular allows configuring specular color (f0 color) and amount of specular reflection */
