@@ -49,7 +49,7 @@ class GraphController {
      * @return {Array} An array of custom events defined in the graph.
      */
     startGraph(graphIndex) {
-        this.engine.clearCustomEventListeners();
+        this.decorator.resetGraph();
         try {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
@@ -62,15 +62,17 @@ class GraphController {
     }
 
     /**
-     * Stops the currently playing graph.
+     * Stops the graph engine.
      */
-    stopGraph() {
+    stopGraphEngine() {
         if (this.graphIndex === undefined) {
             return;
         }
         this.graphIndex = undefined;
         this.playing = false;
-        this.engine.clearCustomEventListeners();
+        this.reset = false;
+        this.decorator.pauseEventQueue();
+        this.decorator.resetGraph();
     }
 
     /**
@@ -197,6 +199,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             parent.animatedPropertyObjects[propertyName].rest();
         };
         this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
+        this.behaveEngine.clearCustomEventListeners();
+        this.behaveEngine.clearEventList();
+        this.behaveEngine.clearPointerInterpolation();
+        this.behaveEngine.clearVariableInterpolation();
+        this.behaveEngine.clearScheduledDelays();
+        this.behaveEngine.clearValueEvaluationCache();
     }
 
     processNodeStarted(node) {
