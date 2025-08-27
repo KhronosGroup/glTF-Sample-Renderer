@@ -75,8 +75,14 @@ class gltfAnimation extends GltfObject
                 const channel = this.channels[i];
                 const sampler = this.samplers[channel.sampler];
                 const input = gltf.accessors[sampler.input];
-                const max = input.max;
-                const min = input.min;
+                if (input.max === undefined || input.min === undefined || input.max.length !== 1 || input.min.length !== 1) {
+                    console.error("Invalid input accessor for animation channel:", channel);
+                    this.minTime = undefined;
+                    this.maxTime = undefined;
+                    return;
+                }
+                const max = input.max[0];
+                const min = input.min[0];
                 if(max > this.maxTime)
                 {
                     this.maxTime = max;
@@ -99,16 +105,21 @@ class gltfAnimation extends GltfObject
 
         this.computeMinMaxTime(gltf);
 
+        if (this.maxTime === undefined || this.minTime === undefined) {
+            return;
+        }
+
         let stopAnimation = false;
         let endAnimation = false;
         let elapsedTime = totalTime;
-
+        let reverse = false;
 
         if (this.createdTimestamp !== undefined) {
             elapsedTime = totalTime - this.createdTimestamp;
             elapsedTime *= this.speed;
             if (this.startTime > this.endTime) {
                 elapsedTime *= -1;
+                reverse = true;
             }
             elapsedTime += this.startTime;
             if (this.startTime === this.endTime) {
@@ -189,7 +200,7 @@ class gltfAnimation extends GltfObject
                     stride = animatedProperty.restValue[animatedArrayElement]?.length ?? 1;
                 }
                 
-                const interpolant = interpolator.interpolate(gltf, channel, sampler, elapsedTime, stride, this.maxTime);
+                const interpolant = interpolator.interpolate(gltf, channel, sampler, elapsedTime, stride, this.maxTime, reverse);
                 if (interpolant === undefined) {
                     animatedProperty.rest();
                     continue;

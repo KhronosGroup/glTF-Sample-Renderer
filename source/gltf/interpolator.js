@@ -87,7 +87,7 @@ class gltfInterpolator
         this.prevKey = 0;
     }
 
-    interpolate(gltf, channel, sampler, t, stride, maxTime)
+    interpolate(gltf, channel, sampler, t, stride, maxTime, reverse)
     {
         if(t === undefined)
         {
@@ -113,12 +113,12 @@ class gltfInterpolator
         }
         t = clamp(t, input[0], input[input.length - 1]);
 
-        if (this.prevT > t && !isNegative)
+        if (this.prevT > t && !reverse)
         {
             this.prevKey = 0;
         }
 
-        if (isNegative && this.prevT < t)
+        if (reverse && this.prevT < t)
         {
             this.prevKey = input.length - 1;
         }
@@ -127,7 +127,7 @@ class gltfInterpolator
 
         // Find next keyframe: min{ t of input | t > prevKey }
         let nextKey = null;
-        if (isNegative) {
+        if (reverse) {
             for (let i = this.prevKey; i >= 0; --i)
             {
                 if (t >= input[i])
