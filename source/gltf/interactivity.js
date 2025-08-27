@@ -167,7 +167,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     loadGraph(graphIndex) {
-        const graphArray = this.world?.gltf?.extensions?.KHR_interactivity.graphs;
+        const graphArray = this.world?.gltf?.extensions?.KHR_interactivity?.graphs;
         if (graphArray && graphArray.length > graphIndex) {
             const graphCopy = JSON.parse(JSON.stringify(graphArray[graphIndex]));
             let events = graphCopy.events ?? [];
