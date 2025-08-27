@@ -76,7 +76,7 @@ class gltfPrimitive extends GltfObject
         }
 
         // Generate tangents with Mikktspace which needs normals and texcoords as inputs for triangles
-        if (this.attributes.TANGENT === undefined && this.attributes.NORMAL && this.attributes.TEXCOORD_0 && this.mode > 3)
+        if (this.attributes.TANGENT === undefined && this.attributes.NORMAL !== undefined && this.attributes.TEXCOORD_0 !== undefined && this.mode > 3)
         {
             console.info("Generating tangents using the MikkTSpace algorithm.");
             console.time("Tangent generation");
@@ -809,9 +809,32 @@ class gltfPrimitive extends GltfObject
             return;
         }
 
-        const positions = gltf.accessors[this.attributes.POSITION].getTypedView(gltf);
-        const normals = gltf.accessors[this.attributes.NORMAL].getTypedView(gltf);
-        const texcoords = gltf.accessors[this.attributes.TEXCOORD_0].getTypedView(gltf);
+        let positions = gltf.accessors[this.attributes.POSITION].getNormalizedDeinterlacedView(gltf);
+        const normals = gltf.accessors[this.attributes.NORMAL].getNormalizedDeinterlacedView(gltf);
+        let texcoords = gltf.accessors[this.attributes.TEXCOORD_0].getNormalizedDeinterlacedView(gltf);
+
+
+        if (positions instanceof Float64Array) {
+            console.warn("Cannot generate tangents: WebGL2 does not support 64-bit float attributes.");
+            return;
+        } else if (positions instanceof Float32Array === false) {
+            positions = new Float32Array(positions);
+        }
+
+        if (normals instanceof Float64Array) {
+            console.warn("Cannot generate tangents: WebGL2 does not support 64-bit float attributes.");
+            return;
+        } else if (normals instanceof Float32Array === false) {
+            console.warn("Cannot generate tangents: Normal attribute in wrong format");
+            return;
+        }
+        
+        if (texcoords instanceof Float64Array) {
+            console.warn("Cannot generate tangents: WebGL2 does not support 64-bit float attributes.");
+            return;
+        } else if (texcoords instanceof Float32Array === false) {
+            texcoords = new Float32Array(texcoords);
+        }
 
         const tangents = generateTangents(positions, normals, texcoords);
 

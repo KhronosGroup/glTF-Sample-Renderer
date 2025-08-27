@@ -1,6 +1,7 @@
 import { mat4, quat, vec3 } from 'gl-matrix';
 import { jsToGl, jsToGlSlice } from './utils.js';
 import { GltfObject } from './gltf_object.js';
+import { GL } from '../Renderer/webgl.js';
 
 // contain:
 // transform
@@ -53,17 +54,31 @@ class gltfNode extends GltfObject
             const translationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
             let translationData = undefined;
             if (translationAccessor !== undefined) {
-                translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
+                if (translationAccessor.componentType === GL.FLOAT) {
+                    translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
+                } else {
+                    console.warn("EXT_mesh_gpu_instancing translation accessor must be a float");
+                }
             }
             const rotationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
             let rotationData = undefined;
             if (rotationAccessor !== undefined) {
-                rotationData = gltf.accessors[rotationAccessor].getDeinterlacedView(gltf);
+                if (rotationAccessor.componentType === GL.FLOAT || 
+                    (rotationAccessor.normalized && 
+                        (rotationAccessor.componentType === GL.BYTE || rotationAccessor.componentType === GL.SHORT))) {
+                    rotationData = gltf.accessors[rotationAccessor].getNormalizedDeinterlacedView(gltf);
+                } else {
+                    console.warn("EXT_mesh_gpu_instancing rotation accessor must be a float, byte normalized, or short normalized");
+                }
             }
             const scaleAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
             let scaleData = undefined;
             if (scaleAccessor !== undefined) {
-                scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+                if (scaleAccessor.componentType === GL.FLOAT) {
+                    scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+                } else {
+                    console.warn("EXT_mesh_gpu_instancing scale accessor must be a float");
+                }
             }
             this.instanceMatrices = [];
             for (let i = 0; i < count; i++) {

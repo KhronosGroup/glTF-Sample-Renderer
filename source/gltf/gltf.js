@@ -19,6 +19,7 @@ import { gltfVariant } from './variant.js';
 import { gltfGraph } from './interactivity.js';
 
 const allowedExtensions = [
+    "KHR_accessor_float64",
     "KHR_animation_pointer",
     "KHR_draco_mesh_compression",
     "KHR_interactivity",
