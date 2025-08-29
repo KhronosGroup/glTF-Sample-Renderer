@@ -294,6 +294,10 @@ class gltfPrimitive extends GltfObject
         const positionsAccessor = gltf.accessors[this.attributes.POSITION];
         const positions = positionsAccessor.getNormalizedTypedView(gltf);
 
+        if (positions instanceof Float64Array) {
+            throw new Error("64-bit float attributes are not supported in WebGL2");
+        }
+
         if(this.indices !== undefined)
         {
             // Primitive has indices.

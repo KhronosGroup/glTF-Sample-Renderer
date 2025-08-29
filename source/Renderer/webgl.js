@@ -151,6 +151,9 @@ class gltfWebGl
 
         if (gltfAccessor.glBuffer === undefined)
         {
+            if (gltfAccessor.componentType === 5130) {
+                throw new Error("64-bit float attributes are not supported in WebGL2");
+            }
             gltfAccessor.glBuffer = this.context.createBuffer();
 
             let data = gltfAccessor.getTypedView(gltf);

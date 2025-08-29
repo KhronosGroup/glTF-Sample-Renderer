@@ -1,4 +1,3 @@
-import { max } from 'rxjs/operators';
 import { InterpolationModes } from './animation_sampler.js';
 import { InterpolationPath } from './channel.js';
 import { clamp, jsToGlSlice } from './utils.js';
@@ -15,6 +14,10 @@ class gltfInterpolator
 
     slerpQuat(q1, q2, t)
     {
+        if (q1 instanceof Float64Array || q2 instanceof Float64Array)
+        {
+            glMatrix.ARRAY_TYPE = Float64Array;
+        }
         const qn1 = quat.create();
         const qn2 = quat.create();
 
@@ -26,30 +29,40 @@ class gltfInterpolator
         quat.slerp(quatResult, qn1, qn2, t);
         quat.normalize(quatResult, quatResult);
 
+        glMatrix.ARRAY_TYPE = Float32Array;
+
         return quatResult;
     }
 
     step(prevKey, output, stride)
     {
+        if (output instanceof Float64Array)
+        {
+            glMatrix.ARRAY_TYPE = Float64Array;
+        }
         const result = new glMatrix.ARRAY_TYPE(stride);
 
         for(let i = 0; i < stride; ++i)
         {
             result[i] = output[prevKey * stride + i];
         }
-
+        glMatrix.ARRAY_TYPE = Float32Array;
         return result;
     }
 
     linear(prevKey, nextKey, output, t, stride)
     {
+        if (output instanceof Float64Array)
+        {
+            glMatrix.ARRAY_TYPE = Float64Array;
+        }
         const result = new glMatrix.ARRAY_TYPE(stride);
 
         for(let i = 0; i < stride; ++i)
         {
             result[i] = output[prevKey * stride + i] * (1-t) + output[nextKey * stride + i] * t;
         }
-
+        glMatrix.ARRAY_TYPE = Float32Array;
         return result;
     }
 
@@ -63,6 +76,10 @@ class gltfInterpolator
         const V = 1 * stride;
         const B = 2 * stride;
 
+        if (output instanceof Float64Array)
+        {
+            glMatrix.ARRAY_TYPE = Float64Array;
+        }
         const result = new glMatrix.ARRAY_TYPE(stride);
         const tSq = t ** 2;
         const tCub = t ** 3;
@@ -78,6 +95,8 @@ class gltfInterpolator
 
             result[i] = ((2*tCub - 3*tSq + 1) * v0) + ((tCub - 2*tSq + t) * b) + ((-2*tCub + 3*tSq) * v1) + ((tCub - tSq) * a);
         }
+
+        glMatrix.ARRAY_TYPE = Float32Array;
 
         return result;
     }
@@ -101,7 +120,13 @@ class gltfInterpolator
 
         if(output.length === stride) // no interpolation for single keyFrame animations
         {
-            return jsToGlSlice(output, 0, stride);
+            if (output instanceof Float64Array)
+            {
+                glMatrix.ARRAY_TYPE = Float64Array;
+            }
+            const result = jsToGlSlice(output, 0, stride);
+            glMatrix.ARRAY_TYPE = Float32Array;
+            return result;
         }
 
         // Wrap t around, so the animation loops.
@@ -197,6 +222,9 @@ class gltfInterpolator
         const y = output[4 * index + 1];
         const z = output[4 * index + 2];
         const w = output[4 * index + 3];
+        if (output instanceof Float64Array) {
+            return new Float64Array([x, y, z, w]);
+        }
         return quat.fromValues(x, y, z, w);
     }
 }

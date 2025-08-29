@@ -89,6 +89,9 @@ class gltfAccessor extends GltfObject
             case GL.FLOAT:
                 this.typedView = new Float32Array(buffer.buffer, byteOffset, arrayLength);
                 break;
+            case 5130: // KHR_accessor_float64
+                this.typedView = new Float64Array(buffer.buffer, byteOffset, arrayLength);
+                break;
             }
         }
         else
@@ -169,6 +172,10 @@ class gltfAccessor extends GltfObject
             case GL.FLOAT:
                 this.filteredView = new Float32Array(arrayLength);
                 func = 'getFloat32';
+                break;
+            case 5130: // KHR_accessor_float64
+                this.filteredView = new Float64Array(arrayLength);
+                func = 'getFloat64';
                 break;
             }
 
@@ -297,6 +304,9 @@ class gltfAccessor extends GltfObject
         case GL.FLOAT:
             valuesTypedView = new Float32Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
             break;
+        case 5130: // KHR_accessor_float64
+            valuesTypedView = new Float64Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            break;
         }
 
         // Overwrite values.
@@ -347,6 +357,8 @@ class gltfAccessor extends GltfObject
         case GL.UNSIGNED_INT:
         case GL.FLOAT:
             return 4;
+        case 5130: // KHR_accessor_float64
+            return 8;
         default:
             return 0;
         }
