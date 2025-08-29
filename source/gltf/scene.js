@@ -19,8 +19,11 @@ class gltfScene extends GltfObject
 
     applyTransformHierarchy(gltf, rootTransform = mat4.create())
     {
-        function applyTransform(gltf, node, parentTransform)
+        function applyTransform(gltf, node, parent, parentTransform)
         {
+            if (node.parentNode === undefined) {
+                node.parentNode = parent;
+            }
             mat4.multiply(node.worldTransform, parentTransform, node.getLocalTransform());
             mat4.invert(node.inverseWorldTransform, node.worldTransform);
             mat4.transpose(node.normalMatrix, node.inverseWorldTransform);
@@ -37,12 +40,12 @@ class gltfScene extends GltfObject
 
             for (const child of node.children)
             {
-                applyTransform(gltf, gltf.nodes[child], node.worldTransform);
+                applyTransform(gltf, gltf.nodes[child], node, node.worldTransform);
             }
         }
         for (const node of this.nodes)
         {
-            applyTransform(gltf, gltf.nodes[node], rootTransform);
+            applyTransform(gltf, gltf.nodes[node], undefined, rootTransform);
         }
 
 

@@ -1,4 +1,4 @@
-import { mat4, quat, vec3 } from 'gl-matrix';
+import { mat4, quat, vec3, vec4 } from 'gl-matrix';
 import { jsToGl, jsToGlSlice } from './utils.js';
 import { GltfObject } from './gltf_object.js';
 import { GL } from '../Renderer/webgl.js';
@@ -22,6 +22,7 @@ class gltfNode extends GltfObject
         "skin",
         "weights"
     ];
+    static currentPickingColor = 50;
     constructor()
     {
         super();
@@ -44,10 +45,17 @@ class gltfNode extends GltfObject
         this.light = undefined;
         this.instanceMatrices = undefined;
         this.instanceWorldTransforms = undefined;
+        this.pickingColor = undefined;
+        this.parent = undefined;
     }
 
     initGl(gltf, webGlContext)
     {
+        if (this.mesh !== undefined) {
+            const mask = 0x000000FF;
+            this.pickingColor = vec4.fromValues((gltfNode.currentPickingColor & mask) / 255, ((gltfNode.currentPickingColor >>> 8) & mask) / 255, ((gltfNode.currentPickingColor >>> 16) & mask) / 255, ((gltfNode.currentPickingColor >>> 24) & mask) / 255);
+            gltfNode.currentPickingColor += 50;
+        }
         if (this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined) {
             const firstAccessor = Object.values(this.extensions?.EXT_mesh_gpu_instancing?.attributes)[0];
             const count = gltf.accessors[firstAccessor].count;
