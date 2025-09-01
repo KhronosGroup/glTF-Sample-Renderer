@@ -1,5 +1,5 @@
 import { GltfObject } from "./gltf_object";
-import * as interactivity from "@khronosgroup/khr_interactivity_authoring_engine";
+import * as interactivity from "@khronosgroup/khr-interactivity-authoring-engine";
 
 class gltfGraph extends GltfObject {
     static animatedProperties = [];
@@ -17,7 +17,6 @@ class GraphController {
         this.fps = fps;
         this.graphIndex = undefined;
         this.playing = false;
-        this.reset = false;
         this.customEvents = [];
         this.eventBus = new interactivity.DOMEventBus();
         this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
@@ -33,7 +32,6 @@ class GraphController {
     initializeGraphs(state) {
         this.graphIndex = undefined;
         this.playing = false;
-        this.reset = false;
         this.decorator.setState(state);
         this.engine.clearCustomEventListeners();
         this.engine.clearEventList();
@@ -53,8 +51,9 @@ class GraphController {
         try {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
-            this.playing = true;
-            this.reset = false;
+            if (this.playing) {
+                this.decorator.playEventQueue();
+            }
         } catch (error) {
             console.error("Error loading graph:", error);
         }
@@ -70,7 +69,6 @@ class GraphController {
         }
         this.graphIndex = undefined;
         this.playing = false;
-        this.reset = false;
         this.decorator.pauseEventQueue();
         this.decorator.resetGraph();
     }
@@ -93,12 +91,8 @@ class GraphController {
         if (this.graphIndex === undefined || this.playing) {
             return;
         }
-        if (this.reset) {
-            this.startGraph(this.graphIndex);
-        } else {
-            this.decorator.resumeEventQueue();
-            this.playing = true;
-        }
+        this.decorator.playEventQueue();
+        this.playing = true;
     }
 
     /**
@@ -108,11 +102,7 @@ class GraphController {
         if (this.graphIndex === undefined) {
             return;
         }
-        this.decorator.resetGraph();
-        this.reset = true;
-        if (this.playing) {
-            this.startGraph(this.graphIndex);
-        }
+        this.startGraph(this.graphIndex);
     }
 
     /**
@@ -178,7 +168,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     value.type = graphCopy.types[value.type].signature;
                 }
             }
-            this.behaveEngine.loadBehaveGraph(graphCopy);
+            this.behaveEngine.loadBehaveGraph(graphCopy, false);
             return events;
         }
         throw new Error(`Graph with index ${graphIndex} does not exist.`);
