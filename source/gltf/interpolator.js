@@ -16,7 +16,7 @@ class gltfInterpolator
     {
         if (q1 instanceof Float64Array || q2 instanceof Float64Array)
         {
-            glMatrix.ARRAY_TYPE = Float64Array;
+            glMatrix.setMatrixArrayType(Float64Array);
         }
         const qn1 = quat.create();
         const qn2 = quat.create();
@@ -29,7 +29,7 @@ class gltfInterpolator
         quat.slerp(quatResult, qn1, qn2, t);
         quat.normalize(quatResult, quatResult);
 
-        glMatrix.ARRAY_TYPE = Float32Array;
+        glMatrix.setMatrixArrayType(Float32Array);
 
         return quatResult;
     }
@@ -38,7 +38,7 @@ class gltfInterpolator
     {
         if (output instanceof Float64Array)
         {
-            glMatrix.ARRAY_TYPE = Float64Array;
+            glMatrix.setMatrixArrayType(Float64Array);
         }
         const result = new glMatrix.ARRAY_TYPE(stride);
 
@@ -46,7 +46,7 @@ class gltfInterpolator
         {
             result[i] = output[prevKey * stride + i];
         }
-        glMatrix.ARRAY_TYPE = Float32Array;
+        glMatrix.setMatrixArrayType(Float32Array);
         return result;
     }
 
@@ -54,7 +54,7 @@ class gltfInterpolator
     {
         if (output instanceof Float64Array)
         {
-            glMatrix.ARRAY_TYPE = Float64Array;
+            glMatrix.setMatrixArrayType(Float64Array);
         }
         const result = new glMatrix.ARRAY_TYPE(stride);
 
@@ -62,7 +62,7 @@ class gltfInterpolator
         {
             result[i] = output[prevKey * stride + i] * (1-t) + output[nextKey * stride + i] * t;
         }
-        glMatrix.ARRAY_TYPE = Float32Array;
+        glMatrix.setMatrixArrayType(Float32Array);
         return result;
     }
 
@@ -78,7 +78,7 @@ class gltfInterpolator
 
         if (output instanceof Float64Array)
         {
-            glMatrix.ARRAY_TYPE = Float64Array;
+            glMatrix.setMatrixArrayType(Float64Array);
         }
         const result = new glMatrix.ARRAY_TYPE(stride);
         const tSq = t ** 2;
@@ -96,7 +96,7 @@ class gltfInterpolator
             result[i] = ((2*tCub - 3*tSq + 1) * v0) + ((tCub - 2*tSq + t) * b) + ((-2*tCub + 3*tSq) * v1) + ((tCub - tSq) * a);
         }
 
-        glMatrix.ARRAY_TYPE = Float32Array;
+        glMatrix.setMatrixArrayType(Float32Array);
 
         return result;
     }
@@ -122,10 +122,10 @@ class gltfInterpolator
         {
             if (output instanceof Float64Array)
             {
-                glMatrix.ARRAY_TYPE = Float64Array;
+                glMatrix.setMatrixArrayType(Float64Array);
             }
             const result = jsToGlSlice(output, 0, stride);
-            glMatrix.ARRAY_TYPE = Float32Array;
+            glMatrix.setMatrixArrayType(Float32Array);
             return result;
         }
 
