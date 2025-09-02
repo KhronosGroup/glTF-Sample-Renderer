@@ -200,10 +200,13 @@ class gltfAnimation extends GltfObject
                     stride = animatedProperty.restValue[animatedArrayElement]?.length ?? 1;
                 }
                 
-                const interpolant = interpolator.interpolate(gltf, channel, sampler, elapsedTime, stride, this.maxTime, reverse);
+                let interpolant = interpolator.interpolate(gltf, channel, sampler, elapsedTime, stride, this.maxTime, reverse);
                 if (interpolant === undefined) {
                     animatedProperty.rest();
                     continue;
+                }
+                if (typeof animatedProperty.value() === "boolean") {
+                    interpolant = interpolant[0] !== 0;
                 }
                 // The interpolator will always return a `Float32Array`, even if the animated value is a scalar.
                 // For the renderer it's not a problem because uploading a single-element array is the same as uploading a scalar to a uniform.
