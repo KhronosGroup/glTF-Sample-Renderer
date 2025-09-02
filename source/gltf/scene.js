@@ -63,13 +63,16 @@ class gltfScene extends GltfObject
     }
 
 
-    gatherNodes(gltf)
+    gatherNodes(gltf, nodeVisibilityEnabled)
     {
         const nodes = [];
 
         function gatherNode(nodeIndex)
         {
             const node = gltf.nodes[nodeIndex];
+            if (nodeVisibilityEnabled && node.extensions?.KHR_node_visibility?.visible === false) {
+                return;
+            }
             nodes.push(node);
 
             // recurse into children

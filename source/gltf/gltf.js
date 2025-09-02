@@ -39,6 +39,7 @@ const allowedExtensions = [
     "KHR_materials_variants",
     "KHR_materials_volume",
     "KHR_mesh_quantization",
+    "KHR_node_visibility",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",

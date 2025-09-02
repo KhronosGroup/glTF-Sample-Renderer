@@ -250,7 +250,12 @@ class gltfRenderer
     }
 
     prepareScene(state, scene) {
-        this.nodes = scene.gatherNodes(state.gltf);
+
+        const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions.KHR_node_visibility);
+        if (newNodes.length === this.nodes?.length && newNodes.every((element, i) => element === this.nodes[i])) {
+            return;
+        }
+        this.nodes = newNodes;
 
         // collect drawables by essentially zipping primitives (for geometry and material)
         // and nodes for the transform
@@ -298,10 +303,7 @@ class gltfRenderer
     // render complete gltf scene with given camera
     drawScene(state, scene)
     {
-        if (this.preparedScene !== scene) {
-            this.prepareScene(state, scene);
-            this.preparedScene = scene;
-        }
+        this.prepareScene(state, scene);
 
         let currentCamera = undefined;
 

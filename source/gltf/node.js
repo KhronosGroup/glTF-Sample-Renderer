@@ -109,6 +109,10 @@ class gltfNode extends GltfObject
         if (jsonNode.matrix !== undefined) {
             this.applyMatrix(jsonNode.matrix);
         }
+        if (jsonNode.extensions?.KHR_node_visibility !== undefined) {
+            this.extensions.KHR_node_visibility = new KHR_node_visibility();
+            this.extensions.KHR_node_visibility.fromJson(jsonNode.extensions.KHR_node_visibility);
+        }
     }
 
     getWeights(gltf)
@@ -149,6 +153,16 @@ class gltfNode extends GltfObject
             this.translation,
             this.scale
         );
+    }
+}
+
+class KHR_node_visibility extends GltfObject {
+    static animatedProperties = [
+        "visible"
+    ];
+    constructor() {
+        super();
+        this.visible = true;
     }
 }
 
