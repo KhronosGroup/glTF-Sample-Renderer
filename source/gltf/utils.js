@@ -49,8 +49,10 @@ function objectsFromJsons(jsonObjects, GltfType) {
     }
 
     const objects = [];
-    for (const jsonObject of jsonObjects) {
-        objects.push(objectFromJson(jsonObject, GltfType));
+    for (const [index, jsonObject] of jsonObjects.entries()) {
+        const object = objectFromJson(jsonObject, GltfType);
+        object.gltfObjectIndex = index;
+        objects.push(object);
     }
     return objects;
 }

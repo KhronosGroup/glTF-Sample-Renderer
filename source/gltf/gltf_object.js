@@ -8,6 +8,7 @@ class GltfObject
     {
         this.extensions = undefined;
         this.extras = undefined;
+        this.gltfObjectIndex = undefined;
         this.animatedPropertyObjects = {};
         if (this.constructor.animatedProperties === undefined)
         {

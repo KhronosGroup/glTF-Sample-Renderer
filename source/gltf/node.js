@@ -46,7 +46,8 @@ class gltfNode extends GltfObject
         this.instanceMatrices = undefined;
         this.instanceWorldTransforms = undefined;
         this.pickingColor = undefined;
-        this.parent = undefined;
+        this.parentNode = undefined;
+        this.scene = undefined;
     }
 
     initGl(gltf, webGlContext)

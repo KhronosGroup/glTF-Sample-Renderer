@@ -129,6 +129,29 @@ class glTF extends GltfObject
         }
 
         this.computeDisjointAnimations();
+        this.addNodeMetaInformation();
+    }
+
+    // Adds parent and scene information to each node
+    addNodeMetaInformation()
+    {
+        function recurseNodes(gltf, nodeIndex, scene, parent)
+        {
+            const node = gltf.nodes[nodeIndex];
+            node.scene = scene;
+            node.parentNode = parent;
+
+            // recurse into children
+            for(const child of node.children)
+            {
+                recurseNodes(gltf, child, scene, node);
+            }
+        }
+        for (const scene of this.scenes) {
+            for (const nodeIndex of scene.nodes) {
+                recurseNodes(this, nodeIndex, scene, undefined);
+            }
+        }
     }
 
     // Computes indices of animations which are disjoint and can be played simultaneously.

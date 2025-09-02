@@ -324,6 +324,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     registerKnownPointers() {
+        // The engine is checking if a path is valid so we do not need to handle this here
+
         if (this.world === undefined) {
             return;
         }
@@ -335,12 +337,13 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     jsonPtr += ".length";
                     type = "int";
                     this.registerJsonPointer(jsonPtr, (path) => {
-                        const result = this.traversePath(path);
+                        const fixedPath = path.slice(0, -7); // Remove ".length"
+                        const result = this.traversePath(fixedPath);
                         if (result === undefined) {
                             return 0;
                         }
                         return result.length;
-                    }, (path, value) => {}, "int", true);
+                    }, (path, value) => {}, type, true);
                     return;
                 }
                 this.registerJsonPointer(jsonPtr, (path) => {
@@ -379,22 +382,25 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             return this.traversePath(path);
         }, (path, value) => {}, "int", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/globalMatrix`, (path) => {
-            const node = this.traversePath(path);
-            if (node === undefined) {
-                return undefined;
+            const pathParts = path.split('/');
+            const nodeIndex = parseInt(pathParts[2]);
+            const node = this.world.gltf.nodes[nodeIndex];
+            if (node.scene.gltfObjectIndex !== this.world.sceneIndex) {
+                node.scene.applyTransformHierarchy(this.world.gltf);
             }
-            //Should we call applyWorldTransform for all scenes here?
             return node.worldTransform; // gl-matrix uses column-major order
         }, (path, value) => {}, "float4x4", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/matrix`, (path) => {
-            const node = this.traversePath(path);
-            if (node === undefined) {
-                return undefined;
-            }
+            const pathParts = path.split('/');
+            const nodeIndex = parseInt(pathParts[2]);
+            const node = this.world.gltf.nodes[nodeIndex];
             return node.getLocalTransform(); // gl-matrix uses column-major order
         }, (path, value) => {}, "float4x4", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/parent`, (path) => {
-            // TODO Use implementation from gltfx demo
+            const pathParts = path.split('/');
+            const nodeIndex = parseInt(pathParts[2]);
+            const node = this.world.gltf.nodes[nodeIndex];
+            return node.parentNode?.gltfObjectIndex;
         }, (path, value) => {}, "int", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`, (path) => {
             return this.traversePath(path);
@@ -414,18 +420,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/isPlaying`, (path) => {
             const pathParts = path.split('/');
             const animationIndex = parseInt(pathParts[2]);
-            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
-                return undefined;
-            }
             const animation = this.world.gltf.animations[animationIndex];
             return animation.createdTimestamp !== undefined;
         }, (path, value) => {}, "bool", true);
         this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/minTime`, (path) => {
             const pathParts = path.split('/');
             const animationIndex = parseInt(pathParts[2]);
-            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
-                return NaN;
-            }
             const animation = this.world.gltf.animations[animationIndex];
             animation.computeMinMaxTime();
             return animation.minTime;
@@ -433,9 +433,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/maxTime`, (path) => {
             const pathParts = path.split('/');
             const animationIndex = parseInt(pathParts[2]);
-            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
-                return NaN;
-            }
             const animation = this.world.gltf.animations[animationIndex];
             animation.computeMinMaxTime();
             return animation.maxTime;
@@ -443,9 +440,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/playhead`, (path) => {
             const pathParts = path.split('/');
             const animationIndex = parseInt(pathParts[2]);
-            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
-                return NaN;
-            }
             const animation = this.world.gltf.animations[animationIndex];
             if (animation.interpolators.length === 0) {
                 return NaN;
@@ -455,9 +449,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/virtualPlayhead`, (path) => {
             const pathParts = path.split('/');
             const animationIndex = parseInt(pathParts[2]);
-            if (isNaN(animationIndex) || animationIndex < 0 || animationIndex >= this.world.gltf.animations.length) {
-                return NaN;
-            }
             const animation = this.world.gltf.animations[animationIndex];
             if (animation.interpolators.length === 0) {
                 return NaN;
