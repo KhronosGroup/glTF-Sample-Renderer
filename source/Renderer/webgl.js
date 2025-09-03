@@ -27,6 +27,9 @@ class gltfWebGl
             console.warn("Anisotropic filtering is not supported");
             this.context.supports_EXT_texture_filter_anisotropic = false;
         }
+        this.context.supports_EXT_color_buffer_float = this.context.getExtension("EXT_color_buffer_float") ? true : false;
+        this.context.supports_EXT_color_buffer_half_float = this.context.supports_EXT_color_buffer_float || 
+            (this.context.getExtension("EXT_color_buffer_half_float") ? true : false);
     }
 
     setTexture(loc, gltf, textureInfo, texSlot)

@@ -41,6 +41,7 @@ class gltfRenderer
         this.opaqueFramebuffer = 0;
         this.opaqueDepthTexture = 0;
         this.pickingIDTexture = 0;
+        this.pickingPositionTexture = 0;
         this.pickingDepthTexture = 0;
         this.opaqueFramebufferWidth = 1024;
         this.opaqueFramebufferHeight = 1024;
@@ -142,6 +143,15 @@ class gltfRenderer
             context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.UNSIGNED_BYTE, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
+            this.pickingPositionTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.pickingPositionTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA32F, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.FLOAT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
             this.pickingDepthTexture = context.createTexture();
             context.bindTexture(context.TEXTURE_2D, this.pickingDepthTexture);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
@@ -167,6 +177,10 @@ class gltfRenderer
             context.bindFramebuffer(context.FRAMEBUFFER, this.pickingFramebuffer);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.pickingIDTexture, 0);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.pickingDepthTexture, 0);
+            if (context.supports_EXT_color_buffer_float) {
+                context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.pickingPositionTexture, 0);
+                context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
+            }
 
             this.samples = samples;
 
@@ -225,6 +239,11 @@ class gltfRenderer
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.pickingDepthTexture);
                 this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.DEPTH_COMPONENT16, this.currentWidth, this.currentHeight, 0, this.webGl.context.DEPTH_COMPONENT, this.webGl.context.UNSIGNED_SHORT, null);
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
+                if (this.webGl.context.supports_EXT_color_buffer_float) {
+                    this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.pickingPositionTexture);
+                    this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA32F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.FLOAT, null);
+                    this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
+                }
             }
         }
     }
@@ -493,15 +512,25 @@ class gltfRenderer
 
             let pickingResult = {
                 node: undefined,
+                position: undefined
             };
 
+            let found = false;
             for (const node of state.gltf.nodes)
             {
                 if (node.pickingColor && vec4.equals(node.pickingColor, vec4.fromValues(pixels[0] / 255, pixels[1] / 255, pixels[2] / 255, pixels[3] / 255)))
                 {
+                    found = true;
                     pickingResult.node = node;
                     break;
                 }
+            }
+
+            if (found && this.webGl.context.supports_EXT_color_buffer_float) {
+                this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT1);
+                const position = new Float32Array(4);
+                this.webGl.context.readPixels(state.pickingX ?? this.currentWidth / 2, pickingY ?? this.currentHeight / 2, 1, 1, this.webGl.context.RGBA, this.webGl.context.FLOAT, position);
+                pickingResult.position = position.subarray(0, 3);
             }
             
             if (state.selectionCallback){
