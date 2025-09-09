@@ -37,11 +37,14 @@ class GltfState
         /** the graph controller allows selecting and playing graphs from KHR_interactivity */
         this.graphController = new GraphController();
 
-        /** callback for selections */
+        /** callback for selection/hover */
         this.selectionCallback = undefined;
+        this.hoverCallback = undefined;
 
-        /** If the renderer should compute the selection in the next frame */
+        /** If the renderer should compute selection/hover in the next frame */
         this.triggerSelection = false;
+        /** enableHover is also set internally by KHR_interactivity */
+        this.enableHover = false;
 
         /* screen position of the picking ray */
         this.pickingX = 0;

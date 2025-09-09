@@ -6,6 +6,17 @@ class gltfGraph extends GltfObject {
 
     constructor() {
         super();
+        this.hasHoverEvent = false;
+    }
+
+    fromJson(json) {
+        super.fromJson(json);
+        for (const declaration of json.declarations) {
+            if (declaration.op === "event/onHoverIn" || declaration.op === "event/onHoverOut") {
+                this.hasHoverEvent = true;
+                break;
+            }
+        }
     }
 }
 
@@ -23,6 +34,18 @@ class GraphController {
         this.decorator = new SampleViewerDecorator(this.engine, debug);
     }
 
+    receiveSelection(pickingResult) {
+        if (this.graphIndex !== undefined) {
+            this.decorator.receiveSelection(pickingResult);
+        }
+    }
+
+    receiveHover(pickingResult) {
+        if (this.graphIndex !== undefined) {
+            this.decorator.receiveHover(pickingResult);
+        }
+    }
+
     /**
      * Initialize the graph controller with the given state and debug flag.
      * This needs to be called every time a glTF assets is loaded.
@@ -30,6 +53,7 @@ class GraphController {
      * @param {boolean} debug - Whether to enable debug mode.
      */
     initializeGraphs(state) {
+        this.state = state;
         this.graphIndex = undefined;
         this.playing = false;
         this.decorator.setState(state);
@@ -52,7 +76,10 @@ class GraphController {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
             if (this.playing) {
+                this.state.enableHover = this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]?.hasHoverEvent ?? false;
                 this.decorator.playEventQueue();
+            } else {
+                this.state.enableHover = false;
             }
         } catch (error) {
             console.error("Error loading graph:", error);
@@ -71,6 +98,7 @@ class GraphController {
         this.playing = false;
         this.decorator.pauseEventQueue();
         this.decorator.resetGraph();
+        this.state.enableHover = false;
     }
 
     /**
@@ -82,6 +110,7 @@ class GraphController {
         }
         this.decorator.pauseEventQueue();
         this.playing = false;
+        this.state.enableHover = false;
     }
     
     /**
@@ -91,6 +120,7 @@ class GraphController {
         if (this.graphIndex === undefined || this.playing) {
             return;
         }
+        this.state.enableHover = this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]?.hasHoverEvent ?? false;
         this.decorator.playEventQueue();
         this.playing = true;
     }
@@ -122,7 +152,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     
     constructor(behaveEngine, debug = false) {
         super(behaveEngine);
+        this.behaveEngine = behaveEngine;
         this.world = undefined;
+        this.lastHoverNodeIndex = undefined;
 
         if (debug) {
             this.behaveEngine.processNodeStarted = this.processNodeStarted;
@@ -139,14 +171,44 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerBehaveEngineNode("animation/start", interactivity.AnimationStart);
         this.registerBehaveEngineNode("animation/stopAt", interactivity.AnimationStopAt);
 
-        this.behaveEngine.alertParentOnSelect = this.alertParentOnSelect;
+        this.behaveEngine.alertParentOnSelect = (selectionPoint, selectedNodeIndex, controllerIndex, selectionRayOrigin, childNodeIndex) => {
+            const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
+            const pickingResult = {
+                position: selectionPoint,
+                node: selectedNodeIndex,
+                parentNode: parent,
+                rayOrigin: selectionRayOrigin
+            };
+            this.receiveSelection(pickingResult);
+        };
+
+        this.behaveEngine.addNodeClickedListener = (nodeIndex, callback) => {
+            this.clickedNodesIndices.set(nodeIndex, callback);
+        };
+
+        this.behaveEngine.receiveSelection = (pickingResult) => {
+            if (pickingResult.node === undefined) {
+                return;
+            }
+            const selectedNode = pickingResult.node;
+            let currentNode = pickingResult.parentNode ?? pickingResult.node;
+            while (currentNode !== undefined) {
+                const callback = this.clickedNodesIndices.get(currentNode.gltfObjectIndex);
+                if (callback !== undefined) {
+                    callback(pickingResult.position, selectedNode.gltfObjectIndex, 0, pickingResult.rayOrigin);
+                    return;
+                }
+                currentNode = currentNode.parentNode;
+            }
+        };
+        this.clickedNodesIndices = new Map();
+
         this.behaveEngine.alertParentOnHoverIn = this.alertParentOnHoverIn;
         this.behaveEngine.alertParentOnHoverOut = this.alertParentOnHoverOut;
-        this.behaveEngine.addNodeClickedListener = this.addNodeClickedListener;
 
-        //this.registerBehaveEngineNode("event/onSelect", interactivity.OnSelect);
-        //this.registerBehaveEngineNode("event/onHoverIn", interactivity.OnHoverIn);
-        //this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
+        this.registerBehaveEngineNode("event/onSelect", interactivity.OnSelect);
+        this.registerBehaveEngineNode("event/onHoverIn", interactivity.OnHoverIn);
+        this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
     }
 
     setState(state) {
@@ -156,7 +218,52 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerKnownPointers();
     }
 
+    receiveSelection(pickingResult) {
+        this.behaveEngine.receiveSelection(pickingResult);
+    }
+
+    receiveHover(pickingResult) {
+        const oldHoverIndicies = new Set();
+        const newHoverNode = pickingResult.node;
+        this.firstCommonHoverNode = undefined;
+        if (this.lastHoverNodeIndex !== undefined && newHoverNode !== undefined) {
+            let currentOldHoverNode = this.world.gltf.nodes[this.lastHoverNodeIndex];
+            while (currentOldHoverNode !== undefined) {
+                oldHoverIndicies.add(currentOldHoverNode.gltfObjectIndex);
+                currentOldHoverNode = currentOldHoverNode.parentNode;
+            }
+            let currentHoverNode = newHoverNode;
+            while (currentHoverNode !== undefined) {
+                if (oldHoverIndicies.has(currentHoverNode.gltfObjectIndex)) {
+                    this.firstCommonHoverNode = currentHoverNode;
+                    break;
+                }
+                currentHoverNode = currentHoverNode.parentNode;
+            }
+        }
+        let oldHoverNode = this.world.gltf.nodes[this.lastHoverNodeIndex];
+        while (oldHoverNode !== undefined && oldHoverNode !== this.firstCommonHoverNode) {
+            const hoverInformation = this.hoveredNodesIndices.get(oldHoverNode?.gltfObjectIndex);
+            if (hoverInformation?.callbackHoverOut !== undefined) {
+                hoverInformation.callbackHoverOut(this.lastHoverNodeIndex, 0);
+                break;
+            }
+            oldHoverNode = oldHoverNode.parentNode;
+        }
+        let currentHoverNode = newHoverNode;
+        while (currentHoverNode !== undefined && currentHoverNode !== this.firstCommonHoverNode) {
+            const hoverInformation = this.hoveredNodesIndices.get(currentHoverNode?.gltfObjectIndex);
+            if (hoverInformation?.callbackHoverIn !== undefined) {
+                hoverInformation.callbackHoverIn(newHoverNode?.gltfObjectIndex, 0);
+                break;
+            }
+            currentHoverNode = currentHoverNode.parentNode;
+        }
+
+    }
+
     loadGraph(graphIndex) {
+        this.clickedNodesIndices.clear();
         const graphArray = this.world?.gltf?.extensions?.KHR_interactivity?.graphs;
         if (graphArray && graphArray.length > graphIndex) {
             const graphCopy = JSON.parse(JSON.stringify(graphArray[graphIndex]));
@@ -175,6 +282,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     resetGraph() {
+        this.clickedNodesIndices.clear();
         this.behaveEngine.loadBehaveGraph({nodes: [], types: [], events: [], declarations: [], variables: []});
         if (this.world === undefined) {
             return;
@@ -523,20 +631,31 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         animation.createdTimestamp = this.world.animationTimer.elapsedSec();
     }
 
-    alertParentOnSelect(selectionPoint, selectedNodeIndex, controllerIndex, selectionRayOrigin, childNodeIndex) {
-    
-    }
-
     alertParentOnHoverIn(selectedNodeIndex, controllerIndex, childNodeIndex) {
-    
+        const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
+        let currentHoverNode = parent;
+        while (currentHoverNode !== undefined && currentHoverNode !== this.firstCommonHoverNode) {
+            const hoverInformation = this.hoveredNodesIndices.get(currentHoverNode?.gltfObjectIndex);
+            if (hoverInformation?.callbackHoverIn !== undefined) {
+                hoverInformation.callbackHoverIn(selectedNodeIndex, controllerIndex);
+                break;
+            }
+            currentHoverNode = currentHoverNode.parentNode;
+        }
+
     }
 
     alertParentOnHoverOut(selectedNodeIndex, controllerIndex, childNodeIndex) {
-
-    }
-
-    addNodeClickedListener = (nodeIndex, callback) => {
-    
+        const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
+        let oldHoverNode = parent;
+        while (oldHoverNode !== undefined && oldHoverNode !== this.firstCommonHoverNode) {
+            const hoverInformation = this.hoveredNodesIndices.get(oldHoverNode?.gltfObjectIndex);
+            if (hoverInformation?.callbackHoverOut !== undefined) {
+                hoverInformation.callbackHoverOut(selectedNodeIndex, controllerIndex);
+                break;
+            }
+            oldHoverNode = oldHoverNode.parentNode;
+        }
     }
 }
 

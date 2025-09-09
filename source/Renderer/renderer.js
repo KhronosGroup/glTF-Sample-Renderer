@@ -512,7 +512,8 @@ class gltfRenderer
 
             let pickingResult = {
                 node: undefined,
-                position: undefined
+                position: undefined,
+                rayOrigin: this.currentCameraPosition,
             };
 
             let found = false;
@@ -532,6 +533,9 @@ class gltfRenderer
                 this.webGl.context.readPixels(state.pickingX ?? this.currentWidth / 2, pickingY ?? this.currentHeight / 2, 1, 1, this.webGl.context.RGBA, this.webGl.context.FLOAT, position);
                 pickingResult.position = position.subarray(0, 3);
             }
+
+            state.graphController.receiveSelection(pickingResult);
+            //state.graphController.receiveHover(pickingResult);
             
             if (state.selectionCallback){
                 state.selectionCallback(pickingResult);
