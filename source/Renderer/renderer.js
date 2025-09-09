@@ -270,11 +270,22 @@ class gltfRenderer
 
     prepareScene(state, scene) {
 
-        const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions.KHR_node_visibility);
-        if (newNodes.length === this.nodes?.length && newNodes.every((element, i) => element === this.nodes[i])) {
+        const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions);
+        this.selectionDrawables = newNodes.selectableNodes
+            .filter(node => node.mesh !== undefined)
+            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( (primitive, index) => {
+                return  {node: node, primitive: primitive, primitiveIndex: index};
+            })), []);
+        this.hoverDrawables = newNodes.hoverableNodes
+            .filter(node => node.mesh !== undefined)
+            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( (primitive, index) => {
+                return  {node: node, primitive: primitive, primitiveIndex: index};
+            })), []);
+
+        if (newNodes.nodes.length === this.nodes?.length && newNodes.nodes.every((element, i) => element === this.nodes[i])) {
             return;
         }
-        this.nodes = newNodes;
+        this.nodes = newNodes.nodes;
 
         // collect drawables by essentially zipping primitives (for geometry and material)
         // and nodes for the transform
@@ -409,18 +420,33 @@ class gltfRenderer
             instanceWorldTransforms.push(instanceOffset);
         }
 
-        if (state.triggerSelection) {
+        
+        if (state.triggerSelection && state.pickingX !== undefined && state.pickingY !== undefined) {
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
             this.webGl.context.viewport(0, 0, this.currentWidth, this.currentHeight);
 
             const fragDefines = [];
             this.pushFragParameterDefines(fragDefines, state);
-            for (const drawable of this.drawables)
+            for (const drawable of this.selectionDrawables)
             {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
                 this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
             }
+        }
+
+        if (state.enableHover && state.pickingX !== undefined && state.pickingY !== undefined) {
+            /*this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
+            this.webGl.context.viewport(0, 0, this.currentWidth, this.currentHeight);
+
+            const fragDefines = [];
+            this.pushFragParameterDefines(fragDefines, state);
+            for (const drawable of this.hoverDrawables)
+            {
+                let renderpassConfiguration = {};
+                renderpassConfiguration.picking = true;
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+            }*/
         }
 
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.

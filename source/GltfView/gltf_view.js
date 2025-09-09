@@ -105,7 +105,7 @@ class GltfView
                 opaqueMaterialsCount: 0,
                 transparentMaterialsCount: 0};
         }
-        const nodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions.KHR_node_visibility);
+        const nodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions).nodes;
         const activeMeshes = nodes.filter(node => node.mesh !== undefined).map(node => state.gltf.meshes[node.mesh]);
         const activePrimitives = activeMeshes
             .reduce((acc, mesh) => acc.concat(mesh.primitives), [])

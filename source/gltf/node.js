@@ -113,6 +113,14 @@ class gltfNode extends GltfObject
             this.extensions.KHR_node_visibility = new KHR_node_visibility();
             this.extensions.KHR_node_visibility.fromJson(jsonNode.extensions.KHR_node_visibility);
         }
+        if (jsonNode.extensions?.KHR_node_selectability !== undefined) {
+            this.extensions.KHR_node_selectability = new KHR_node_selectability();
+            this.extensions.KHR_node_selectability.fromJson(jsonNode.extensions.KHR_node_selectability);
+        }
+        if (jsonNode.extensions?.KHR_node_hoverability !== undefined) {
+            this.extensions.KHR_node_hoverability = new KHR_node_hoverability();
+            this.extensions.KHR_node_hoverability.fromJson(jsonNode.extensions.KHR_node_hoverability);
+        }
     }
 
     getWeights(gltf)
@@ -163,6 +171,26 @@ class KHR_node_visibility extends GltfObject {
     constructor() {
         super();
         this.visible = true;
+    }
+}
+
+class KHR_node_selectability extends GltfObject {
+    static animatedProperties = [
+        "selectable"
+    ];
+    constructor() {
+        super();
+        this.selectable = true;
+    }
+}
+
+class KHR_node_hoverability extends GltfObject {
+    static animatedProperties = [
+        "hoverable"
+    ];
+    constructor() {
+        super();
+        this.hoverable = true;
     }
 }
 

@@ -63,31 +63,48 @@ class gltfScene extends GltfObject
     }
 
 
-    gatherNodes(gltf, nodeVisibilityEnabled)
+    gatherNodes(gltf, enabledExtensions)
     {
         const nodes = [];
+        const selectableNodes = [];
+        const hoverableNodes = [];
 
-        function gatherNode(nodeIndex)
+        function gatherNode(nodeIndex, visible, selectable, hoverable)
         {
             const node = gltf.nodes[nodeIndex];
-            if (nodeVisibilityEnabled && node.extensions?.KHR_node_visibility?.visible === false) {
-                return;
+            if (!enabledExtensions.KHR_node_visibility || (node.extensions?.KHR_node_visibility?.visible !== false) && visible) {
+                nodes.push(node);
+            } else {
+                visible = false;
             }
-            nodes.push(node);
+            if (!enabledExtensions.KHR_node_selectability || (node.extensions?.KHR_node_selectability?.selectable !== false) && selectable) {
+                selectableNodes.push(node);
+            } else {
+                selectable = false;
+            }
+            if (!enabledExtensions.KHR_node_hoverability || (node.extensions?.KHR_node_hoverability?.hoverable !== false) && hoverable) {
+                hoverableNodes.push(node);
+            } else {
+                hoverable = false;
+            }
 
             // recurse into children
             for(const child of node.children)
             {
-                gatherNode(child);
+                gatherNode(child, visible, selectable, hoverable);
             }
         }
 
         for (const node of this.nodes)
         {
-            gatherNode(node);
+            gatherNode(node, true, true, true);
         }
 
-        return nodes;
+        return {
+            nodes: nodes,
+            selectableNodes: selectableNodes,
+            hoverableNodes: hoverableNodes
+        };
     }
 
     includesNode(gltf, nodeIndex)
