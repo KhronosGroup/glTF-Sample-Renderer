@@ -407,9 +407,12 @@ class gltfRenderer
         }
 
         let pickingViewProjection = undefined;
-        
-        if (state.triggerSelection && state.pickingX !== undefined && state.pickingY !== undefined) {
-            pickingViewProjection = currentCamera.getProjectionMatrixForPixel(state.pickingX - aspectOffsetX, this.currentHeight - state.pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+
+        const pickingX = state.pickingX;
+        const pickingY = state.pickingY;
+
+        if (state.triggerSelection && pickingX !== undefined && pickingY !== undefined) {
+            pickingViewProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
             mat4.multiply(pickingViewProjection, pickingViewProjection, this.viewMatrix);
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
             this.webGl.context.viewport(0, 0, 1, 1);
@@ -424,8 +427,8 @@ class gltfRenderer
             }
         }
 
-        if (state.enableHover && state.pickingX !== undefined && state.pickingY !== undefined) {
-            /*this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
+        if (state.enableHover && pickingX !== undefined && pickingY !== undefined) {
+            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
             this.webGl.context.viewport(0, 0, this.currentWidth, this.currentHeight);
 
             const fragDefines = [];
@@ -435,7 +438,7 @@ class gltfRenderer
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
                 this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
-            }*/
+            }
         }
 
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
@@ -524,10 +527,22 @@ class gltfRenderer
             const pixels = new Uint8Array(4);
             this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, pixels);
 
+            let rayOrigin = undefined;
+            if (currentCamera.type === "orthographic") {
+                const x = pickingX - aspectOffsetX;
+                const y = this.currentHeight - pickingY - aspectOffsetY;
+                const orthoX = -currentCamera.orthographic.xmag + (2 * currentCamera.orthographic.xmag / aspectWidth) * (x + 0.5);
+                const orthoY = -currentCamera.orthographic.ymag + (2 * currentCamera.orthographic.ymag / aspectHeight) * (y + 0.5);
+                rayOrigin = vec3.fromValues(orthoX, orthoY, -currentCamera.orthographic.znear);
+                vec3.transformMat4(rayOrigin, rayOrigin, currentCamera.getTransformMatrix(state.gltf));
+            } else {
+                rayOrigin = currentCamera.getPosition(state.gltf);
+            }
+            
             let pickingResult = {
                 node: undefined,
                 position: undefined,
-                rayOrigin: this.currentCameraPosition,
+                rayOrigin: rayOrigin,
             };
 
             let found = false;
