@@ -84,6 +84,54 @@ class gltfCamera extends GltfObject
         return projection;
     }
 
+    getProjectionMatrixForPixel(x, y, width, height) {
+        const projection = mat4.create();
+
+        if (this.type === "perspective")
+        {
+            const aspectRatio = this.perspective.aspectRatio ?? (width / height);
+            const top = Math.tan(this.perspective.yfov / 2) * this.perspective.znear;
+            const bottom = -top;
+            const left = bottom * aspectRatio;
+            const right = top * aspectRatio;
+            const computedWidth = Math.abs(right - left);
+            const computedHeight = Math.abs(top - bottom);
+
+            const subWidth = computedWidth / width;
+            const subHeight = computedHeight / height;
+            const subLeft = left + x * subWidth;
+            const subBottom = bottom + y * subHeight;
+
+            mat4.frustum(
+                projection,
+                subLeft,
+                subLeft + subWidth,
+                subBottom,
+                subBottom + subHeight,
+                this.perspective.znear,
+                this.perspective.zfar
+            );
+
+
+        }
+        else if (this.type === "orthographic")
+        {
+            const subLeft = -this.orthographic.xmag + (2 * this.orthographic.xmag / width) * x;
+            const subRight = subLeft + (2 * this.orthographic.xmag / width);
+            const subBottom = -this.orthographic.ymag + (2 * this.orthographic.ymag / height) * y;
+            const subTop = subBottom + (2 * this.orthographic.ymag / height);
+
+            mat4.ortho(
+                projection,
+                subLeft, subRight, subBottom, subTop,
+                this.orthographic.znear,
+                this.orthographic.zfar
+            );
+        }
+
+        return projection;
+    }
+
     getViewMatrix(gltf)
     {
         let result = mat4.create();

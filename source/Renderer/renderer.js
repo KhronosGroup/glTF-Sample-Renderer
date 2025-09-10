@@ -140,7 +140,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.UNSIGNED_BYTE, null);
+            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, 1, 1, 0, context.RGBA, context.UNSIGNED_BYTE, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.pickingPositionTexture = context.createTexture();
@@ -149,7 +149,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA32F, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.FLOAT, null);
+            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA32F, 1, 1, 0, context.RGBA, context.FLOAT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.pickingDepthTexture = context.createTexture();
@@ -158,7 +158,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.colorRenderBuffer = context.createRenderbuffer();
@@ -231,20 +231,6 @@ class gltfRenderer
             this.currentHeight = height;
             this.currentWidth = width;
             this.webGl.context.viewport(0, 0, width, height);
-            if (this.initialized) {
-                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.pickingIDTexture);
-                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, null);
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.pickingDepthTexture);
-                this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.DEPTH_COMPONENT16, this.currentWidth, this.currentHeight, 0, this.webGl.context.DEPTH_COMPONENT, this.webGl.context.UNSIGNED_SHORT, null);
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
-                if (this.webGl.context.supports_EXT_color_buffer_float) {
-                    this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.pickingPositionTexture);
-                    this.webGl.context.texImage2D(this.webGl.context.TEXTURE_2D, 0, this.webGl.context.RGBA32F, this.currentWidth, this.currentHeight, 0, this.webGl.context.RGBA, this.webGl.context.FLOAT, null);
-                    this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
-                }
-            }
         }
     }
 
@@ -420,10 +406,13 @@ class gltfRenderer
             instanceWorldTransforms.push(instanceOffset);
         }
 
+        let pickingViewProjection = undefined;
         
         if (state.triggerSelection && state.pickingX !== undefined && state.pickingY !== undefined) {
+            pickingViewProjection = currentCamera.getProjectionMatrixForPixel(state.pickingX - aspectOffsetX, this.currentHeight - state.pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+            mat4.multiply(pickingViewProjection, pickingViewProjection, this.viewMatrix);
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
-            this.webGl.context.viewport(0, 0, this.currentWidth, this.currentHeight);
+            this.webGl.context.viewport(0, 0, 1, 1);
 
             const fragDefines = [];
             this.pushFragParameterDefines(fragDefines, state);
@@ -431,7 +420,7 @@ class gltfRenderer
             {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, pickingViewProjection);
             }
         }
 
@@ -529,12 +518,11 @@ class gltfRenderer
         // Handle selection
         if (state.triggerSelection) {
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
-            this.webGl.context.viewport(0, 0, this.currentWidth, this.currentHeight);
+            this.webGl.context.viewport(0, 0, 1, 1);
             state.triggerSelection = false;
-            const pickingY = this.currentHeight - state.pickingY;
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
             const pixels = new Uint8Array(4);
-            this.webGl.context.readPixels(state.pickingX ?? this.currentWidth / 2, pickingY ?? this.currentHeight / 2, 1, 1, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, pixels);
+            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, pixels);
 
             let pickingResult = {
                 node: undefined,
@@ -556,7 +544,7 @@ class gltfRenderer
             if (found && this.webGl.context.supports_EXT_color_buffer_float) {
                 this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT1);
                 const position = new Float32Array(4);
-                this.webGl.context.readPixels(state.pickingX ?? this.currentWidth / 2, pickingY ?? this.currentHeight / 2, 1, 1, this.webGl.context.RGBA, this.webGl.context.FLOAT, position);
+                this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.FLOAT, position);
                 pickingResult.position = position.subarray(0, 3);
             }
 
