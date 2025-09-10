@@ -43,6 +43,8 @@ class gltfRenderer
         this.pickingIDTexture = 0;
         this.pickingPositionTexture = 0;
         this.pickingDepthTexture = 0;
+        this.hoverIDTexture = 0;
+        this.hoverDepthTexture = 0;
         this.opaqueFramebufferWidth = 1024;
         this.opaqueFramebufferHeight = 1024;
 
@@ -161,6 +163,24 @@ class gltfRenderer
             context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
+            this.hoverIDTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.hoverIDTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, 1, 1, 0, context.RGBA, context.UNSIGNED_BYTE, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
+            this.hoverDepthTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.hoverDepthTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
             this.colorRenderBuffer = context.createRenderbuffer();
             context.bindRenderbuffer(context.RENDERBUFFER, this.colorRenderBuffer);
             context.renderbufferStorageMultisample( context.RENDERBUFFER, samples, context.RGBA8,  this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
@@ -181,6 +201,11 @@ class gltfRenderer
                 context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.pickingPositionTexture, 0);
                 context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
             }
+
+            this.hoverFramebuffer = context.createFramebuffer();
+            context.bindFramebuffer(context.FRAMEBUFFER, this.hoverFramebuffer);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.hoverIDTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.hoverDepthTexture, 0);
 
             this.samples = samples;
 
@@ -249,6 +274,10 @@ class gltfRenderer
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
+        this.webGl.context.clearColor(0, 0, 0, 0);
+        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
         this.webGl.context.clearColor(0, 0, 0, 0);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
@@ -428,8 +457,12 @@ class gltfRenderer
         }
 
         if (state.enableHover && pickingX !== undefined && pickingY !== undefined) {
+            if (pickingViewProjection === undefined) {
+                pickingViewProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+                mat4.multiply(pickingViewProjection, pickingViewProjection, this.viewMatrix);
+            }
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
-            this.webGl.context.viewport(0, 0, this.currentWidth, this.currentHeight);
+            this.webGl.context.viewport(0, 0, 1, 1);
 
             const fragDefines = [];
             this.pushFragParameterDefines(fragDefines, state);
@@ -437,7 +470,7 @@ class gltfRenderer
             {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix);
+                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, pickingViewProjection);
             }
         }
 
@@ -564,10 +597,33 @@ class gltfRenderer
             }
 
             state.graphController.receiveSelection(pickingResult);
-            //state.graphController.receiveHover(pickingResult);
             
             if (state.selectionCallback){
                 state.selectionCallback(pickingResult);
+            }
+        }
+
+        if (state.enableHover) { 
+            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
+            this.webGl.context.viewport(0, 0, 1, 1);
+            this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
+            const pixels = new Uint8Array(4);
+            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, pixels);
+
+            let pickingResult = {
+                node: undefined,
+            };
+            for (const node of state.gltf.nodes)
+            {
+                if (node.pickingColor && vec4.equals(node.pickingColor, vec4.fromValues(pixels[0] / 255, pixels[1] / 255, pixels[2] / 255, pixels[3] / 255)))
+                {
+                    pickingResult.node = node;
+                    break;
+                }
+            }
+            state.graphController.receiveHover(pickingResult);
+            if (state.hoverCallback){
+                state.hoverCallback(pickingResult);
             }
         }
     }

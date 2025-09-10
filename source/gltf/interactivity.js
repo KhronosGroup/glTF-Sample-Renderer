@@ -260,6 +260,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             currentHoverNode = currentHoverNode.parentNode;
         }
 
+        this.lastHoverNodeIndex = newHoverNode?.gltfObjectIndex;
+
     }
 
     loadGraph(graphIndex) {
