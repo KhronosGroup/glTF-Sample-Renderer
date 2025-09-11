@@ -203,8 +203,31 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         };
         this.clickedNodesIndices = new Map();
 
-        this.behaveEngine.alertParentOnHoverIn = this.alertParentOnHoverIn;
-        this.behaveEngine.alertParentOnHoverOut = this.alertParentOnHoverOut;
+        this.behaveEngine.alertParentOnHoverIn = (selectedNodeIndex, controllerIndex, childNodeIndex) => {
+            const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
+            let currentHoverNode = parent;
+            while (currentHoverNode !== undefined && currentHoverNode !== this.firstCommonHoverNode) {
+                const hoverInformation = this.hoveredNodesIndices.get(currentHoverNode?.gltfObjectIndex);
+                if (hoverInformation?.callbackHoverIn !== undefined) {
+                    hoverInformation.callbackHoverIn(selectedNodeIndex, controllerIndex);
+                    break;
+                }
+                currentHoverNode = currentHoverNode.parentNode;
+            }
+        };
+
+        this.behaveEngine.alertParentOnHoverOut = (selectedNodeIndex, controllerIndex, childNodeIndex) => {
+            const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
+            let oldHoverNode = parent;
+            while (oldHoverNode !== undefined && oldHoverNode !== this.firstCommonHoverNode) {
+                const hoverInformation = this.hoveredNodesIndices.get(oldHoverNode?.gltfObjectIndex);
+                if (hoverInformation?.callbackHoverOut !== undefined) {
+                    hoverInformation.callbackHoverOut(selectedNodeIndex, controllerIndex);
+                    break;
+                }
+                oldHoverNode = oldHoverNode.parentNode;
+            }
+        };
 
         this.registerBehaveEngineNode("event/onSelect", interactivity.OnSelect);
         this.registerBehaveEngineNode("event/onHoverIn", interactivity.OnHoverIn);
@@ -223,6 +246,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     receiveHover(pickingResult) {
+        if (pickingResult.node?.gltfObjectIndex === this.lastHoverNodeIndex) {
+            return;
+        }
         const oldHoverIndicies = new Set();
         const newHoverNode = pickingResult.node;
         this.firstCommonHoverNode = undefined;
@@ -631,33 +657,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         animation.speed = speed;
         animation.endCallback = callback;
         animation.createdTimestamp = this.world.animationTimer.elapsedSec();
-    }
-
-    alertParentOnHoverIn(selectedNodeIndex, controllerIndex, childNodeIndex) {
-        const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
-        let currentHoverNode = parent;
-        while (currentHoverNode !== undefined && currentHoverNode !== this.firstCommonHoverNode) {
-            const hoverInformation = this.hoveredNodesIndices.get(currentHoverNode?.gltfObjectIndex);
-            if (hoverInformation?.callbackHoverIn !== undefined) {
-                hoverInformation.callbackHoverIn(selectedNodeIndex, controllerIndex);
-                break;
-            }
-            currentHoverNode = currentHoverNode.parentNode;
-        }
-
-    }
-
-    alertParentOnHoverOut(selectedNodeIndex, controllerIndex, childNodeIndex) {
-        const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
-        let oldHoverNode = parent;
-        while (oldHoverNode !== undefined && oldHoverNode !== this.firstCommonHoverNode) {
-            const hoverInformation = this.hoveredNodesIndices.get(oldHoverNode?.gltfObjectIndex);
-            if (hoverInformation?.callbackHoverOut !== undefined) {
-                hoverInformation.callbackHoverOut(selectedNodeIndex, controllerIndex);
-                break;
-            }
-            oldHoverNode = oldHoverNode.parentNode;
-        }
     }
 }
 
