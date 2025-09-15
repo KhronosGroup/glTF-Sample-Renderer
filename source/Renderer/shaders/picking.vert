@@ -7,7 +7,6 @@ uniform mat4 u_NormalMatrix;
 
 
 in vec3 a_position;
-out vec3 v_Position;
 
 
 vec4 getPosition()
@@ -30,7 +29,6 @@ void main()
 {
     gl_PointSize = 1.0f;
     vec4 pos = u_ModelMatrix * getPosition();
-    v_Position = vec3(pos.xyz) / pos.w;
 
     gl_Position = u_ViewProjectionMatrix * pos;
 }

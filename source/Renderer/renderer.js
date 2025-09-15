@@ -151,7 +151,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA32F, 1, 1, 0, context.RGBA, context.FLOAT, null);
+            context.texImage2D(context.TEXTURE_2D, 0, context.R32UI, 1, 1, 0, context.RED_INTEGER, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.pickingDepthTexture = context.createTexture();
@@ -197,10 +197,8 @@ class gltfRenderer
             context.bindFramebuffer(context.FRAMEBUFFER, this.pickingFramebuffer);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.pickingIDTexture, 0);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.pickingDepthTexture, 0);
-            if (context.supports_EXT_color_buffer_float) {
-                context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.pickingPositionTexture, 0);
-                context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
-            }
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.pickingPositionTexture, 0);
+            context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
 
             this.hoverFramebuffer = context.createFramebuffer();
             context.bindFramebuffer(context.FRAMEBUFFER, this.hoverFramebuffer);
@@ -274,8 +272,9 @@ class gltfRenderer
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
-        this.webGl.context.clearColor(0, 0, 0, 0);
-        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.clearBufferfv(GL.COLOR, 0, new Float32Array([0, 0, 0, 0]));
+        this.webGl.context.clearBufferuiv(GL.COLOR, 1, new Uint32Array([0, 0, 0, 0]));
+        this.webGl.context.clear(GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
         this.webGl.context.clearColor(0, 0, 0, 0);
@@ -435,14 +434,15 @@ class gltfRenderer
             instanceWorldTransforms.push(instanceOffset);
         }
 
-        let pickingViewProjection = undefined;
+        let pickingProjection = undefined;
+        let pickingViewProjection = mat4.create();
 
         const pickingX = state.pickingX;
         const pickingY = state.pickingY;
 
         if (state.triggerSelection && pickingX !== undefined && pickingY !== undefined) {
-            pickingViewProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
-            mat4.multiply(pickingViewProjection, pickingViewProjection, this.viewMatrix);
+            pickingProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+            mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
             this.webGl.context.viewport(0, 0, 1, 1);
 
@@ -457,9 +457,9 @@ class gltfRenderer
         }
 
         if (state.enableHover && pickingX !== undefined && pickingY !== undefined) {
-            if (pickingViewProjection === undefined) {
-                pickingViewProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
-                mat4.multiply(pickingViewProjection, pickingViewProjection, this.viewMatrix);
+            if (pickingProjection === undefined) {
+                pickingProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+                mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
             }
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
             this.webGl.context.viewport(0, 0, 1, 1);
@@ -589,11 +589,17 @@ class gltfRenderer
                 }
             }
 
-            if (found && this.webGl.context.supports_EXT_color_buffer_float) {
+            if (found) {
+                // WebGL does not allow reading from depth buffer
                 this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT1);
-                const position = new Float32Array(4);
-                this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.FLOAT, position);
-                pickingResult.position = position.subarray(0, 3);
+                const position = new Uint32Array(1);
+                this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RED_INTEGER, this.webGl.context.UNSIGNED_INT, position);
+                const z = position[0] / 4294967295 * 2.0 - 1.0;
+                const clipSpacePosition = vec4.fromValues(0, 0, z, 1);
+                vec4.transformMat4(clipSpacePosition, clipSpacePosition, mat4.invert(mat4.create(), pickingProjection));
+                vec4.divide(clipSpacePosition, clipSpacePosition, vec4.fromValues(clipSpacePosition[3], clipSpacePosition[3], clipSpacePosition[3], clipSpacePosition[3]));
+                const worldPos = vec4.transformMat4(vec4.create(), clipSpacePosition, mat4.invert(mat4.create(), this.viewMatrix));
+                pickingResult.position = vec3.fromValues(worldPos[0], worldPos[1], worldPos[2]);
             }
 
             state.graphController.receiveSelection(pickingResult);
