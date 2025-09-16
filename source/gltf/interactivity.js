@@ -234,6 +234,14 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
     }
 
+    convertArrayToMatrix(array, width) {
+        const matrix = [];
+        for (let i = 0; i < array.length; i += width) {
+            matrix.push(array.slice(i, i + width));
+        }
+        return matrix;
+    }
+
     setState(state) {
         this.resetGraph();
         this.world = state;
@@ -379,18 +387,19 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             return [NaN, NaN];
         case "float3":
             return [NaN, NaN, NaN];
-        case "float2x2":
         case "float4":
             return [NaN, NaN, NaN, NaN];
+        case "float2x2":
+            return [[NaN, NaN], [NaN, NaN]];
         case "float3x3":
-            return [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN];
+            return [[NaN, NaN, NaN], [NaN, NaN, NaN], [NaN, NaN, NaN]];
         case "float4x4":
-            return [NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN];
+            return [[NaN, NaN, NaN, NaN], [NaN, NaN, NaN, NaN], [NaN, NaN, NaN, NaN], [NaN, NaN, NaN, NaN]];
         }
         return undefined;
     }
 
-    traversePath(path, value = undefined) {
+    traversePath(path, type, value = undefined) {
         const pathPieces = path.split('/');
         pathPieces.shift(); // Remove first empty piece from split
         const lastPiece = pathPieces[pathPieces.length - 1];
@@ -415,6 +424,15 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 return undefined;
             }
         }
+        if (type === "float2x2" || type === "float3x3" || type === "float4x4") {
+            if (value !== undefined) {
+                value = value.flat();
+            } else {
+                const width = parseInt(type.charAt(5));
+                currentNode = this.convertArrayToMatrix(currentNode, width);
+            }
+        }
+
         if (value !== undefined) {
             currentNode.animatedPropertyObjects[lastPiece].animate(value);
         }
@@ -474,7 +492,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     type = "int";
                     this.registerJsonPointer(jsonPtr, (path) => {
                         const fixedPath = path.slice(0, -7); // Remove ".length"
-                        const result = this.traversePath(fixedPath);
+                        const result = this.traversePath(fixedPath, type);
                         if (result === undefined) {
                             return 0;
                         }
@@ -483,7 +501,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     return;
                 }
                 this.registerJsonPointer(jsonPtr, (path) => {
-                    const result = this.traversePath(path);
+                    const result = this.traversePath(path, type);
                     if (result === undefined) {
                         return this.getDefaultValueFromType(type);
                     }
@@ -494,13 +512,13 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 return;
             }
             this.registerJsonPointer(jsonPtr, (path) => {
-                const result = this.traversePath(path);
+                const result = this.traversePath(path, type);
                 if (result === undefined) {
                     return this.getDefaultValueFromType(type);
                 }
                 return result;
             }, (path, value) => {
-                this.traversePath(path, value);
+                this.traversePath(path, type, value);
             }, type, false);
         };
         this.recurseAllAnimatedProperties(this.world.gltf, registerFunction);
@@ -515,7 +533,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
         const nodeCount = this.world.gltf.nodes.length;
         this.registerJsonPointer(`/nodes/${nodeCount}/children/${nodeCount}`, (path) => {
-            return this.traversePath(path);
+            return this.traversePath(path, "int");
         }, (path, value) => {}, "int", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/globalMatrix`, (path) => {
             const pathParts = path.split('/');
@@ -524,13 +542,13 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             if (node.scene.gltfObjectIndex !== this.world.sceneIndex) {
                 node.scene.applyTransformHierarchy(this.world.gltf);
             }
-            return node.worldTransform; // gl-matrix uses column-major order
+            return this.convertArrayToMatrix(node.worldTransform, 4); // gl-matrix uses column-major order
         }, (path, value) => {}, "float4x4", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/matrix`, (path) => {
             const pathParts = path.split('/');
             const nodeIndex = parseInt(pathParts[2]);
             const node = this.world.gltf.nodes[nodeIndex];
-            return node.getLocalTransform(); // gl-matrix uses column-major order
+            return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
         }, (path, value) => {}, "float4x4", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/parent`, (path) => {
             const pathParts = path.split('/');
@@ -539,17 +557,17 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             return node.parentNode?.gltfObjectIndex;
         }, (path, value) => {}, "int", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`, (path) => {
-            return this.traversePath(path);
+            return this.traversePath(path, "int");
         }, (path, value) => {}, "int", true);
 
         const sceneCount = this.world.gltf.scenes.length;
         this.registerJsonPointer(`/scenes/${sceneCount}/nodes/${nodeCount}`, (path) => {
-            return this.traversePath(path);
+            return this.traversePath(path, "int");
         }, (path, value) => {}, "int", true);
 
         const skinCount = this.world.gltf.skins.length;
         this.registerJsonPointer(`/skins/${skinCount}/joints/${nodeCount}`, (path) => {
-            return this.traversePath(path);
+            return this.traversePath(path, "int");
         }, (path, value) => {}, "int", true);
 
         const animationCount = this.world.gltf.animations.length;
