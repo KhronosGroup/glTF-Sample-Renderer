@@ -166,68 +166,11 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.behaveEngine.stopAnimation = this.stopAnimation;
         this.behaveEngine.stopAnimationAt = this.stopAnimationAt;
         this.behaveEngine.startAnimation = this.startAnimation;
+        this.behaveEngine.getParentNodeIndex = this.getParentNodeIndex;
 
         this.registerBehaveEngineNode("animation/stop", interactivity.AnimationStop);
         this.registerBehaveEngineNode("animation/start", interactivity.AnimationStart);
         this.registerBehaveEngineNode("animation/stopAt", interactivity.AnimationStopAt);
-
-        this.behaveEngine.alertParentOnSelect = (selectionPoint, selectedNodeIndex, controllerIndex, selectionRayOrigin, childNodeIndex) => {
-            const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
-            const pickingResult = {
-                position: selectionPoint,
-                node: selectedNodeIndex,
-                parentNode: parent,
-                rayOrigin: selectionRayOrigin
-            };
-            this.receiveSelection(pickingResult);
-        };
-
-        this.behaveEngine.addNodeClickedListener = (nodeIndex, callback) => {
-            this.clickedNodesIndices.set(nodeIndex, callback);
-        };
-
-        this.behaveEngine.receiveSelection = (pickingResult) => {
-            if (pickingResult.node === undefined) {
-                return;
-            }
-            const selectedNode = pickingResult.node;
-            let currentNode = pickingResult.parentNode ?? pickingResult.node;
-            while (currentNode !== undefined) {
-                const callback = this.clickedNodesIndices.get(currentNode.gltfObjectIndex);
-                if (callback !== undefined) {
-                    callback(pickingResult.position, selectedNode.gltfObjectIndex, 0, pickingResult.rayOrigin);
-                    return;
-                }
-                currentNode = currentNode.parentNode;
-            }
-        };
-        this.clickedNodesIndices = new Map();
-
-        this.behaveEngine.alertParentOnHoverIn = (selectedNodeIndex, controllerIndex, childNodeIndex) => {
-            const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
-            let currentHoverNode = parent;
-            while (currentHoverNode !== undefined && currentHoverNode !== this.firstCommonHoverNode) {
-                const hoverInformation = this.hoveredNodesIndices.get(currentHoverNode?.gltfObjectIndex);
-                if (hoverInformation?.callbackHoverIn !== undefined) {
-                    hoverInformation.callbackHoverIn(selectedNodeIndex, controllerIndex);
-                    break;
-                }
-                currentHoverNode = currentHoverNode.parentNode;
-            }
-        };
-
-        this.behaveEngine.alertParentOnHoverOut = (selectedNodeIndex, controllerIndex, childNodeIndex) => {
-            const parent = this.world.gltf.nodes[childNodeIndex]?.parentNode;
-            let oldHoverNode = parent;
-            while (oldHoverNode !== undefined && oldHoverNode !== this.firstCommonHoverNode) {
-                const hoverInformation = this.hoveredNodesIndices.get(oldHoverNode?.gltfObjectIndex);
-                if (hoverInformation?.callbackHoverOut !== undefined) {
-                    hoverInformation.callbackHoverOut(selectedNodeIndex, controllerIndex);
-                    break;
-                }
-                oldHoverNode = oldHoverNode.parentNode;
-            }
-        };
 
         this.registerBehaveEngineNode("event/onSelect", interactivity.OnSelect);
         this.registerBehaveEngineNode("event/onHoverIn", interactivity.OnHoverIn);
@@ -250,56 +193,27 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     receiveSelection(pickingResult) {
-        this.behaveEngine.receiveSelection(pickingResult);
+        if (pickingResult.node) {
+            this.select(pickingResult.node?.gltfObjectIndex, 0, pickingResult.position, pickingResult.rayOrigin);
+        }
     }
 
     receiveHover(pickingResult) {
-        if (pickingResult.node?.gltfObjectIndex === this.lastHoverNodeIndex) {
-            return;
-        }
-        const oldHoverIndicies = new Set();
-        const newHoverNode = pickingResult.node;
-        this.firstCommonHoverNode = undefined;
-        if (this.lastHoverNodeIndex !== undefined && newHoverNode !== undefined) {
-            let currentOldHoverNode = this.world.gltf.nodes[this.lastHoverNodeIndex];
-            while (currentOldHoverNode !== undefined) {
-                oldHoverIndicies.add(currentOldHoverNode.gltfObjectIndex);
-                currentOldHoverNode = currentOldHoverNode.parentNode;
-            }
-            let currentHoverNode = newHoverNode;
-            while (currentHoverNode !== undefined) {
-                if (oldHoverIndicies.has(currentHoverNode.gltfObjectIndex)) {
-                    this.firstCommonHoverNode = currentHoverNode;
-                    break;
-                }
-                currentHoverNode = currentHoverNode.parentNode;
-            }
-        }
-        let oldHoverNode = this.world.gltf.nodes[this.lastHoverNodeIndex];
-        while (oldHoverNode !== undefined && oldHoverNode !== this.firstCommonHoverNode) {
-            const hoverInformation = this.hoveredNodesIndices.get(oldHoverNode?.gltfObjectIndex);
-            if (hoverInformation?.callbackHoverOut !== undefined) {
-                hoverInformation.callbackHoverOut(this.lastHoverNodeIndex, 0);
-                break;
-            }
-            oldHoverNode = oldHoverNode.parentNode;
-        }
-        let currentHoverNode = newHoverNode;
-        while (currentHoverNode !== undefined && currentHoverNode !== this.firstCommonHoverNode) {
-            const hoverInformation = this.hoveredNodesIndices.get(currentHoverNode?.gltfObjectIndex);
-            if (hoverInformation?.callbackHoverIn !== undefined) {
-                hoverInformation.callbackHoverIn(newHoverNode?.gltfObjectIndex, 0);
-                break;
-            }
-            currentHoverNode = currentHoverNode.parentNode;
-        }
+        this.hoverOn(pickingResult.node?.gltfObjectIndex, 0);
+    }
 
-        this.lastHoverNodeIndex = newHoverNode?.gltfObjectIndex;
-
+    getParentNodeIndex(nodeIndex) {
+        if (this.world === undefined || this.world.gltf === undefined) {
+            return undefined;
+        }
+        const node = this.world.gltf.nodes[nodeIndex];
+        if (node === undefined || node.parentNode === undefined) {
+            return undefined;
+        }
+        return node.parentNode.gltfObjectIndex;
     }
 
     loadGraph(graphIndex) {
-        this.clickedNodesIndices.clear();
         const graphArray = this.world?.gltf?.extensions?.KHR_interactivity?.graphs;
         if (graphArray && graphArray.length > graphIndex) {
             const graphCopy = JSON.parse(JSON.stringify(graphArray[graphIndex]));
@@ -318,7 +232,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     resetGraph() {
-        this.clickedNodesIndices.clear();
         this.behaveEngine.loadBehaveGraph({nodes: [], types: [], events: [], declarations: [], variables: []});
         if (this.world === undefined) {
             return;
