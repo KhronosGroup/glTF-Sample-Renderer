@@ -344,6 +344,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const width = parseInt(type.charAt(5));
                 currentNode = this.convertArrayToMatrix(currentNode, width);
             }
+        } else if (type === "float2" || type === "float3" || type === "float4") {
+            if (value !== undefined) {
+                value = value.slice(0); //clone array
+            } else {
+                currentNode = currentNode.slice(0); //clone array
+            }
         }
 
         if (value !== undefined) {
@@ -535,7 +541,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 }
                 activeCamera = this.world.gltf.cameras[cameraIndex];
             }
-            return activeCamera.getRotation();
+            return activeCamera.getRotation().slice(0);
         }, (path, value) => {
             //no-op
         }, "float4", true);
@@ -552,7 +558,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 }
                 activeCamera = this.world.gltf.cameras[cameraIndex];
             }
-            return activeCamera.getPosition();
+            return activeCamera.getPosition().slice(0);
         }, (path, value) => {
             //no-op
         }, "float3", true);
