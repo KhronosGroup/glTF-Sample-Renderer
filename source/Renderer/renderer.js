@@ -160,7 +160,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.hoverIDTexture = context.createTexture();
@@ -178,7 +178,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT16, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_SHORT, null);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.colorRenderBuffer = context.createRenderbuffer();
@@ -274,7 +274,7 @@ class gltfRenderer
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
         this.webGl.context.clearBufferfv(GL.COLOR, 0, new Float32Array([0, 0, 0, 0]));
         this.webGl.context.clearBufferuiv(GL.COLOR, 1, new Uint32Array([0, 0, 0, 0]));
-        this.webGl.context.clear(GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
         this.webGl.context.clearColor(0, 0, 0, 0);
