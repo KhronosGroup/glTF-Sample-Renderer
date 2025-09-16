@@ -22,7 +22,7 @@ class gltfNode extends GltfObject
         "skin",
         "weights"
     ];
-    static currentPickingColor = 50;
+    static currentPickingColor = 1;
     constructor()
     {
         super();
@@ -53,9 +53,8 @@ class gltfNode extends GltfObject
     initGl(gltf, webGlContext)
     {
         if (this.mesh !== undefined) {
-            const mask = 0x000000FF;
-            this.pickingColor = vec4.fromValues((gltfNode.currentPickingColor & mask) / 255, ((gltfNode.currentPickingColor >>> 8) & mask) / 255, ((gltfNode.currentPickingColor >>> 16) & mask) / 255, ((gltfNode.currentPickingColor >>> 24) & mask) / 255);
-            gltfNode.currentPickingColor += 50;
+            this.pickingColor = gltfNode.currentPickingColor;
+            gltfNode.currentPickingColor += 1;
         }
         if (this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined) {
             const firstAccessor = Object.values(this.extensions?.EXT_mesh_gpu_instancing?.attributes)[0];

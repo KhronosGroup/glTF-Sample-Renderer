@@ -142,7 +142,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, 1, 1, 0, context.RGBA, context.UNSIGNED_BYTE, null);
+            context.texImage2D(context.TEXTURE_2D, 0, context.R32UI, 1, 1, 0, context.RED_INTEGER, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.pickingPositionTexture = context.createTexture();
@@ -169,7 +169,7 @@ class gltfRenderer
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, 1, 1, 0, context.RGBA, context.UNSIGNED_BYTE, null);
+            context.texImage2D(context.TEXTURE_2D, 0, context.R32UI, 1, 1, 0, context.RED_INTEGER, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
             this.hoverDepthTexture = context.createTexture();
@@ -272,13 +272,13 @@ class gltfRenderer
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
-        this.webGl.context.clearBufferfv(GL.COLOR, 0, new Float32Array([0, 0, 0, 0]));
+        this.webGl.context.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
         this.webGl.context.clearBufferuiv(GL.COLOR, 1, new Uint32Array([0, 0, 0, 0]));
         this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
-        this.webGl.context.clearColor(0, 0, 0, 0);
-        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
+        this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
     }
 
@@ -557,8 +557,8 @@ class gltfRenderer
             this.webGl.context.viewport(0, 0, 1, 1);
             state.triggerSelection = false;
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
-            const pixels = new Uint8Array(4);
-            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, pixels);
+            const pixels = new Uint32Array(1);
+            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RED_INTEGER, this.webGl.context.UNSIGNED_INT, pixels);
 
             let rayOrigin = undefined;
             if (currentCamera.type === "orthographic") {
@@ -581,7 +581,7 @@ class gltfRenderer
             let found = false;
             for (const node of state.gltf.nodes)
             {
-                if (node.pickingColor && vec4.equals(node.pickingColor, vec4.fromValues(pixels[0] / 255, pixels[1] / 255, pixels[2] / 255, pixels[3] / 255)))
+                if (node.pickingColor === pixels[0])
                 {
                     found = true;
                     pickingResult.node = node;
@@ -613,15 +613,15 @@ class gltfRenderer
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
             this.webGl.context.viewport(0, 0, 1, 1);
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
-            const pixels = new Uint8Array(4);
-            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RGBA, this.webGl.context.UNSIGNED_BYTE, pixels);
+            const pixels = new Uint32Array(1);
+            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RED_INTEGER, this.webGl.context.UNSIGNED_INT, pixels);
 
             let pickingResult = {
                 node: undefined,
             };
             for (const node of state.gltf.nodes)
             {
-                if (node.pickingColor && vec4.equals(node.pickingColor, vec4.fromValues(pixels[0] / 255, pixels[1] / 255, pixels[2] / 255, pixels[3] / 255)))
+                if (node.pickingColor === pixels[0])
                 {
                     pickingResult.node = node;
                     break;

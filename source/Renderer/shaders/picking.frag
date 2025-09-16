@@ -1,10 +1,9 @@
 precision highp float;
 
-layout(location = 0) out vec4 id_color;
+layout(location = 0) out uint id_color;
 layout(location = 1) out uint position;
 
-uniform vec4 u_PickingColor;
-in vec3 v_Position;
+uniform uint u_PickingColor;
 
 void main() {
     id_color = u_PickingColor;
