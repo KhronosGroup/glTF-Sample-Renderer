@@ -47,10 +47,9 @@ class GraphController {
     }
 
     /**
-     * Initialize the graph controller with the given state and debug flag.
+     * Initialize the graph controller with the given state.
      * This needs to be called every time a glTF assets is loaded.
      * @param {GltfState} state - The state of the application.
-     * @param {boolean} debug - Whether to enable debug mode.
      */
     initializeGraphs(state) {
         this.state = state;
@@ -267,10 +266,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     getTypeFromValue(value) {
-        if (value instanceof Number) {
+        if (typeof value === "number") {
             return "float";
         }
-        if (value instanceof Boolean) {
+        if (typeof value === "boolean") {
             return "bool";
         }
         if (value.length === 2) {
