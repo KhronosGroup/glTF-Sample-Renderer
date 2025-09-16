@@ -141,7 +141,8 @@ class GraphController {
      */
     dispatchEvent(eventName, data) {
         if (this.graphIndex !== undefined) {
-            this.decorator.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
+            const dataCopy = JSON.parse(JSON.stringify(data));
+            this.decorator.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, dataCopy);
         }
     }
 
