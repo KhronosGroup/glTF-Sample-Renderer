@@ -142,7 +142,7 @@ class GraphController {
     dispatchEvent(eventName, data) {
         if (this.graphIndex !== undefined) {
             const dataCopy = JSON.parse(JSON.stringify(data));
-            this.decorator.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, dataCopy);
+            this.decorator.dispatchCustomEvent(eventName, dataCopy);
         }
     }
 
@@ -175,6 +175,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerBehaveEngineNode("event/onSelect", interactivity.OnSelect);
         this.registerBehaveEngineNode("event/onHoverIn", interactivity.OnHoverIn);
         this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
+    }
+
+    dispatchCustomEvent(eventName, data) {
+        this.behaveEngine.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
     }
 
     convertArrayToMatrix(array, width) {
