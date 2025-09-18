@@ -25,6 +25,7 @@ const allowedExtensions = [
     "KHR_lights_punctual",
     "KHR_materials_anisotropy",
     "KHR_materials_clearcoat",
+    "KHR_materials_diffuse_transmission",
     "KHR_materials_dispersion",
     "KHR_materials_emissive_strength",
     "KHR_materials_ior",
@@ -36,10 +37,12 @@ const allowedExtensions = [
     "KHR_materials_unlit",
     "KHR_materials_variants",
     "KHR_materials_volume",
+    "KHR_materials_volume_scatter",
     "KHR_mesh_quantization",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",
+    "EXT_mesh_gpu_instancing",
     "EXT_texture_webp",
 ];
 
