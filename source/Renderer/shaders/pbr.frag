@@ -129,6 +129,7 @@ void main()
 
     float albedoSheenScaling = 1.0;
     float diffuseTransmissionThickness = 1.0;
+    vec3 diffuseTransmissionIBL = vec3(0.0);
 
 #ifdef MATERIAL_IRIDESCENCE
     vec3 iridescenceFresnel_dielectric = evalIridescence(1.0, materialInfo.iridescenceIor, NdotV, materialInfo.iridescenceThickness, materialInfo.f0_dielectric);
@@ -146,6 +147,11 @@ void main()
 #endif
 #endif
 
+#ifdef MATERIAL_VOLUME_SCATTER
+    // Used for weighting absorption and scattering
+    vec3 singleScatter = multiToSingleScatter();
+#endif
+
 #ifdef MATERIAL_CLEARCOAT
     clearcoatFactor = materialInfo.clearcoatFactor;
     clearcoatFresnel = F_Schlick(materialInfo.clearcoatF0, materialInfo.clearcoatF90, clampedDot(materialInfo.clearcoatNormal, v));
@@ -158,9 +164,12 @@ void main()
     f_diffuse = getDiffuseLight(n) * baseColor.rgb ;
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-    vec3 diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
+    diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
+#endif
+#ifdef MATERIAL_VOLUME_SCATTER
+    diffuseTransmissionIBL *= (1.0 - singleScatter);
 #endif
     f_diffuse = mix(f_diffuse, diffuseTransmissionIBL, materialInfo.diffuseTransmissionFactor);
 #endif
@@ -261,7 +270,7 @@ void main()
         vec3 l_clearcoat_brdf = vec3(0.0);
         vec3 l_sheen = vec3(0.0);
         float l_albedoSheenScaling = 1.0;
-
+        vec3 l_diffuse_btdf = vec3(0.0);
 
 
         
@@ -269,16 +278,19 @@ void main()
         l_diffuse = l_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
         if (dot(n, l) < 0.0) {
             float diffuseNdotL = clampedDot(-n, l);
-            vec3 diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
+            l_diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
 
             vec3 l_mirror = normalize(l + 2.0 * n * dot(-l, n)); // Mirror light reflection vector on surface
             float diffuseVdotH = clampedDot(v, normalize(l_mirror + v));
             dielectric_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(diffuseVdotH));
 
 #ifdef MATERIAL_VOLUME
-            diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
+            l_diffuse_btdf = applyVolumeAttenuation(l_diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-            l_diffuse += diffuse_btdf * materialInfo.diffuseTransmissionFactor;
+#ifdef MATERIAL_VOLUME_SCATTER
+            l_diffuse_btdf *= (1.0 - singleScatter);
+#endif
+            l_diffuse += l_diffuse_btdf * materialInfo.diffuseTransmissionFactor;
         }
         
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
@@ -336,6 +348,12 @@ void main()
         color += l_color;
     }
 #endif // USE_PUNCTUAL
+
+#ifdef MATERIAL_VOLUME_SCATTER
+        // Subsurface scattering is calculated based on fresnel weighted diffuse terms. 
+        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor);
+        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor) * (1.0 - materialInfo.transmissionFactor);
+#endif // MATERIAL_VOLUME_SCATTER
 
     f_emissive = u_EmissiveFactor;
 #ifdef MATERIAL_EMISSIVE_STRENGTH
@@ -517,5 +535,15 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_DIFFUSE_TRANSMISSION_COLOR_FACTOR
     g_finalColor.rgb = linearTosRGB(materialInfo.diffuseTransmissionColorFactor);
 #endif
+
+#ifdef MATERIAL_VOLUME_SCATTER
+#if DEBUG == DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR
+    g_finalColor.rgb = u_MultiScatterColor;
+#endif
+#if DEBUG == DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR
+    g_finalColor.rgb = singleScatter;
+#endif
+#endif
+
 #endif
 }

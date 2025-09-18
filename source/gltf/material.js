@@ -6,6 +6,9 @@ import { GltfObject } from './gltf_object.js';
 class gltfMaterial extends GltfObject
 {
     static animatedProperties = ["alphaCutoff", "emissiveFactor"];
+    static scatterSampleCount = 55;
+    static scatterSamples = undefined;
+    static scatterMinRadius = 1.0;
     constructor()
     {
         super();
@@ -27,6 +30,7 @@ class gltfMaterial extends GltfObject
         this.hasIOR = false;
         this.hasEmissiveStrength = false;
         this.hasVolume = false;
+        this.hasVolumeScatter = false;
         this.hasIridescence = false;
         this.hasAnisotropy = false;
         this.hasDispersion = false;
@@ -71,6 +75,11 @@ class gltfMaterial extends GltfObject
         if (this.hasVolume && renderingParameters.enabledExtensions.KHR_materials_volume)
         {
             defines.push("MATERIAL_VOLUME 1");
+        }
+        if (this.hasVolumeScatter && renderingParameters.enabledExtensions.KHR_materials_volume_scatter 
+            && renderingParameters.enabledExtensions.KHR_materials_volume) {
+            defines.push("MATERIAL_VOLUME_SCATTER 1");
+            defines.push(`SCATTER_SAMPLES_COUNT ${gltfMaterial.scatterSampleCount}`);
         }
         if(this.hasIOR && renderingParameters.enabledExtensions.KHR_materials_ior)
         {
@@ -410,6 +419,15 @@ class gltfMaterial extends GltfObject
                 }
             }
 
+            if (this.extensions.KHR_materials_volume_scatter !== undefined)
+            {
+                this.hasVolumeScatter = true;
+                this.defines.push("HAS_VOLUME_SCATTER 1");
+                if (!gltfMaterial.scatterSamples) {
+                    gltfMaterial.scatterSamples = gltfMaterial.computeScatterSamples();
+                }
+            }
+
             // KHR Extension: Iridescence
             // See https://github.com/ux3d/glTF/tree/extensions/KHR_materials_iridescence/extensions/2.0/Khronos/KHR_materials_iridescence
             if(this.extensions.KHR_materials_iridescence !== undefined)
@@ -461,6 +479,91 @@ class gltfMaterial extends GltfObject
         }
 
         initGlForMembers(this, gltf, webGlContext);
+    }
+
+
+
+    /**
+     * Using blender implementation of Burley diffusion profile.
+     */
+    static computeScatterSamples()
+    {
+        /* Precompute sample position with white albedo. */
+        const d = this.burleySetup(1.0, 1.0);
+
+        const randU = 0.5; // Random value between 0 and 1, fixed here for determinism.
+        const randV = 0.5; 
+
+        /* Find minimum radius that we can represent because we are only sampling the largest radius. */
+        let min_radius = 1.0;
+
+        const goldenAngle = Math.PI * (3.0 - Math.sqrt(5.0));
+        const uniformArray = [];
+        for (let i = 0; i < this.scatterSampleCount; i++) {
+            const theta = goldenAngle * i + Math.PI * 2.0 * randU;
+            const x = (randV + i) / this.scatterSampleCount;
+            const r = this.burleySample(d, x);
+            min_radius = Math.min(min_radius, r);
+            uniformArray.push(theta, r , 1.0 / this.burleyPdf(d, r));
+        }
+        /* Avoid float imprecision. */
+        min_radius = Math.max(min_radius, 0.00001);
+        this.scatterMinRadius = min_radius;
+        return uniformArray;
+    }
+
+    static burleySample(d, xRand)
+    {
+        xRand *= 0.9963790093708328;
+
+        const tolerance = 1e-6;
+        const maxIterationCount = 10;
+        let r;
+        if (xRand <= 0.9) {
+            r = Math.exp(xRand * xRand * 2.4) - 1.0;
+        }
+        else {
+            r = 15.0;
+        }
+        /* Solve against scaled radius. */
+        for (let i = 0; i < maxIterationCount; i++) {
+            const exp_r_3 = Math.exp(-r / 3.0);
+            const exp_r = exp_r_3 * exp_r_3 * exp_r_3;
+            const f = 1.0 - 0.25 * exp_r - 0.75 * exp_r_3 - xRand;
+            const f_ = 0.25 * exp_r + 0.25 * exp_r_3;
+
+            if (Math.abs(f) < tolerance || f_ == 0.0) {
+                break;
+            }
+
+            r = r - f / f_;
+            r = Math.max(r, 0.0);
+        }
+
+        return r * d;
+    }
+
+    static burleyEval(d, r)
+    {
+        if (r >= 16 * d) {
+            return 0.0;
+        }
+
+        const exp_r_3_d = Math.exp(-r / (3.0 * d));
+        const exp_r_d = exp_r_3_d * exp_r_3_d * exp_r_3_d;
+        return (exp_r_d + exp_r_3_d) / (8.0 * Math.PI * d);
+    }
+
+    static burleyPdf(d, r)
+    {
+        return this.burleyEval(d, r) / 0.9963790093708328;
+    }
+
+    static burleySetup(radius, albedo) {
+        const m_1_pi = 0.318309886183790671538;
+        const s = 1.9 - albedo + 3.5 * ((albedo - 0.8) * (albedo - 0.8));
+        const l = 0.25 * m_1_pi * radius;
+        return l / s;
     }
 
     fromJson(jsonMaterial)
@@ -548,6 +651,12 @@ class gltfMaterial extends GltfObject
         {
             this.extensions.KHR_materials_volume = new KHR_materials_volume();
             this.extensions.KHR_materials_volume.fromJson(jsonExtensions.KHR_materials_volume);
+        }
+
+        if(jsonExtensions.KHR_materials_volume_scatter !== undefined)
+        {
+            this.extensions.KHR_materials_volume_scatter = new KHR_materials_volume_scatter();
+            this.extensions.KHR_materials_volume_scatter.fromJson(jsonExtensions.KHR_materials_volume_scatter);
         }
 
         if(jsonExtensions.KHR_materials_iridescence !== undefined)
@@ -823,6 +932,16 @@ class KHR_materials_volume extends GltfObject {
             thicknessTexture.fromJson(jsonVolume.thicknessTexture);
             this.thicknessTexture = thicknessTexture;
         }
+    }
+}
+
+class KHR_materials_volume_scatter extends GltfObject {
+    static animatedProperties = ["multiscatterColor", "scatterAnisotropy"];
+    constructor()
+    {
+        super();
+        this.multiscatterColor = vec3.fromValues(0, 0, 0);
+        this.scatterAnisotropy = 0;
     }
 }
 
