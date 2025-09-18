@@ -218,6 +218,15 @@ GltfState.DebugOutput = {
         /** output final direction as defined by the anisotropyTexture and rotation*/
         ANISOTROPIC_DIRECTION: "Anisotropic Direction",
     },
+
+    volumeScatter: {
+        /** output the multi-scatter color */
+        MULTI_SCATTER_COLOR: "Multi-Scatter Color",
+        /** output the single-scatter color */
+        SINGLE_SCATTER_COLOR: "Single-Scatter Color",
+        /** output for the pre scatter pass, which collects all lighting contribution for scattering */
+        PRE_SCATTER_PASS: "Pre-Scatter Pass",
+    }
 };
 
 export { GltfState };

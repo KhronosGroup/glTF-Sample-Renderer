@@ -535,5 +535,15 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_DIFFUSE_TRANSMISSION_COLOR_FACTOR
     g_finalColor.rgb = linearTosRGB(materialInfo.diffuseTransmissionColorFactor);
 #endif
+
+#ifdef MATERIAL_VOLUME_SCATTER
+#if DEBUG == DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR
+    g_finalColor.rgb = u_MultiScatterColor;
+#endif
+#if DEBUG == DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR
+    g_finalColor.rgb = singleScatter;
+#endif
+#endif
+
 #endif
 }

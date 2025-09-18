@@ -401,6 +401,9 @@ class gltfRenderer
 
         if (scatterEnabled) {
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
+            if (state.renderingParameters.debugOutput === GltfState.DebugOutput.volumeScatter.PRE_SCATTER_PASS) {
+                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+            }
             this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
 
             let counter = 1;
@@ -415,6 +418,9 @@ class gltfRenderer
                 ++counter;
             }
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+        }
+        if (state.renderingParameters.debugOutput === GltfState.DebugOutput.volumeScatter.PRE_SCATTER_PASS) {
+            return;
         }
 
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
@@ -834,8 +840,6 @@ class gltfRenderer
 
             this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), gltfMaterial.scatterMinRadius);
             this.webGl.context.uniform2i(this.shader.getUniformLocation("u_FramebufferSize"), renderpassConfiguration.frameBufferSize[0], renderpassConfiguration.frameBufferSize[1]);
-            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
-            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
             this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 
             this.shader.updateUniformArray("u_ScatterSamples", gltfMaterial.scatterSamples);
@@ -1032,6 +1036,9 @@ class gltfRenderer
 
             {debugOutput: GltfState.DebugOutput.anisotropy.ANISOTROPIC_STRENGTH, shaderDefine: "DEBUG_ANISOTROPIC_STRENGTH"},
             {debugOutput: GltfState.DebugOutput.anisotropy.ANISOTROPIC_DIRECTION, shaderDefine: "DEBUG_ANISOTROPIC_DIRECTION"},
+
+            {debugOutput: GltfState.DebugOutput.volumeScatter.MULTI_SCATTER_COLOR, shaderDefine: "DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR"},
+            {debugOutput: GltfState.DebugOutput.volumeScatter.SINGLE_SCATTER_COLOR, shaderDefine: "DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR"},
         ];
 
         let mappingCount = 0;
