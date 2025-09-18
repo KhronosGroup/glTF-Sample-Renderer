@@ -193,7 +193,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     centerDepth = fragViewPosition.z; // Extract the depth value
     vec3 totalWeight = vec3(0.0);
     vec3 totalDiffuse = vec3(0.0);
-    
+
     vec3 clampedScatterDistance = max(vec3(u_MinRadius), scatterDistance / maxColor) * maxColor;
     vec3 d = burley_setup(clampedScatterDistance, vec3(1.0)); // Setup the Burley model parameters
 
@@ -223,6 +223,6 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
         }
     }
     totalWeight = max(totalWeight, vec3(0.0001)); // Avoid division by zero
-    return totalDiffuse / totalWeight * diffuseTransmissionColor;
+    return totalDiffuse / totalWeight * diffuseColor;
 }
 #endif // MATERIAL_VOLUME_SCATTER

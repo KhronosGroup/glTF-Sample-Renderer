@@ -397,8 +397,9 @@ class gltfRenderer
             }
             instanceWorldTransforms.push(instanceOffset);
         }
+        const scatterEnabled = this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter && state.renderingParameters.enabledExtensions.KHR_materials_volume;
 
-        if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+        if (scatterEnabled) {
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
             this.webGl.context.viewport(aspectOffsetX, aspectOffsetY,  aspectWidth, aspectHeight);
 
@@ -436,7 +437,7 @@ class gltfRenderer
                 drawableCounter++;
 
                 let sampledTextures = {};
-                if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+                if (scatterEnabled) {
                     sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
                     sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
                 }
@@ -482,7 +483,7 @@ class gltfRenderer
             const instanceOffset = instanceWorldTransforms[drawableCounter];
             drawableCounter++;
             let sampledTextures = {};
-            if (this.scatterDrawables.length > 0 && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter) {
+            if (scatterEnabled) {
                 sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
                 sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
             }
@@ -498,8 +499,10 @@ class gltfRenderer
             renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
             let sampledTextures = {};
             sampledTextures.transmissionSampleTexture = this.opaqueRenderTexture;
-            sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
-            sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+            if (scatterEnabled) {
+                sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
+                sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+            }
             this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, this.viewProjectionMatrix, sampledTextures);
         }
 
@@ -817,7 +820,7 @@ class gltfRenderer
             this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
         }
 
-        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined && state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined)
         {
             this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
             this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
