@@ -33,28 +33,6 @@ class gltfCamera extends GltfObject
     initGl(gltf, webGlContext)
     {
         super.initGl(gltf, webGlContext);
-
-        let cameraIndex = undefined;
-        for (let i = 0; i < gltf.nodes.length; i++)
-        {
-            cameraIndex = gltf.nodes[i].camera;
-            if (cameraIndex === undefined)
-            {
-                continue;
-            }
-
-            if (gltf.cameras[cameraIndex] === this)
-            {
-                this.node = i;
-                break;
-            }
-        }
-
-        // cameraIndex stays undefined if camera is not assigned to any node
-        if(this.node === undefined && cameraIndex !== undefined)
-        {
-            console.error("Invalid node for camera " + cameraIndex);
-        }
     }
 
     sortPrimitivesByDepth(gltf, drawables)
@@ -150,8 +128,19 @@ class gltfCamera extends GltfObject
         return node.worldQuaternion;
     }
 
+    setNode(gltf, nodeIndex)
+    {
+        if (nodeIndex === undefined || nodeIndex < 0 || nodeIndex >= gltf.nodes.length || gltf.nodes[nodeIndex].camera === undefined) {
+            throw new Error("Invalid camera node index");
+        }
+        this.node = nodeIndex;
+    }
+
     getNode(gltf)
     {
+        if (this.node === undefined || this.node < 0 || this.node >= gltf.nodes.length || gltf.nodes[this.node].camera === undefined) {
+            throw new Error("Camera node is not defined");
+        }
         return gltf.nodes[this.node];
     }
 
