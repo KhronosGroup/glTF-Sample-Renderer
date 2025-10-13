@@ -15,10 +15,11 @@ class gltfTexture extends GltfObject
 
         // non gltf
         this.glTexture = undefined;
+        this.glTextureSRGB = undefined; // for sRGB textures
         this.type = type;
         this.initialized = false;
+        this.initializedSRGB = false; // for sRGB textures
         this.mipLevelCount = 0;
-        this.linear = true;
     }
 
     initGl(gltf, webGlContext)
@@ -55,7 +56,11 @@ class gltfTexture extends GltfObject
             // TODO: this breaks the dependency direction
             WebGl.context.deleteTexture(this.glTexture);
         }
-
+        if (this.glTextureSRGB !== undefined)
+        {
+            WebGl.context.deleteTexture(this.glTextureSRGB);
+        }
+        this.glTextureSRGB = undefined;
         this.glTexture = undefined;
     }
 }
@@ -79,9 +84,6 @@ class gltfTextureInfo extends GltfObject
 
     initGl(gltf, webGlContext)
     {
-        if (!this.linear) {
-            gltf.textures[this.index].linear = false;
-        }
         initGlForMembers(this, gltf, webGlContext);
     }
 
