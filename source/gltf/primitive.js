@@ -80,8 +80,9 @@ class gltfPrimitive extends GltfObject
         {
             console.info("Generating tangents using the MikkTSpace algorithm.");
             console.time("Tangent generation");
+            const tangentHash = `${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes.TEXCOORD_0}`;
             this.unweld(gltf);
-            this.generateTangents(gltf);
+            this.generateTangents(gltf, tangentHash);
             console.timeEnd("Tangent generation");
         }
 
@@ -739,7 +740,6 @@ class gltfPrimitive extends GltfObject
         if (this.indices === undefined) {
             return;
         }
-
         const indices = gltf.accessors[this.indices].getTypedView(gltf);
 
         // Unweld attributes:
@@ -807,9 +807,14 @@ class gltfPrimitive extends GltfObject
         return gltf.accessors.length - 1;
     }
 
-    generateTangents(gltf) {
+    generateTangents(gltf, tangentHash) {
         if(this.attributes.NORMAL === undefined || this.attributes.TEXCOORD_0 === undefined)
         {
+            return;
+        }
+        if (gltf.tangentCache[tangentHash] !== undefined) {
+            // Tangents already generated for this primitive.
+            this.attributes.TANGENT = gltf.tangentCache[tangentHash];
             return;
         }
 
@@ -870,6 +875,7 @@ class gltfPrimitive extends GltfObject
         // Update the primitive to use the tangents:
         this.attributes.TANGENT = gltf.accessors.length;
         gltf.accessors.push(tangentAccessor);
+        gltf.tangentCache[tangentHash] = this.attributes.TANGENT;
 
     }
 }
