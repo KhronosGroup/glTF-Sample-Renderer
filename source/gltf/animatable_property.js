@@ -27,8 +27,10 @@ class AnimatableProperty {
 
 const makeAnimatable = (object, json, properties) => {
     for (const property in properties) {
-        object[property] = new AnimatableProperty(json[property] ?? properties[property]);
+        object[property] = new AnimatableProperty(
+            json[property] ?? properties[property]
+        );
     }
-}
+};
 
 export { AnimatableProperty, makeAnimatable };

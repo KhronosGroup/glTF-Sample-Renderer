@@ -1,11 +1,9 @@
-import { getContainingFolder } from './utils.js';
-import { GltfObject } from './gltf_object.js';
+import { getContainingFolder } from "./utils.js";
+import { GltfObject } from "./gltf_object.js";
 
-class gltfBuffer extends GltfObject
-{
+class gltfBuffer extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.uri = undefined;
         this.byteLength = undefined;
@@ -15,65 +13,67 @@ class gltfBuffer extends GltfObject
         this.buffer = undefined; // raw data blob
     }
 
-    load(gltf, additionalFiles = undefined)
-    {
-        if (this.buffer !== undefined)
-        {
+    load(gltf, additionalFiles = undefined) {
+        if (this.buffer !== undefined) {
             console.error("buffer has already been loaded");
             return;
         }
 
         const self = this;
-        return new Promise(function(resolve, reject)
-        {
-            if (!self.setBufferFromFiles(additionalFiles, resolve) &&
-                !self.setBufferFromUri(gltf, resolve, reject))
-            {
-                reject("Buffer data missing for '" + self.name + "' in " + gltf.path);
+        return new Promise(function (resolve, reject) {
+            if (
+                !self.setBufferFromFiles(additionalFiles, resolve) &&
+                !self.setBufferFromUri(gltf, resolve, reject)
+            ) {
+                reject(
+                    "Buffer data missing for '" +
+                        self.name +
+                        "' in " +
+                        gltf.path
+                );
             }
         });
     }
 
-    setBufferFromUri(gltf, resolve, reject)
-    {
-        if (this.uri === undefined)
-        {
+    setBufferFromUri(gltf, resolve, reject) {
+        if (this.uri === undefined) {
             return false;
         }
-        const parentPath = this.uri.startsWith("data:") ? "" : getContainingFolder(gltf.path);
-        fetch(parentPath + this.uri)
-            .then(response =>  {
-                if (!response.ok) {
-                    reject(`Failed to fetch buffer from ${parentPath + this.uri}: ${response.statusText}`);
-                    return;
-                }
-                response.arrayBuffer().then(buffer => {
-                    this.buffer = buffer;
-                    resolve();
-                });
+        const parentPath = this.uri.startsWith("data:")
+            ? ""
+            : getContainingFolder(gltf.path);
+        fetch(parentPath + this.uri).then((response) => {
+            if (!response.ok) {
+                reject(
+                    `Failed to fetch buffer from ${parentPath + this.uri}: ${response.statusText}`
+                );
+                return;
+            }
+            response.arrayBuffer().then((buffer) => {
+                this.buffer = buffer;
+                resolve();
             });
+        });
 
         return true;
     }
 
-    setBufferFromFiles(files, callback)
-    {
-        if (this.uri === undefined || files === undefined)
-        {
+    setBufferFromFiles(files, callback) {
+        if (this.uri === undefined || files === undefined) {
             return false;
         }
 
-        const foundFile = files.find(file => file[1].name === this.uri || file[1].fullPath === this.uri);
+        const foundFile = files.find(
+            (file) => file[1].name === this.uri || file[1].fullPath === this.uri
+        );
 
-        if (foundFile === undefined)
-        {
+        if (foundFile === undefined) {
             return false;
         }
 
         const self = this;
         const reader = new FileReader();
-        reader.onloadend = function(event)
-        {
+        reader.onloadend = function (event) {
             self.buffer = event.target.result;
             callback();
         };

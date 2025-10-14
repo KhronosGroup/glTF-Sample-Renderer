@@ -1,18 +1,14 @@
-import { GltfObject } from './gltf_object.js';
+import { GltfObject } from "./gltf_object.js";
 
-class gltfVariant extends GltfObject
-{
+class gltfVariant extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.name = undefined;
     }
 
-    fromJson(jsonVariant)
-    {
-        if(jsonVariant.name !== undefined)
-        {
+    fromJson(jsonVariant) {
+        if (jsonVariant.name !== undefined) {
             this.name = jsonVariant.name;
         }
     }

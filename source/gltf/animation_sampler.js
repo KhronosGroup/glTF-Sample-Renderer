@@ -1,10 +1,8 @@
-import { GltfObject } from './gltf_object.js';
+import { GltfObject } from "./gltf_object.js";
 
-class gltfAnimationSampler extends GltfObject
-{
+class gltfAnimationSampler extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.input = undefined;
         this.interpolation = InterpolationModes.LINEAR;
@@ -12,8 +10,7 @@ class gltfAnimationSampler extends GltfObject
     }
 }
 
-const InterpolationModes =
-{
+const InterpolationModes = {
     LINEAR: "LINEAR",
     STEP: "STEP",
     CUBICSPLINE: "CUBICSPLINE"

@@ -1,14 +1,12 @@
-import { jsToGl } from './utils.js';
-import { GltfObject } from './gltf_object.js';
+import { jsToGl } from "./utils.js";
+import { GltfObject } from "./gltf_object.js";
 import { GL } from "../Renderer/webgl";
 
 // https://github.com/KhronosGroup/glTF/blob/khr_ktx2_ibl/extensions/2.0/Khronos/KHR_lights_image_based/schema/imageBasedLight.schema.json
 
-class ImageBasedLight extends GltfObject
-{
+class ImageBasedLight extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.rotation = jsToGl([0, 0, 0, 1]);
         this.brightnessFactor = 1;
@@ -21,48 +19,43 @@ class ImageBasedLight extends GltfObject
         this.levelCount = 1;
     }
 
-    fromJson(jsonIBL)
-    {
+    fromJson(jsonIBL) {
         super.fromJson(jsonIBL);
 
-        if(jsonIBL.extensions !== undefined)
-        {
+        if (jsonIBL.extensions !== undefined) {
             this.fromJsonExtensions(jsonIBL.extensions);
         }
     }
 
-    fromJsonExtensions(extensions)
-    {
-        if (extensions.KHR_materials_sheen !== undefined)
-        {
-            this.sheenEnvironmentTexture = extensions.KHR_materials_sheen.sheenEnvironmentTexture;
+    fromJsonExtensions(extensions) {
+        if (extensions.KHR_materials_sheen !== undefined) {
+            this.sheenEnvironmentTexture =
+                extensions.KHR_materials_sheen.sheenEnvironmentTexture;
         }
     }
 
-    initGl(gltf)
-    {
-        if (this.diffuseEnvironmentTexture !== undefined)
-        {
+    initGl(gltf) {
+        if (this.diffuseEnvironmentTexture !== undefined) {
             const textureObject = gltf.textures[this.diffuseEnvironmentTexture];
             textureObject.type = GL.TEXTURE_CUBE_MAP;
         }
-        if (this.specularEnvironmentTexture !== undefined)
-        {
-            const textureObject = gltf.textures[this.specularEnvironmentTexture];
+        if (this.specularEnvironmentTexture !== undefined) {
+            const textureObject =
+                gltf.textures[this.specularEnvironmentTexture];
             textureObject.type = GL.TEXTURE_CUBE_MAP;
 
             const imageObject = gltf.images[textureObject.source];
             this.levelCount = imageObject.image.levelCount;
         }
-        if(this.sheenEnvironmentTexture !== undefined)
-        {
+        if (this.sheenEnvironmentTexture !== undefined) {
             const textureObject = gltf.textures[this.sheenEnvironmentTexture];
             textureObject.type = GL.TEXTURE_CUBE_MAP;
 
             const imageObject = gltf.images[textureObject.source];
-            if (this.levelCount !== imageObject.image.levelCount)
-            {
-                console.error("Specular and sheen do not have same level count");
+            if (this.levelCount !== imageObject.image.levelCount) {
+                console.error(
+                    "Specular and sheen do not have same level count"
+                );
             }
         }
     }

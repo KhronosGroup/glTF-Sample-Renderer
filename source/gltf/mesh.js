@@ -1,24 +1,20 @@
-import { gltfPrimitive } from './primitive.js';
-import { objectsFromJsons } from './utils.js';
-import { GltfObject } from './gltf_object.js';
+import { gltfPrimitive } from "./primitive.js";
+import { objectsFromJsons } from "./utils.js";
+import { GltfObject } from "./gltf_object.js";
 
-class gltfMesh extends GltfObject
-{
+class gltfMesh extends GltfObject {
     static animatedProperties = ["weights"];
-    constructor()
-    {
+    constructor() {
         super();
         this.primitives = [];
         this.name = undefined;
         this.weights = undefined;
     }
 
-    fromJson(jsonMesh)
-    {
+    fromJson(jsonMesh) {
         super.fromJson(jsonMesh);
 
-        if (jsonMesh.name !== undefined)
-        {
+        if (jsonMesh.name !== undefined) {
             this.name = jsonMesh.name;
         }
 
