@@ -56,7 +56,6 @@ class GraphController {
         this.graphIndex = undefined;
         this.playing = false;
         this.decorator.setState(state);
-        this.engine.clearCustomEventListeners();
         this.engine.clearEventList();
         this.engine.clearPointerInterpolation();
         this.engine.clearVariableInterpolation();
@@ -146,6 +145,23 @@ class GraphController {
         }
     }
 
+    /**
+     * Adds a custom event listener to the decorator.
+     * Khronos test assets use test/onStart, test/onFail and test/onSuccess.
+     * @param {string} eventName 
+     * @param {function(CustomEvent)} callback 
+     */
+    addCustomEventListener(eventName, callback) {
+        this.decorator.addCustomEventListener(eventName, callback);
+    }
+
+    /**
+     * Clears all custom event listeners from the decorator.
+     */
+    clearCustomEventListeners() {
+        this.decorator.clearCustomEventListeners();
+    }
+
 }
 
 class SampleViewerDecorator extends interactivity.ADecorator {
@@ -179,6 +195,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
     dispatchCustomEvent(eventName, data) {
         this.behaveEngine.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
+    }
+
+    addCustomEventListener(eventName, callback) {
+        this.behaveEngine.addCustomEventListener(`KHR_INTERACTIVITY:${eventName}`, callback);
     }
 
     convertArrayToMatrix(array, width) {
@@ -250,7 +270,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             parent.animatedPropertyObjects[propertyName].rest();
         };
         this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
-        this.behaveEngine.clearCustomEventListeners();
         this.behaveEngine.clearEventList();
         this.behaveEngine.clearPointerInterpolation();
         this.behaveEngine.clearVariableInterpolation();
