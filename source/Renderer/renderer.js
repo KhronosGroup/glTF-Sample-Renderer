@@ -1044,22 +1044,6 @@ class gltfRenderer
                 this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
             }
 
-            if(transmissionSampleTexture !== undefined &&
-                state.environment &&
-                state.renderingParameters.enabledExtensions.KHR_materials_transmission)
-            {
-                this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.opaqueRenderTexture);
-                this.webGl.context.uniform1i(this.shader.getUniformLocation("u_TransmissionFramebufferSampler"), textureCount);
-                textureCount++;
-
-                this.webGl.context.uniform2i(this.shader.getUniformLocation("u_TransmissionFramebufferSize"), this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
-
-                this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
-                this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
-                this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
-            }
-
 	        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined)
 	        {
 	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
