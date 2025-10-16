@@ -12,6 +12,8 @@ documentation/
 .gitattributes
 .gitmodules
 .eslintrc.json
+dist/main.js
+dist/index.html
 
 # files types to ignore
 rollup.config.js

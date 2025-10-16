@@ -15,3 +15,11 @@ desktop.ini
 .zed
 .idea
 .project
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/tests/testAssetDownloads
