@@ -480,10 +480,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(`/nodes/${nodeCount}/globalMatrix`, (path) => {
             const pathParts = path.split('/');
             const nodeIndex = parseInt(pathParts[2]);
-            const node = this.world.gltf.nodes[nodeIndex];
-            if (node.scene.gltfObjectIndex !== this.world.sceneIndex) {
-                node.scene.applyTransformHierarchy(this.world.gltf);
-            }
+            const node = this.world.gltf.nodes[nodeIndex];   
+            node.scene.applyTransformHierarchy(this.world.gltf);
             return this.convertArrayToMatrix(node.worldTransform, 4); // gl-matrix uses column-major order
         }, (path, value) => {}, "float4x4", true);
         this.registerJsonPointer(`/nodes/${nodeCount}/matrix`, (path) => {
