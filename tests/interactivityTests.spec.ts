@@ -30,7 +30,8 @@ for (const dir of directories) {
             if (asset.path) {
                 const path = asset.path;
                 const file = new Uint8Array(fs.readFileSync(path));
-                test(`Testing asset ${path}`, async ({ page }) => {
+                const testName = path.substring(path.lastIndexOf("/testAssetDownloads/") + 19);
+                test(`Testing asset ${testName}`, async ({ page }) => {
                     await page.goto("");
                     let testDuration : number | undefined = undefined;
                     let testResult : boolean | undefined = undefined;
