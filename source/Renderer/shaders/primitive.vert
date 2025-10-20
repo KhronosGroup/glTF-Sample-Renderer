@@ -22,6 +22,10 @@ out vec3 v_Normal;
 #endif
 #endif
 
+#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
+out float v_TangentWSign;
+#endif
+
 #ifdef HAS_TEXCOORD_0_VEC2
 in vec2 a_texcoord_0;
 #endif
@@ -128,7 +132,9 @@ void main()
     vec3 normalW = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
     vec3 tangentW = vec3(modelMatrix * vec4(tangent, 0.0));
     vec3 bitangentW = cross(normalW, tangentW) * a_tangent.w;
-
+#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
+    v_TangentWSign = a_tangent.w;
+#endif
 #ifdef HAS_VERT_NORMAL_UV_TRANSFORM
     tangentW = u_vertNormalUVTransform * tangentW;
     bitangentW = u_vertNormalUVTransform * bitangentW;
@@ -140,6 +146,13 @@ void main()
     v_TBN = mat3(tangentW, bitangentW, normalW);
 #else
     v_Normal = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
+#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
+    v_TangentWSign = 1.0f;
+#endif
+#endif
+#else
+#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
+    v_TangentWSign = 1.0f;
 #endif
 #endif
 

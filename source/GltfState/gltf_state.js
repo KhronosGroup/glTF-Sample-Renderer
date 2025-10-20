@@ -140,6 +140,8 @@ GltfState.DebugOutput = {
         TANGENT: "Geometry Tangent",
         /** output the bitangent from the TBN */
         BITANGENT: "Geometry Bitangent",
+        /** output the tangent w from the TBN*/
+        TANGENTW: "Geometry Tangent W",
         /** output the world space normals (i.e. with TBN applied) */
         WORLDSPACENORMAL: "Shading Normal",
         /** output the alpha value */

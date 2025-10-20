@@ -424,6 +424,9 @@ void main()
 #if DEBUG == DEBUG_TANGENT
     g_finalColor.rgb = (normalInfo.t + 1.0) / 2.0;
 #endif
+#if DEBUG == DEBUG_TANGENT_W
+    g_finalColor.rgb = vec3((normalInfo.tangentWSign + 1.0) / 2.0);
+#endif
 #if DEBUG == DEBUG_BITANGENT
     g_finalColor.rgb = (normalInfo.b + 1.0) / 2.0;
 #endif
