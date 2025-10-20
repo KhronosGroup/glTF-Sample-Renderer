@@ -9,8 +9,18 @@ class EnvironmentRenderer {
         gl.bufferData(
             gl.ELEMENT_ARRAY_BUFFER,
             new Uint16Array([
-                1, 2, 0, 2, 3, 0, 6, 2, 1, 1, 5, 6, 6, 5, 4, 4, 7, 6, 6, 3, 2,
-                7, 3, 6, 3, 7, 0, 7, 4, 0, 5, 1, 0, 4, 5, 0
+                1, 2, 0,
+                2, 3, 0,
+                6, 2, 1,
+                1, 5, 6,
+                6, 5, 4,
+                4, 7, 6,
+                6, 3, 2,
+                7, 3, 6,
+                3, 7, 0,
+                7, 4, 0,
+                5, 1, 0,
+                4, 5, 0
             ]),
             gl.STATIC_DRAW
         );
@@ -20,8 +30,14 @@ class EnvironmentRenderer {
         gl.bufferData(
             gl.ARRAY_BUFFER,
             new Float32Array([
-                -1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, -1, 1,
-                1, 1, 1, -1, 1, 1
+                -1, -1, -1,
+                1, -1, -1,
+                1,  1, -1,
+                -1,  1, -1,
+                -1, -1,  1,
+                1, -1,  1,
+                1,  1,  1,
+                -1,  1,  1
             ]),
             gl.STATIC_DRAW
         );
