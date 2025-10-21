@@ -33,11 +33,7 @@ class gltfCamera extends GltfObject {
         // Precompute the distances to avoid their computation during sorting.
         for (const drawable of drawables) {
             const modelView = mat4.create();
-            mat4.multiply(
-                modelView,
-                this.getViewMatrix(gltf),
-                drawable.node.worldTransform
-            );
+            mat4.multiply(modelView, this.getViewMatrix(gltf), drawable.node.worldTransform);
 
             // Transform primitive centroid to find the primitive's depth.
             const pos = vec3.transformMat4(
@@ -174,8 +170,7 @@ class gltfCamera extends GltfObject {
         if (this.type === "perspective") {
             camera["perspective"] = {};
             if (this.perspective.aspectRatio) {
-                camera["perspective"]["aspectRatio"] =
-                    this.perspective.aspectRatio;
+                camera["perspective"]["aspectRatio"] = this.perspective.aspectRatio;
             }
             camera["perspective"]["yfov"] = this.perspective.yfov;
             if (this.perspective.zfar && this.perspective.zfar != Infinity) {
@@ -194,30 +189,16 @@ class gltfCamera extends GltfObject {
 
         const node = {
             camera: 0,
+            // prettier-ignore
             matrix: [
-                mat[0],
-                mat[1],
-                mat[2],
-                mat[3],
-                mat[4],
-                mat[5],
-                mat[6],
-                mat[7],
-                mat[8],
-                mat[9],
-                mat[10],
-                mat[11],
-                mat[12],
-                mat[13],
-                mat[14],
-                mat[15]
+                mat[0], mat[1], mat[2], mat[3],
+                mat[4], mat[5], mat[6], mat[7],
+                mat[8], mat[9], mat[10], mat[11],
+                mat[12], mat[13], mat[14], mat[15]
             ]
         };
 
-        if (
-            this.node !== undefined &&
-            gltf.nodes[this.node].name !== undefined
-        ) {
+        if (this.node !== undefined && gltf.nodes[this.node].name !== undefined) {
             node["name"] = gltf.nodes[this.node].name;
         }
 

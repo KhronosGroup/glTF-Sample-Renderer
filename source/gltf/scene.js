@@ -15,23 +15,15 @@ class gltfScene extends GltfObject {
     initGl(gltf, webGlContext) {
         super.initGl(gltf, webGlContext);
 
-        if (
-            this.extensions !== undefined &&
-            this.extensions.KHR_lights_image_based !== undefined
-        ) {
-            const index =
-                this.extensions.KHR_lights_image_based.imageBasedLight;
+        if (this.extensions !== undefined && this.extensions.KHR_lights_image_based !== undefined) {
+            const index = this.extensions.KHR_lights_image_based.imageBasedLight;
             this.imageBasedLight = gltf.imageBasedLights[index];
         }
     }
 
     applyTransformHierarchy(gltf, rootTransform = mat4.create()) {
         function applyTransform(gltf, node, parentTransform) {
-            mat4.multiply(
-                node.worldTransform,
-                parentTransform,
-                node.getLocalTransform()
-            );
+            mat4.multiply(node.worldTransform, parentTransform, node.getLocalTransform());
             mat4.invert(node.inverseWorldTransform, node.worldTransform);
             mat4.transpose(node.normalMatrix, node.inverseWorldTransform);
 
@@ -40,11 +32,7 @@ class gltfScene extends GltfObject {
                 for (let i = 0; i < node.instanceMatrices.length; i++) {
                     const instanceTransform = node.instanceMatrices[i];
                     const instanceWorldTransform = mat4.create();
-                    mat4.multiply(
-                        instanceWorldTransform,
-                        node.worldTransform,
-                        instanceTransform
-                    );
+                    mat4.multiply(instanceWorldTransform, node.worldTransform, instanceTransform);
                     node.instanceWorldTransforms.push(instanceWorldTransform);
                 }
             }
@@ -62,11 +50,7 @@ class gltfScene extends GltfObject {
 
             // Recurse into children
             for (const child of node.children) {
-                applyWorldRotation(
-                    gltf,
-                    gltf.nodes[child],
-                    node.worldQuaternion
-                );
+                applyWorldRotation(gltf, gltf.nodes[child], node.worldQuaternion);
             }
         }
 

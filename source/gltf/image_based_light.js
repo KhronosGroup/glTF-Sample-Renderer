@@ -29,8 +29,7 @@ class ImageBasedLight extends GltfObject {
 
     fromJsonExtensions(extensions) {
         if (extensions.KHR_materials_sheen !== undefined) {
-            this.sheenEnvironmentTexture =
-                extensions.KHR_materials_sheen.sheenEnvironmentTexture;
+            this.sheenEnvironmentTexture = extensions.KHR_materials_sheen.sheenEnvironmentTexture;
         }
     }
 
@@ -40,8 +39,7 @@ class ImageBasedLight extends GltfObject {
             textureObject.type = GL.TEXTURE_CUBE_MAP;
         }
         if (this.specularEnvironmentTexture !== undefined) {
-            const textureObject =
-                gltf.textures[this.specularEnvironmentTexture];
+            const textureObject = gltf.textures[this.specularEnvironmentTexture];
             textureObject.type = GL.TEXTURE_CUBE_MAP;
 
             const imageObject = gltf.images[textureObject.source];
@@ -53,9 +51,7 @@ class ImageBasedLight extends GltfObject {
 
             const imageObject = gltf.images[textureObject.source];
             if (this.levelCount !== imageObject.image.levelCount) {
-                console.error(
-                    "Specular and sheen do not have same level count"
-                );
+                console.error("Specular and sheen do not have same level count");
             }
         }
     }

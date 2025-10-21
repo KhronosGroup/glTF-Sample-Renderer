@@ -159,20 +159,13 @@ class UserCamera extends gltfCamera {
         let target = this.getTarget();
 
         // zoom exponentially
-        let zoomDistance = Math.pow(
-            this.distance / this.baseDistance,
-            1.0 / this.zoomExponent
-        );
+        let zoomDistance = Math.pow(this.distance / this.baseDistance, 1.0 / this.zoomExponent);
         zoomDistance += this.zoomFactor * value;
         zoomDistance = Math.max(zoomDistance, 0.0001);
-        this.distance =
-            Math.pow(zoomDistance, this.zoomExponent) * this.baseDistance;
+        this.distance = Math.pow(zoomDistance, this.zoomExponent) * this.baseDistance;
 
         this.setDistanceFromTarget(this.distance, target);
-        this.fitCameraPlanesToExtents(
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        this.fitCameraPlanesToExtents(this.sceneExtents.min, this.sceneExtents.max);
     }
 
     /**
@@ -200,29 +193,13 @@ class UserCamera extends gltfCamera {
      * @param {number} y
      */
     pan(x, y) {
-        const right = vec3.fromValues(
-            this.transform[0],
-            this.transform[1],
-            this.transform[2]
-        );
+        const right = vec3.fromValues(this.transform[0], this.transform[1], this.transform[2]);
         vec3.normalize(right, right);
-        vec3.scale(
-            right,
-            right,
-            -x * this.panSpeed * (this.distance / this.baseDistance)
-        );
+        vec3.scale(right, right, -x * this.panSpeed * (this.distance / this.baseDistance));
 
-        const up = vec3.fromValues(
-            this.transform[4],
-            this.transform[5],
-            this.transform[6]
-        );
+        const up = vec3.fromValues(this.transform[4], this.transform[5], this.transform[6]);
         vec3.normalize(up, up);
-        vec3.scale(
-            up,
-            up,
-            -y * this.panSpeed * (this.distance / this.baseDistance)
-        );
+        vec3.scale(up, up, -y * this.panSpeed * (this.distance / this.baseDistance));
 
         let pos = this.getPosition();
 
@@ -242,10 +219,7 @@ class UserCamera extends gltfCamera {
         this.rotAroundX = 0;
         this.rotAroundY = 0;
         this.fitDistanceToExtents(this.sceneExtents.min, this.sceneExtents.max);
-        this.fitCameraTargetToExtents(
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        this.fitCameraTargetToExtents(this.sceneExtents.min, this.sceneExtents.max);
     }
 
     /**
@@ -262,23 +236,12 @@ class UserCamera extends gltfCamera {
         this.transform = mat4.create();
         this.rotAroundX = 0;
         this.rotAroundY = 0;
-        getSceneExtents(
-            gltf,
-            sceneIndex,
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        getSceneExtents(gltf, sceneIndex, this.sceneExtents.min, this.sceneExtents.max);
         this.fitDistanceToExtents(this.sceneExtents.min, this.sceneExtents.max);
-        this.fitCameraTargetToExtents(
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        this.fitCameraTargetToExtents(this.sceneExtents.min, this.sceneExtents.max);
 
         this.fitPanSpeedToScene(this.sceneExtents.min, this.sceneExtents.max);
-        this.fitCameraPlanesToExtents(
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        this.fitCameraPlanesToExtents(this.sceneExtents.min, this.sceneExtents.max);
     }
 
     /**
@@ -292,30 +255,18 @@ class UserCamera extends gltfCamera {
         }
 
         this.transform = mat4.create();
-        getSceneExtents(
-            gltf,
-            sceneIndex,
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        getSceneExtents(gltf, sceneIndex, this.sceneExtents.min, this.sceneExtents.max);
         this.fitDistanceToExtents(this.sceneExtents.min, this.sceneExtents.max);
-        this.fitCameraTargetToExtents(
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        this.fitCameraTargetToExtents(this.sceneExtents.min, this.sceneExtents.max);
 
         this.fitPanSpeedToScene(this.sceneExtents.min, this.sceneExtents.max);
-        this.fitCameraPlanesToExtents(
-            this.sceneExtents.min,
-            this.sceneExtents.max
-        );
+        this.fitCameraPlanesToExtents(this.sceneExtents.min, this.sceneExtents.max);
     }
 
     fitDistanceToExtents(min, max) {
         const maxAxisLength = Math.max(max[0] - min[0], max[1] - min[1]);
         const yfov = this.perspective.yfov;
-        const xfov =
-            this.perspective.yfov * (this.perspective.aspectRatio ?? 1);
+        const xfov = this.perspective.yfov * (this.perspective.aspectRatio ?? 1);
 
         const yZoom = maxAxisLength / 2 / Math.tan(yfov / 2);
         const xZoom = maxAxisLength / 2 / Math.tan(xfov / 2);

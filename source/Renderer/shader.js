@@ -18,10 +18,7 @@ class gltfShader {
             );
             for (let i = 0; i < uniformCount; ++i) {
                 const info = this.gl.context.getActiveUniform(this.program, i);
-                const loc = this.gl.context.getUniformLocation(
-                    this.program,
-                    info.name
-                );
+                const loc = this.gl.context.getUniformLocation(this.program, info.name);
                 this.uniforms.set(info.name, { type: info.type, loc: loc });
             }
 
@@ -31,10 +28,7 @@ class gltfShader {
             );
             for (let i = 0; i < attribCount; ++i) {
                 const info = this.gl.context.getActiveAttrib(this.program, i);
-                const loc = this.gl.context.getAttribLocation(
-                    this.program,
-                    info.name
-                );
+                const loc = this.gl.context.getAttribLocation(this.program, info.name);
                 this.attributes.set(info.name, loc);
             }
         }

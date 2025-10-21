@@ -8,9 +8,20 @@ class EnvironmentRenderer {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(
             gl.ELEMENT_ARRAY_BUFFER,
+            // prettier-ignore
             new Uint16Array([
-                1, 2, 0, 2, 3, 0, 6, 2, 1, 1, 5, 6, 6, 5, 4, 4, 7, 6, 6, 3, 2,
-                7, 3, 6, 3, 7, 0, 7, 4, 0, 5, 1, 0, 4, 5, 0
+                1, 2, 0,
+                2, 3, 0,
+                6, 2, 1,
+                1, 5, 6,
+                6, 5, 4,
+                4, 7, 6,
+                6, 3, 2,
+                7, 3, 6,
+                3, 7, 0,
+                7, 4, 0,
+                5, 1, 0,
+                4, 5, 0
             ]),
             gl.STATIC_DRAW
         );
@@ -19,21 +30,22 @@ class EnvironmentRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
         gl.bufferData(
             gl.ARRAY_BUFFER,
+            // prettier-ignore
             new Float32Array([
-                -1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, -1, 1,
-                1, 1, 1, -1, 1, 1
+                -1, -1, -1,
+                1, -1, -1,
+                1,  1, -1,
+                -1,  1, -1,
+                -1, -1,  1,
+                1, -1,  1,
+                1,  1,  1,
+                -1,  1,  1
             ]),
             gl.STATIC_DRAW
         );
     }
 
-    drawEnvironmentMap(
-        webGl,
-        viewProjectionMatrix,
-        state,
-        shaderCache,
-        fragDefines
-    ) {
+    drawEnvironmentMap(webGl, viewProjectionMatrix, state, shaderCache, fragDefines) {
         if (
             state.environment == undefined ||
             state.renderingParameters.renderEnvironmentMap == false
@@ -44,10 +56,7 @@ class EnvironmentRenderer {
         const gl = webGl.context;
 
         const vertShader = shaderCache.selectShader("cubemap.vert", []);
-        const fragShader = shaderCache.selectShader(
-            "cubemap.frag",
-            fragDefines
-        );
+        const fragShader = shaderCache.selectShader("cubemap.frag", fragDefines);
         const shader = shaderCache.getShaderProgram(vertShader, fragShader);
 
         gl.useProgram(shader.program);
@@ -64,16 +73,11 @@ class EnvironmentRenderer {
         );
 
         const envIntensity =
-            state.renderingParameters.iblIntensity *
-            state.environment.iblIntensityScale;
+            state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
         shader.updateUniform("u_EnvIntensity", envIntensity, true);
 
         shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
-        shader.updateUniform(
-            "u_Exposure",
-            state.renderingParameters.exposure,
-            false
-        );
+        shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
 
         let rotMatrix4 = mat4.create();
         mat4.rotateY(
@@ -90,18 +94,10 @@ class EnvironmentRenderer {
         gl.disable(gl.BLEND);
         gl.disable(gl.DEPTH_TEST);
 
-        const positionAttributeLocation =
-            shader.getAttributeLocation("a_position");
+        const positionAttributeLocation = shader.getAttributeLocation("a_position");
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-        gl.vertexAttribPointer(
-            positionAttributeLocation,
-            3,
-            gl.FLOAT,
-            false,
-            0,
-            0
-        );
+        gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(positionAttributeLocation);
         gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
 

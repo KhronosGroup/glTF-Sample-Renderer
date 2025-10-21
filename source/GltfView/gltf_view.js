@@ -109,9 +109,7 @@ class GltfView {
             .filter((primitive) => primitive.material !== undefined);
         const activeMaterials = [
             ...new Set(
-                activePrimitives.map(
-                    (primitive) => state.gltf.materials[primitive.material]
-                )
+                activePrimitives.map((primitive) => state.gltf.materials[primitive.material])
             )
         ];
         const opaqueMaterials = activeMaterials.filter(
@@ -126,9 +124,7 @@ class GltfView {
                 if (primitive.indices !== undefined) {
                     vertexCount = state.gltf.accessors[primitive.indices].count;
                 } else {
-                    vertexCount =
-                        state.gltf.accessors[primitive.attributes["POSITION"]]
-                            .count;
+                    vertexCount = state.gltf.accessors[primitive.attributes["POSITION"]].count;
                 }
                 if (vertexCount === 0) {
                     return 0;
@@ -167,15 +163,10 @@ class GltfView {
             return;
         }
 
-        if (
-            state.gltf.animations !== undefined &&
-            state.animationIndices !== undefined
-        ) {
-            const disabledAnimations = state.gltf.animations.filter(
-                (anim, index) => {
-                    return false === state.animationIndices.includes(index);
-                }
-            );
+        if (state.gltf.animations !== undefined && state.animationIndices !== undefined) {
+            const disabledAnimations = state.gltf.animations.filter((anim, index) => {
+                return false === state.animationIndices.includes(index);
+            });
 
             for (const disabledAnimation of disabledAnimations) {
                 disabledAnimation.advance(state.gltf, undefined);

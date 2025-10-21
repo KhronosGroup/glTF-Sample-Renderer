@@ -35,11 +35,7 @@ function initGlForMembers(gltfObj, gltf, webGlContext) {
         }
         if (Array.isArray(member)) {
             for (const element of member) {
-                if (
-                    element !== null &&
-                    element !== undefined &&
-                    element.initGl !== undefined
-                ) {
+                if (element !== null && element !== undefined && element.initGl !== undefined) {
                     element.initGl(gltf, webGlContext);
                 }
             }
@@ -178,9 +174,7 @@ class AnimationTimer {
         if (this.paused) {
             return this.pausedTime / 1000;
         } else {
-            return (
-                this.fixedTime || (new Date().getTime() - this.startTime) / 1000
-            );
+            return this.fixedTime || (new Date().getTime() - this.startTime) / 1000;
         }
     }
 
@@ -203,8 +197,7 @@ class AnimationTimer {
     }
 
     unpause() {
-        this.startTime +=
-            new Date().getTime() - this.startTime - this.pausedTime;
+        this.startTime += new Date().getTime() - this.startTime - this.pausedTime;
         this.paused = false;
     }
 

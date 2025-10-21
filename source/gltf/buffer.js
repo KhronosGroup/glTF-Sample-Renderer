@@ -25,12 +25,7 @@ class gltfBuffer extends GltfObject {
                 !self.setBufferFromFiles(additionalFiles, resolve) &&
                 !self.setBufferFromUri(gltf, resolve, reject)
             ) {
-                reject(
-                    "Buffer data missing for '" +
-                        self.name +
-                        "' in " +
-                        gltf.path
-                );
+                reject("Buffer data missing for '" + self.name + "' in " + gltf.path);
             }
         });
     }
@@ -39,9 +34,7 @@ class gltfBuffer extends GltfObject {
         if (this.uri === undefined) {
             return false;
         }
-        const parentPath = this.uri.startsWith("data:")
-            ? ""
-            : getContainingFolder(gltf.path);
+        const parentPath = this.uri.startsWith("data:") ? "" : getContainingFolder(gltf.path);
         fetch(parentPath + this.uri).then((response) => {
             if (!response.ok) {
                 reject(
