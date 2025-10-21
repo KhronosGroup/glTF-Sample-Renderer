@@ -1,23 +1,20 @@
-import { initGlForMembers } from './utils.js';
-import { GltfObject } from './gltf_object.js';
-import { gltfBuffer } from './buffer.js';
-import { gltfAccessor } from './accessor.js';
-import { gltfImage } from './image.js';
-import { ImageMimeType } from './image_mime_type.js';
-import { gltfTexture } from './texture.js';
-import { gltfTextureInfo } from './texture.js';
-import { gltfSampler } from './sampler.js';
-import { gltfBufferView } from './buffer_view.js';
-import { DracoDecoder } from '../ResourceLoader/draco.js';
-import { GL  } from '../Renderer/webgl.js';
-import { generateTangents } from '../libs/mikktspace.js';
+import { initGlForMembers } from "./utils.js";
+import { GltfObject } from "./gltf_object.js";
+import { gltfBuffer } from "./buffer.js";
+import { gltfAccessor } from "./accessor.js";
+import { gltfImage } from "./image.js";
+import { ImageMimeType } from "./image_mime_type.js";
+import { gltfTexture } from "./texture.js";
+import { gltfTextureInfo } from "./texture.js";
+import { gltfSampler } from "./sampler.js";
+import { gltfBufferView } from "./buffer_view.js";
+import { DracoDecoder } from "../ResourceLoader/draco.js";
+import { GL } from "../Renderer/webgl.js";
+import { generateTangents } from "../libs/mikktspace.js";
 
-
-class gltfPrimitive extends GltfObject
-{
+class gltfPrimitive extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.attributes = {};
         this.targets = [];
@@ -41,11 +38,9 @@ class gltfPrimitive extends GltfObject
         this.centroid = undefined;
     }
 
-    initGl(gltf, webGlContext)
-    {
+    initGl(gltf, webGlContext) {
         // Use the default glTF material.
-        if (this.material === undefined)
-        {
+        if (this.material === undefined) {
             this.material = gltf.materials.length - 1;
         }
 
@@ -55,28 +50,31 @@ class gltfPrimitive extends GltfObject
 
         // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#meshes
 
-        if (this.extensions !== undefined)
-        {
+        if (this.extensions !== undefined) {
             // Decode Draco compressed mesh:
-            if (this.extensions.KHR_draco_mesh_compression !== undefined)
-            {
+            if (this.extensions.KHR_draco_mesh_compression !== undefined) {
                 const dracoDecoder = new DracoDecoder();
-                if (dracoDecoder !== undefined && Object.isFrozen(dracoDecoder))
-                {
+                if (dracoDecoder !== undefined && Object.isFrozen(dracoDecoder)) {
                     let dracoGeometry = this.decodeDracoBufferToIntermediate(
-                        this.extensions.KHR_draco_mesh_compression, gltf);
+                        this.extensions.KHR_draco_mesh_compression,
+                        gltf
+                    );
                     this.copyDataFromDecodedGeometry(gltf, dracoGeometry, this.attributes);
-                }
-                else
-                {
-                    console.warn('Failed to load draco compressed mesh: DracoDecoder not initialized');
+                } else {
+                    console.warn(
+                        "Failed to load draco compressed mesh: DracoDecoder not initialized"
+                    );
                 }
             }
         }
 
         // Generate tangents with Mikktspace which needs normals and texcoords as inputs for triangles
-        if (this.attributes.TANGENT === undefined && this.attributes.NORMAL && this.attributes.TEXCOORD_0 && this.mode > 3)
-        {
+        if (
+            this.attributes.TANGENT === undefined &&
+            this.attributes.NORMAL &&
+            this.attributes.TEXCOORD_0 &&
+            this.mode > 3
+        ) {
             console.info("Generating tangents using the MikkTSpace algorithm.");
             console.time("Tangent generation");
             const tangentHash = `${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes.TEXCOORD_0}`;
@@ -86,16 +84,15 @@ class gltfPrimitive extends GltfObject
         }
 
         // VERTEX ATTRIBUTES
-        for (const attribute of Object.keys(this.attributes))
-        {
-            if(this.glAttributes.length >= maxAttributes)
-            {
-                console.error("To many vertex attributes for this primitive, skipping " + attribute);
+        for (const attribute of Object.keys(this.attributes)) {
+            if (this.glAttributes.length >= maxAttributes) {
+                console.error(
+                    "To many vertex attributes for this primitive, skipping " + attribute
+                );
                 break;
             }
             let knownAttribute = true;
-            switch (attribute)
-            {
+            switch (attribute) {
             case "POSITION":
                 this.skip = false;
                 break;
@@ -132,14 +129,17 @@ class gltfPrimitive extends GltfObject
             }
             if (knownAttribute) {
                 const idx = this.attributes[attribute];
-                this.glAttributes.push({ attribute: attribute, name: "a_" + attribute.toLowerCase(), accessor: idx });
+                this.glAttributes.push({
+                    attribute: attribute,
+                    name: "a_" + attribute.toLowerCase(),
+                    accessor: idx
+                });
                 this.defines.push(`HAS_${attribute}_${gltf.accessors[idx].type} 1`);
             }
         }
 
         // MORPH TARGETS
-        if (this.targets !== undefined && this.targets.length > 0)
-        {
+        if (this.targets !== undefined && this.targets.length > 0) {
             const max2DTextureSize = Math.pow(webGlContext.getParameter(GL.MAX_TEXTURE_SIZE), 2);
             const maxTextureArraySize = webGlContext.getParameter(GL.MAX_ARRAY_TEXTURE_LAYERS);
             // Check which attributes are affected by morph targets and
@@ -149,22 +149,24 @@ class gltfPrimitive extends GltfObject
 
             // Gather used attributes from all targets (some targets might
             // use more attributes than others)
-            const attributes = Array.from(this.targets.reduce((acc, target) => {
-                Object.keys(target).map(val => acc.add(val));
-                return acc;
-            }, new Set()));
+            const attributes = Array.from(
+                this.targets.reduce((acc, target) => {
+                    Object.keys(target).map((val) => acc.add(val));
+                    return acc;
+                }, new Set())
+            );
 
             const vertexCount = gltf.accessors[this.attributes[attributes[0]]].count;
             this.defines.push(`NUM_VERTICIES ${vertexCount}`);
             let targetCount = this.targets.length;
-            if (targetCount * attributes.length > maxTextureArraySize)
-            {
+            if (targetCount * attributes.length > maxTextureArraySize) {
                 targetCount = Math.floor(maxTextureArraySize / attributes.length);
-                console.warn(`Morph targets exceed texture size limit. Only ${targetCount} of ${this.targets.length} are used.`);
+                console.warn(
+                    `Morph targets exceed texture size limit. Only ${targetCount} of ${this.targets.length} are used.`
+                );
             }
 
-            for (const attribute of attributes)
-            {
+            for (const attribute of attributes) {
                 // Add morph target defines
                 this.defines.push(`HAS_MORPH_TARGET_${attribute} 1`);
                 this.defines.push(`MORPH_TARGET_${attribute}_OFFSET ${attributeOffset}`);
@@ -180,33 +182,43 @@ class gltfPrimitive extends GltfObject
                 // all must have the same vertex count as the primitives other attributes.
                 const width = Math.ceil(Math.sqrt(vertexCount));
                 const singleTextureSize = Math.pow(width, 2) * 4;
-                const morphTargetTextureArray = new Float32Array(singleTextureSize * targetCount * attributes.length);
+                const morphTargetTextureArray = new Float32Array(
+                    singleTextureSize * targetCount * attributes.length
+                );
 
                 // Now assemble the texture from the accessors.
-                for (let i = 0; i < targetCount; ++i)
-                {
+                for (let i = 0; i < targetCount; ++i) {
                     let target = this.targets[i];
-                    for (let [attributeName, offsetRef] of Object.entries(attributeOffsets)){
+                    for (let [attributeName, offsetRef] of Object.entries(attributeOffsets)) {
                         if (target[attributeName] != undefined) {
                             const accessor = gltf.accessors[target[attributeName]];
                             const offset = offsetRef * singleTextureSize;
-                            if (accessor.componentType != GL.FLOAT && accessor.normalized == false){
+                            if (
+                                accessor.componentType != GL.FLOAT &&
+                                accessor.normalized == false
+                            ) {
                                 console.warn("Unsupported component type for morph targets");
                                 attributeOffsets[attributeName] = offsetRef + 1;
                                 continue;
                             }
                             const data = accessor.getNormalizedDeinterlacedView(gltf);
-                            switch(accessor.type)
-                            {
+                            switch (accessor.type) {
                             case "VEC2":
-                            case "VEC3":
-                            {
+                            case "VEC3": {
                                 // Add padding to fit vec2/vec3 into rgba
                                 let paddingOffset = 0;
                                 let accessorOffset = 0;
-                                const componentCount = accessor.getComponentCount(accessor.type);
+                                const componentCount = accessor.getComponentCount(
+                                    accessor.type
+                                );
                                 for (let j = 0; j < accessor.count; ++j) {
-                                    morphTargetTextureArray.set(data.subarray(accessorOffset, accessorOffset + componentCount), offset + paddingOffset);
+                                    morphTargetTextureArray.set(
+                                        data.subarray(
+                                            accessorOffset,
+                                            accessorOffset + componentCount
+                                        ),
+                                        offset + paddingOffset
+                                    );
                                     paddingOffset += 4;
                                     accessorOffset += componentCount;
                                 }
@@ -224,13 +236,12 @@ class gltfPrimitive extends GltfObject
                     }
                 }
 
-
                 // Add the morph target texture.
                 // We have to create a WebGL2 texture as the format of the
                 // morph target texture has to be explicitly specified
                 // (gltf image would assume uint8).
                 let texture = webGlContext.createTexture();
-                webGlContext.bindTexture( webGlContext.TEXTURE_2D_ARRAY, texture);
+                webGlContext.bindTexture(webGlContext.TEXTURE_2D_ARRAY, texture);
                 // Set texture format and upload data.
                 let internalFormat = webGlContext.RGBA32F;
                 let format = webGlContext.RGBA;
@@ -246,12 +257,21 @@ class gltfPrimitive extends GltfObject
                     0, //border
                     format,
                     type,
-                    data);
+                    data
+                );
                 // Ensure mipmapping is disabled and the sampler is configured correctly.
-                webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_WRAP_S,  GL.CLAMP_TO_EDGE);
-                webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_WRAP_T,  GL.CLAMP_TO_EDGE);
-                webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_MIN_FILTER,  GL.NEAREST);
-                webGlContext.texParameteri( GL.TEXTURE_2D_ARRAY,  GL.TEXTURE_MAG_FILTER,  GL.NEAREST);
+                webGlContext.texParameteri(
+                    GL.TEXTURE_2D_ARRAY,
+                    GL.TEXTURE_WRAP_S,
+                    GL.CLAMP_TO_EDGE
+                );
+                webGlContext.texParameteri(
+                    GL.TEXTURE_2D_ARRAY,
+                    GL.TEXTURE_WRAP_T,
+                    GL.CLAMP_TO_EDGE
+                );
+                webGlContext.texParameteri(GL.TEXTURE_2D_ARRAY, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+                webGlContext.texParameteri(GL.TEXTURE_2D_ARRAY, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
 
                 // Now we add the morph target texture as a gltf texture info resource, so that
                 // we can just call webGl.setTexture(..., gltfTextureInfo, ...) in the renderer.
@@ -266,19 +286,32 @@ class gltfPrimitive extends GltfObject
                 );
                 gltf.images.push(morphTargetImage);
 
-                gltf.samplers.push(new gltfSampler(GL.NEAREST, GL.NEAREST, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, undefined));
+                gltf.samplers.push(
+                    new gltfSampler(
+                        GL.NEAREST,
+                        GL.NEAREST,
+                        GL.CLAMP_TO_EDGE,
+                        GL.CLAMP_TO_EDGE,
+                        undefined
+                    )
+                );
 
                 const morphTargetTexture = new gltfTexture(
                     gltf.samplers.length - 1,
                     gltf.images.length - 1,
-                    GL.TEXTURE_2D_ARRAY);
+                    GL.TEXTURE_2D_ARRAY
+                );
                 // The webgl texture is already initialized -> this flag informs
                 // webgl.setTexture about this.
                 morphTargetTexture.initialized = true;
 
                 gltf.textures.push(morphTargetTexture);
 
-                this.morphTargetTextureInfo = new gltfTextureInfo(gltf.textures.length - 1, 0, true);
+                this.morphTargetTextureInfo = new gltfTextureInfo(
+                    gltf.textures.length - 1,
+                    0,
+                    true
+                );
                 this.morphTargetTextureInfo.samplerName = "u_MorphTargetsSampler";
                 this.morphTargetTextureInfo.generateMips = false;
             } else {
@@ -289,13 +322,11 @@ class gltfPrimitive extends GltfObject
         this.computeCentroid(gltf);
     }
 
-    computeCentroid(gltf)
-    {
+    computeCentroid(gltf) {
         const positionsAccessor = gltf.accessors[this.attributes.POSITION];
         const positions = positionsAccessor.getNormalizedTypedView(gltf);
 
-        if(this.indices !== undefined)
-        {
+        if (this.indices !== undefined) {
             // Primitive has indices.
 
             const indicesAccessor = gltf.accessors[this.indices];
@@ -304,7 +335,7 @@ class gltfPrimitive extends GltfObject
 
             const acc = new Float32Array(3);
 
-            for(let i = 0; i < indices.length; i++) {
+            for (let i = 0; i < indices.length; i++) {
                 const offset = 3 * indices[i];
                 acc[0] += positions[offset];
                 acc[1] += positions[offset + 1];
@@ -314,18 +345,16 @@ class gltfPrimitive extends GltfObject
             const centroid = new Float32Array([
                 acc[0] / indices.length,
                 acc[1] / indices.length,
-                acc[2] / indices.length,
+                acc[2] / indices.length
             ]);
 
             this.centroid = centroid;
-        }
-        else
-        {
+        } else {
             // Primitive does not have indices.
 
             const acc = new Float32Array(3);
 
-            for(let i = 0; i < positions.length; i += 3) {
+            for (let i = 0; i < positions.length; i += 3) {
                 acc[0] += positions[i];
                 acc[1] += positions[i + 1];
                 acc[2] += positions[i + 2];
@@ -336,141 +365,192 @@ class gltfPrimitive extends GltfObject
             const centroid = new Float32Array([
                 acc[0] / positionVectors,
                 acc[1] / positionVectors,
-                acc[2] / positionVectors,
+                acc[2] / positionVectors
             ]);
 
             this.centroid = centroid;
         }
     }
 
-    fromJson(jsonPrimitive)
-    {
+    fromJson(jsonPrimitive) {
         super.fromJson(jsonPrimitive);
 
-        if(jsonPrimitive.extensions !== undefined)
-        {
+        if (jsonPrimitive.extensions !== undefined) {
             this.fromJsonPrimitiveExtensions(jsonPrimitive.extensions);
         }
     }
 
-    fromJsonPrimitiveExtensions(jsonExtensions)
-    {
-        if(jsonExtensions.KHR_materials_variants !== undefined)
-        {
+    fromJsonPrimitiveExtensions(jsonExtensions) {
+        if (jsonExtensions.KHR_materials_variants !== undefined) {
             this.fromJsonVariants(jsonExtensions.KHR_materials_variants);
         }
     }
 
-    fromJsonVariants(jsonVariants)
-    {
-        if(jsonVariants.mappings !== undefined)
-        {
+    fromJsonVariants(jsonVariants) {
+        if (jsonVariants.mappings !== undefined) {
             this.mappings = jsonVariants.mappings;
         }
     }
 
-    copyDataFromDecodedGeometry(gltf, dracoGeometry, primitiveAttributes)
-    {
+    copyDataFromDecodedGeometry(gltf, dracoGeometry, primitiveAttributes) {
         // indices
         let indexBuffer = dracoGeometry.index.array;
-        if (this.indices !== undefined){
-            this.loadBufferIntoGltf(indexBuffer, gltf, this.indices, 34963,
-                "index buffer view");
+        if (this.indices !== undefined) {
+            this.loadBufferIntoGltf(indexBuffer, gltf, this.indices, 34963, "index buffer view");
         }
 
         // Position
-        if(dracoGeometry.attributes.POSITION !== undefined)
-        {
-            let positionBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.POSITION.array,
-                dracoGeometry.attributes.POSITION.componentType);
-            this.loadBufferIntoGltf(positionBuffer, gltf, primitiveAttributes["POSITION"], 34962,
-                "position buffer view");
+        if (dracoGeometry.attributes.POSITION !== undefined) {
+            let positionBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.POSITION.array,
+                dracoGeometry.attributes.POSITION.componentType
+            );
+            this.loadBufferIntoGltf(
+                positionBuffer,
+                gltf,
+                primitiveAttributes["POSITION"],
+                34962,
+                "position buffer view"
+            );
         }
 
         // Normal
-        if(dracoGeometry.attributes.NORMAL !== undefined)
-        {
-            let normalBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.NORMAL.array,
-                dracoGeometry.attributes.NORMAL.componentType);
-            this.loadBufferIntoGltf(normalBuffer, gltf, primitiveAttributes["NORMAL"], 34962,
-                "normal buffer view");
+        if (dracoGeometry.attributes.NORMAL !== undefined) {
+            let normalBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.NORMAL.array,
+                dracoGeometry.attributes.NORMAL.componentType
+            );
+            this.loadBufferIntoGltf(
+                normalBuffer,
+                gltf,
+                primitiveAttributes["NORMAL"],
+                34962,
+                "normal buffer view"
+            );
         }
 
         // TEXCOORD_0
-        if(dracoGeometry.attributes.TEXCOORD_0 !== undefined)
-        {
-            let uvBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.TEXCOORD_0.array,
-                dracoGeometry.attributes.TEXCOORD_0.componentType);
-            this.loadBufferIntoGltf(uvBuffer, gltf, primitiveAttributes["TEXCOORD_0"], 34962,
-                "TEXCOORD_0 buffer view");
+        if (dracoGeometry.attributes.TEXCOORD_0 !== undefined) {
+            let uvBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.TEXCOORD_0.array,
+                dracoGeometry.attributes.TEXCOORD_0.componentType
+            );
+            this.loadBufferIntoGltf(
+                uvBuffer,
+                gltf,
+                primitiveAttributes["TEXCOORD_0"],
+                34962,
+                "TEXCOORD_0 buffer view"
+            );
         }
 
         // TEXCOORD_1
-        if(dracoGeometry.attributes.TEXCOORD_1 !== undefined)
-        {
-            let uvBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.TEXCOORD_1.array,
-                dracoGeometry.attributes.TEXCOORD_1.componentType);
-            this.loadBufferIntoGltf(uvBuffer, gltf, primitiveAttributes["TEXCOORD_1"], 34962,
-                "TEXCOORD_1 buffer view");
+        if (dracoGeometry.attributes.TEXCOORD_1 !== undefined) {
+            let uvBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.TEXCOORD_1.array,
+                dracoGeometry.attributes.TEXCOORD_1.componentType
+            );
+            this.loadBufferIntoGltf(
+                uvBuffer,
+                gltf,
+                primitiveAttributes["TEXCOORD_1"],
+                34962,
+                "TEXCOORD_1 buffer view"
+            );
         }
 
         // Tangent
-        if(dracoGeometry.attributes.TANGENT !== undefined)
-        {
-            let tangentBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.TANGENT.array,
-                dracoGeometry.attributes.TANGENT.componentType);
-            this.loadBufferIntoGltf(tangentBuffer, gltf, primitiveAttributes["TANGENT"], 34962,
-                "Tangent buffer view");
+        if (dracoGeometry.attributes.TANGENT !== undefined) {
+            let tangentBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.TANGENT.array,
+                dracoGeometry.attributes.TANGENT.componentType
+            );
+            this.loadBufferIntoGltf(
+                tangentBuffer,
+                gltf,
+                primitiveAttributes["TANGENT"],
+                34962,
+                "Tangent buffer view"
+            );
         }
 
         // Color
-        if(dracoGeometry.attributes.COLOR_0 !== undefined)
-        {
-            let colorBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.COLOR_0.array,
-                dracoGeometry.attributes.COLOR_0.componentType);
-            this.loadBufferIntoGltf(colorBuffer, gltf, primitiveAttributes["COLOR_0"], 34962,
-                "color buffer view");
+        if (dracoGeometry.attributes.COLOR_0 !== undefined) {
+            let colorBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.COLOR_0.array,
+                dracoGeometry.attributes.COLOR_0.componentType
+            );
+            this.loadBufferIntoGltf(
+                colorBuffer,
+                gltf,
+                primitiveAttributes["COLOR_0"],
+                34962,
+                "color buffer view"
+            );
         }
 
         // JOINTS_0
-        if(dracoGeometry.attributes.JOINTS_0 !== undefined)
-        {
-            let jointsBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.JOINTS_0.array,
-                dracoGeometry.attributes.JOINTS_0.componentType);
-            this.loadBufferIntoGltf(jointsBuffer, gltf, primitiveAttributes["JOINTS_0"], 34963,
-                "JOINTS_0 buffer view");
+        if (dracoGeometry.attributes.JOINTS_0 !== undefined) {
+            let jointsBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.JOINTS_0.array,
+                dracoGeometry.attributes.JOINTS_0.componentType
+            );
+            this.loadBufferIntoGltf(
+                jointsBuffer,
+                gltf,
+                primitiveAttributes["JOINTS_0"],
+                34963,
+                "JOINTS_0 buffer view"
+            );
         }
 
         // WEIGHTS_0
-        if(dracoGeometry.attributes.WEIGHTS_0 !== undefined)
-        {
-            let weightsBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.WEIGHTS_0.array,
-                dracoGeometry.attributes.WEIGHTS_0.componentType);
-            this.loadBufferIntoGltf(weightsBuffer, gltf, primitiveAttributes["WEIGHTS_0"], 34963,
-                "WEIGHTS_0 buffer view");
+        if (dracoGeometry.attributes.WEIGHTS_0 !== undefined) {
+            let weightsBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.WEIGHTS_0.array,
+                dracoGeometry.attributes.WEIGHTS_0.componentType
+            );
+            this.loadBufferIntoGltf(
+                weightsBuffer,
+                gltf,
+                primitiveAttributes["WEIGHTS_0"],
+                34963,
+                "WEIGHTS_0 buffer view"
+            );
         }
 
         // JOINTS_1
-        if(dracoGeometry.attributes.JOINTS_1 !== undefined)
-        {
-            let jointsBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.JOINTS_1.array,
-                dracoGeometry.attributes.JOINTS_1.componentType);
-            this.loadBufferIntoGltf(jointsBuffer, gltf, primitiveAttributes["JOINTS_1"], 34963,
-                "JOINTS_1 buffer view");
+        if (dracoGeometry.attributes.JOINTS_1 !== undefined) {
+            let jointsBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.JOINTS_1.array,
+                dracoGeometry.attributes.JOINTS_1.componentType
+            );
+            this.loadBufferIntoGltf(
+                jointsBuffer,
+                gltf,
+                primitiveAttributes["JOINTS_1"],
+                34963,
+                "JOINTS_1 buffer view"
+            );
         }
 
         // WEIGHTS_1
-        if(dracoGeometry.attributes.WEIGHTS_1 !== undefined)
-        {
-            let weightsBuffer = this.loadArrayIntoArrayBuffer(dracoGeometry.attributes.WEIGHTS_1.array,
-                dracoGeometry.attributes.WEIGHTS_1.componentType);
-            this.loadBufferIntoGltf(weightsBuffer, gltf, primitiveAttributes["WEIGHTS_1"], 34963,
-                "WEIGHTS_1 buffer view");
+        if (dracoGeometry.attributes.WEIGHTS_1 !== undefined) {
+            let weightsBuffer = this.loadArrayIntoArrayBuffer(
+                dracoGeometry.attributes.WEIGHTS_1.array,
+                dracoGeometry.attributes.WEIGHTS_1.componentType
+            );
+            this.loadBufferIntoGltf(
+                weightsBuffer,
+                gltf,
+                primitiveAttributes["WEIGHTS_1"],
+                34963,
+                "WEIGHTS_1 buffer view"
+            );
         }
     }
 
-    loadBufferIntoGltf(buffer, gltf, gltfAccessorIndex, gltfBufferViewTarget, gltfBufferViewName)
-    {
+    loadBufferIntoGltf(buffer, gltf, gltfAccessorIndex, gltfBufferViewTarget, gltfBufferViewName) {
         const gltfBufferObj = new gltfBuffer();
         gltfBufferObj.byteLength = buffer.byteLength;
         gltfBufferObj.buffer = buffer;
@@ -479,8 +559,7 @@ class gltfPrimitive extends GltfObject
         const gltfBufferViewObj = new gltfBufferView();
         gltfBufferViewObj.buffer = gltf.buffers.length - 1;
         gltfBufferViewObj.byteLength = buffer.byteLength;
-        if(gltfBufferViewName !== undefined)
-        {
+        if (gltfBufferViewName !== undefined) {
             gltfBufferViewObj.name = gltfBufferViewName;
         }
         gltfBufferViewObj.target = gltfBufferViewTarget;
@@ -490,11 +569,9 @@ class gltfPrimitive extends GltfObject
         gltf.accessors[gltfAccessorIndex].bufferView = gltf.bufferViews.length - 1;
     }
 
-    loadArrayIntoArrayBuffer(arrayData, componentType)
-    {
+    loadArrayIntoArrayBuffer(arrayData, componentType) {
         let arrayBuffer;
-        switch (componentType)
-        {
+        switch (componentType) {
         case "Int8Array":
             arrayBuffer = new ArrayBuffer(arrayData.length);
             new Int8Array(arrayBuffer).set(arrayData);
@@ -529,16 +606,17 @@ class gltfPrimitive extends GltfObject
         return arrayBuffer;
     }
 
-    decodeDracoBufferToIntermediate(dracoExtension, gltf)
-    {
+    decodeDracoBufferToIntermediate(dracoExtension, gltf) {
         let dracoBufferViewIDX = dracoExtension.bufferView;
 
         const origGltfDrBufViewObj = gltf.bufferViews[dracoBufferViewIDX];
         const origGltfDracoBuffer = gltf.buffers[origGltfDrBufViewObj.buffer];
 
-        const totalBuffer = new Int8Array( origGltfDracoBuffer.buffer );
-        const actualBuffer = totalBuffer.slice(origGltfDrBufViewObj.byteOffset,
-            origGltfDrBufViewObj.byteOffset + origGltfDrBufViewObj.byteLength);
+        const totalBuffer = new Int8Array(origGltfDracoBuffer.buffer);
+        const actualBuffer = totalBuffer.slice(
+            origGltfDrBufViewObj.byteOffset,
+            origGltfDrBufViewObj.byteOffset + origGltfDrBufViewObj.byteLength
+        );
 
         // decode draco buffer to geometry intermediate
         let dracoDecoder = new DracoDecoder();
@@ -546,17 +624,21 @@ class gltfPrimitive extends GltfObject
         let decoder = new draco.Decoder();
         let decoderBuffer = new draco.DecoderBuffer();
         decoderBuffer.Init(actualBuffer, origGltfDrBufViewObj.byteLength);
-        let geometry = this.decodeGeometry( draco, decoder, decoderBuffer, dracoExtension.attributes, gltf );
+        let geometry = this.decodeGeometry(
+            draco,
+            decoder,
+            decoderBuffer,
+            dracoExtension.attributes,
+            gltf
+        );
 
         draco.destroy(decoderBuffer);
 
         return geometry;
     }
 
-    getDracoArrayTypeFromComponentType(componentType)
-    {
-        switch (componentType)
-        {
+    getDracoArrayTypeFromComponentType(componentType) {
+        switch (componentType) {
         case GL.BYTE:
             return "Int8Array";
         case GL.UNSIGNED_BYTE:
@@ -581,33 +663,28 @@ class gltfPrimitive extends GltfObject
         let decodingStatus;
 
         // decode mesh in draco decoder
-        let geometryType = decoder.GetEncodedGeometryType( decoderBuffer );
-        if ( geometryType === draco.TRIANGULAR_MESH ) {
+        let geometryType = decoder.GetEncodedGeometryType(decoderBuffer);
+        if (geometryType === draco.TRIANGULAR_MESH) {
             dracoGeometry = new draco.Mesh();
-            decodingStatus = decoder.DecodeBufferToMesh( decoderBuffer, dracoGeometry );
-        }
-        else
-        {
-            throw new Error( 'DRACOLoader: Unexpected geometry type.' );
+            decodingStatus = decoder.DecodeBufferToMesh(decoderBuffer, dracoGeometry);
+        } else {
+            throw new Error("DRACOLoader: Unexpected geometry type.");
         }
 
-        if ( ! decodingStatus.ok() || dracoGeometry.ptr === 0 ) {
-            throw new Error( 'DRACOLoader: Decoding failed: ' + decodingStatus.error_msg() );
+        if (!decodingStatus.ok() || dracoGeometry.ptr === 0) {
+            throw new Error("DRACOLoader: Decoding failed: " + decodingStatus.error_msg());
         }
 
         let geometry = { index: null, attributes: {} };
         let vertexCount = dracoGeometry.num_points();
 
         // Gather all vertex attributes.
-        for(let dracoAttr in gltfDracoAttributes)
-        {
+        for (let dracoAttr in gltfDracoAttributes) {
             let componentType = GL.BYTE;
             let accessotVertexCount;
             // find gltf accessor for this draco attribute
-            for (const [key, value] of Object.entries(this.attributes))
-            {
-                if(key === dracoAttr)
-                {
+            for (const [key, value] of Object.entries(this.attributes)) {
+                if (key === dracoAttr) {
                     componentType = gltf.accessors[value].componentType;
                     accessotVertexCount = gltf.accessors[value].count;
                     break;
@@ -615,39 +692,47 @@ class gltfPrimitive extends GltfObject
             }
 
             // check if vertex count matches
-            if(vertexCount !== accessotVertexCount)
-            {
-                throw new Error(`DRACOLoader: Accessor vertex count ${accessotVertexCount} does not match draco decoder vertex count  ${vertexCount}`);
+            if (vertexCount !== accessotVertexCount) {
+                throw new Error(
+                    `DRACOLoader: Accessor vertex count ${accessotVertexCount} does not match draco decoder vertex count  ${vertexCount}`
+                );
             }
             componentType = this.getDracoArrayTypeFromComponentType(componentType);
 
-            let dracoAttribute = decoder.GetAttributeByUniqueId( dracoGeometry, gltfDracoAttributes[dracoAttr]);
-            var tmpObj = this.decodeAttribute( draco, decoder,
-                dracoGeometry, dracoAttr, dracoAttribute, componentType);
+            let dracoAttribute = decoder.GetAttributeByUniqueId(
+                dracoGeometry,
+                gltfDracoAttributes[dracoAttr]
+            );
+            var tmpObj = this.decodeAttribute(
+                draco,
+                decoder,
+                dracoGeometry,
+                dracoAttr,
+                dracoAttribute,
+                componentType
+            );
             geometry.attributes[tmpObj.name] = tmpObj;
         }
 
         // Add index buffer
-        if ( geometryType === draco.TRIANGULAR_MESH ) {
-
+        if (geometryType === draco.TRIANGULAR_MESH) {
             // Generate mesh faces.
             let numFaces = dracoGeometry.num_faces();
             let numIndices = numFaces * 3;
             let dataSize = numIndices * 4;
-            let ptr = draco._malloc( dataSize );
-            decoder.GetTrianglesUInt32Array( dracoGeometry, dataSize, ptr );
-            let index = new Uint32Array( draco.HEAPU32.buffer, ptr, numIndices ).slice();
-            draco._free( ptr );
+            let ptr = draco._malloc(dataSize);
+            decoder.GetTrianglesUInt32Array(dracoGeometry, dataSize, ptr);
+            let index = new Uint32Array(draco.HEAPU32.buffer, ptr, numIndices).slice();
+            draco._free(ptr);
 
             geometry.index = { array: index, itemSize: 1 };
-
         }
 
-        draco.destroy( dracoGeometry );
+        draco.destroy(dracoGeometry);
         return geometry;
     }
 
-    decodeAttribute( draco, decoder, dracoGeometry, attributeName, attribute, attributeType) {
+    decodeAttribute(draco, decoder, dracoGeometry, attributeName, attribute, attributeType) {
         let numComponents = attribute.num_components();
         let numPoints = dracoGeometry.num_points();
         let numValues = numPoints * numComponents;
@@ -656,63 +741,105 @@ class gltfPrimitive extends GltfObject
         let array;
 
         let dataSize;
-        switch ( attributeType ) {
+        switch (attributeType) {
         case "Float32Array":
             dataSize = numValues * 4;
-            ptr = draco._malloc( dataSize );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_FLOAT32, dataSize, ptr );
-            array = new Float32Array( draco.HEAPF32.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(dataSize);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_FLOAT32,
+                dataSize,
+                ptr
+            );
+            array = new Float32Array(draco.HEAPF32.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         case "Int8Array":
-            ptr = draco._malloc( numValues );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_INT8, numValues, ptr );
-            array = new Int8Array( draco.HEAP8.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(numValues);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_INT8,
+                numValues,
+                ptr
+            );
+            array = new Int8Array(draco.HEAP8.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         case "Int16Array":
             dataSize = numValues * 2;
-            ptr = draco._malloc( dataSize );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_INT16, dataSize, ptr );
-            array = new Int16Array( draco.HEAP16.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(dataSize);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_INT16,
+                dataSize,
+                ptr
+            );
+            array = new Int16Array(draco.HEAP16.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         case "Int32Array":
             dataSize = numValues * 4;
-            ptr = draco._malloc( dataSize );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_INT32, dataSize, ptr );
-            array = new Int32Array( draco.HEAP32.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(dataSize);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_INT32,
+                dataSize,
+                ptr
+            );
+            array = new Int32Array(draco.HEAP32.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         case "Uint8Array":
-            ptr = draco._malloc( numValues );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_UINT8, numValues, ptr );
-            array = new Uint8Array( draco.HEAPU8.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(numValues);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_UINT8,
+                numValues,
+                ptr
+            );
+            array = new Uint8Array(draco.HEAPU8.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         case "Uint16Array":
             dataSize = numValues * 2;
-            ptr = draco._malloc( dataSize );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_UINT16, dataSize, ptr );
-            array = new Uint16Array( draco.HEAPU16.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(dataSize);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_UINT16,
+                dataSize,
+                ptr
+            );
+            array = new Uint16Array(draco.HEAPU16.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         case "Uint32Array":
             dataSize = numValues * 4;
-            ptr = draco._malloc( dataSize );
-            decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, draco.DT_UINT32, dataSize, ptr );
-            array = new Uint32Array( draco.HEAPU32.buffer, ptr, numValues ).slice();
-            draco._free( ptr );
+            ptr = draco._malloc(dataSize);
+            decoder.GetAttributeDataArrayForAllPoints(
+                dracoGeometry,
+                attribute,
+                draco.DT_UINT32,
+                dataSize,
+                ptr
+            );
+            array = new Uint32Array(draco.HEAPU32.buffer, ptr, numValues).slice();
+            draco._free(ptr);
             break;
 
         default:
-            throw new Error( 'DRACOLoader: Unexpected attribute type.' );
+            throw new Error("DRACOLoader: Unexpected attribute type.");
         }
 
         return {
@@ -721,7 +848,6 @@ class gltfPrimitive extends GltfObject
             itemSize: numComponents,
             componentType: attributeType
         };
-
     }
 
     /**
@@ -739,13 +865,21 @@ class gltfPrimitive extends GltfObject
 
         // Unweld attributes:
         for (const [attribute, accessorIndex] of Object.entries(this.attributes)) {
-            this.attributes[attribute] = this.unweldAccessor(gltf, gltf.accessors[accessorIndex], indices);
+            this.attributes[attribute] = this.unweldAccessor(
+                gltf,
+                gltf.accessors[accessorIndex],
+                indices
+            );
         }
 
         // Unweld morph targets:
         for (const target of this.targets) {
             for (const [attribute, accessorIndex] of Object.entries(target)) {
-                target[attribute] = this.unweldAccessor(gltf, gltf.accessors[accessorIndex], indices);
+                target[attribute] = this.unweldAccessor(
+                    gltf,
+                    gltf.accessors[accessorIndex],
+                    indices
+                );
             }
         }
 
@@ -765,12 +899,15 @@ class gltfPrimitive extends GltfObject
 
         const weldedAttribute = accessor.getDeinterlacedView(gltf);
         // Create new array with same type as weldedAttribute
-        const unweldedAttribute = new weldedAttribute.constructor(gltf.accessors[this.indices].count * componentCount);
+        const unweldedAttribute = new weldedAttribute.constructor(
+            gltf.accessors[this.indices].count * componentCount
+        );
 
         // Apply the index mapping.
         for (let i = 0; i < typedIndexView.length; i++) {
             for (let j = 0; j < componentCount; j++) {
-                unweldedAttribute[i * componentCount + j] = weldedAttribute[typedIndexView[i] * componentCount + j];
+                unweldedAttribute[i * componentCount + j] =
+                    weldedAttribute[typedIndexView[i] * componentCount + j];
             }
         }
 
@@ -803,8 +940,7 @@ class gltfPrimitive extends GltfObject
     }
 
     generateTangents(gltf, tangentHash) {
-        if(this.attributes.NORMAL === undefined || this.attributes.TEXCOORD_0 === undefined)
-        {
+        if (this.attributes.NORMAL === undefined || this.attributes.TEXCOORD_0 === undefined) {
             return;
         }
         if (gltf.tangentCache[tangentHash] !== undefined) {
@@ -821,7 +957,7 @@ class gltfPrimitive extends GltfObject
 
         // convert coordinate system handedness to respect output format of MikkTSpace
         for (let idx = 0; idx < tangents.length; idx += 4) {
-            tangents[idx+3] = -tangents[idx+3]; // Flip w-channel
+            tangents[idx + 3] = -tangents[idx + 3]; // Flip w-channel
         }
 
         // Create a new buffer and buffer view for the tangents:
@@ -848,7 +984,6 @@ class gltfPrimitive extends GltfObject
         this.attributes.TANGENT = gltf.accessors.length;
         gltf.accessors.push(tangentAccessor);
         gltf.tangentCache[tangentHash] = this.attributes.TANGENT;
-
     }
 }
 

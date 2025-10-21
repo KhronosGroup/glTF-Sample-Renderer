@@ -1,14 +1,12 @@
 /* globals WebGl */
 
-import { fromKeys, initGlForMembers } from './utils.js';
-import { GL } from '../Renderer/webgl.js';
-import { GltfObject } from './gltf_object.js';
+import { fromKeys, initGlForMembers } from "./utils.js";
+import { GL } from "../Renderer/webgl.js";
+import { GltfObject } from "./gltf_object.js";
 
-class gltfTexture extends GltfObject
-{
+class gltfTexture extends GltfObject {
     static animatedProperties = [];
-    constructor(sampler = undefined, source = undefined, type = GL.TEXTURE_2D)
-    {
+    constructor(sampler = undefined, source = undefined, type = GL.TEXTURE_2D) {
         super();
         this.sampler = sampler; // index to gltfSampler, default sampler ?
         this.source = source; // index to gltfImage
@@ -22,42 +20,38 @@ class gltfTexture extends GltfObject
         this.mipLevelCount = 0;
     }
 
-    initGl(gltf, webGlContext)
-    {
-        if (this.sampler === undefined)
-        {
+    initGl(gltf, webGlContext) {
+        if (this.sampler === undefined) {
             this.sampler = gltf.samplers.length - 1;
         }
 
         initGlForMembers(this, gltf, webGlContext);
     }
 
-    fromJson(jsonTexture)
-    {
+    fromJson(jsonTexture) {
         super.fromJson(jsonTexture);
-        if (jsonTexture.extensions !== undefined &&
+        if (
+            jsonTexture.extensions !== undefined &&
             jsonTexture.extensions.EXT_texture_webp !== undefined &&
-            jsonTexture.extensions.EXT_texture_webp.source !== undefined)
-        {
+            jsonTexture.extensions.EXT_texture_webp.source !== undefined
+        ) {
             this.source = jsonTexture.extensions.EXT_texture_webp.source;
         }
-        if (jsonTexture.extensions !== undefined &&
+        if (
+            jsonTexture.extensions !== undefined &&
             jsonTexture.extensions.KHR_texture_basisu !== undefined &&
-            jsonTexture.extensions.KHR_texture_basisu.source !== undefined)
-        {
+            jsonTexture.extensions.KHR_texture_basisu.source !== undefined
+        ) {
             this.source = jsonTexture.extensions.KHR_texture_basisu.source;
         }
     }
 
-    destroy()
-    {
-        if (this.glTexture !== undefined)
-        {
+    destroy() {
+        if (this.glTexture !== undefined) {
             // TODO: this breaks the dependency direction
             WebGl.context.deleteTexture(this.glTexture);
         }
-        if (this.glTextureSRGB !== undefined)
-        {
+        if (this.glTextureSRGB !== undefined) {
             WebGl.context.deleteTexture(this.glTextureSRGB);
         }
         this.glTextureSRGB = undefined;
@@ -65,11 +59,15 @@ class gltfTexture extends GltfObject
     }
 }
 
-class gltfTextureInfo extends GltfObject
-{
+class gltfTextureInfo extends GltfObject {
     static animatedProperties = ["strength", "scale"];
-    constructor(index = undefined, texCoord = 0, linear = true, samplerName = "", generateMips = true) // linear by default
-    {
+    constructor(
+        index = undefined,
+        texCoord = 0,
+        linear = true,
+        samplerName = "",
+        generateMips = true // linear by default
+    ) {
         super();
         this.index = index; // reference to gltfTexture
         this.texCoord = texCoord; // which UV set to use
@@ -82,19 +80,18 @@ class gltfTextureInfo extends GltfObject
         this.extensions = undefined;
     }
 
-    initGl(gltf, webGlContext)
-    {
+    initGl(gltf, webGlContext) {
         initGlForMembers(this, gltf, webGlContext);
     }
 
-    fromJson(jsonTextureInfo)
-    {
+    fromJson(jsonTextureInfo) {
         fromKeys(this, jsonTextureInfo);
 
-        if (jsonTextureInfo?.extensions?.KHR_texture_transform !== undefined)
-        {
+        if (jsonTextureInfo?.extensions?.KHR_texture_transform !== undefined) {
             this.extensions.KHR_texture_transform = new KHR_texture_transform();
-            this.extensions.KHR_texture_transform.fromJson(jsonTextureInfo.extensions.KHR_texture_transform);
+            this.extensions.KHR_texture_transform.fromJson(
+                jsonTextureInfo.extensions.KHR_texture_transform
+            );
         }
     }
 }

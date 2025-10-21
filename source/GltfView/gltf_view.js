@@ -1,13 +1,12 @@
-import { GltfState } from '../GltfState/gltf_state.js';
-import { gltfRenderer } from '../Renderer/renderer.js';
-import { GL } from '../Renderer/webgl.js';
-import { ResourceLoader } from '../ResourceLoader/resource_loader.js';
+import { GltfState } from "../GltfState/gltf_state.js";
+import { gltfRenderer } from "../Renderer/renderer.js";
+import { GL } from "../Renderer/webgl.js";
+import { ResourceLoader } from "../ResourceLoader/resource_loader.js";
 
 /**
  * GltfView represents a view on a gltf, e.g. in a canvas
  */
-class GltfView
-{
+class GltfView {
     /**
      * GltfView representing one WebGl 2.0 context or in other words one
      * 3D rendering of the Gltf.
@@ -15,8 +14,7 @@ class GltfView
      * be shown on the same webpage.
      * @param {*} context WebGl 2.0 context. Get it from a canvas with `canvas.getContext("webgl2")`
      */
-    constructor(context)
-    {
+    constructor(context) {
         this.context = context;
         this.renderer = new gltfRenderer(this.context);
     }
@@ -28,8 +26,7 @@ class GltfView
      * GltfViews.
      * @returns {GltfState} GltfState
      */
-    createState()
-    {
+    createState() {
         return new GltfState(this);
     }
 
@@ -41,8 +38,11 @@ class GltfView
      * @param {string} [libPath] optional path to the libraries. Used to define the path to the WASM files on repackaging
      * @returns {ResourceLoader} ResourceLoader
      */
-    createResourceLoader(externalDracoLib = undefined, externalKtxLib = undefined, libPath = undefined)
-    {
+    createResourceLoader(
+        externalDracoLib = undefined,
+        externalKtxLib = undefined,
+        libPath = undefined
+    ) {
         let resourceLoader = new ResourceLoader(this, libPath);
         resourceLoader.initKtxLib(externalKtxLib);
         resourceLoader.initDracoLib(externalDracoLib);
@@ -56,8 +56,7 @@ class GltfView
      * @param {*} width of the viewport
      * @param {*} height of the viewport
      */
-    renderFrame(state, width, height)
-    {
+    renderFrame(state, width, height) {
         this.renderer.init(state);
         this._animate(state);
 
@@ -65,15 +64,13 @@ class GltfView
 
         this.renderer.clearFrame(state.renderingParameters.clearColor);
 
-        if(state.gltf === undefined)
-        {
+        if (state.gltf === undefined) {
             return;
         }
 
         const scene = state.gltf.scenes[state.sceneIndex];
 
-        if(scene === undefined)
-        {
+        if (scene === undefined) {
             return;
         }
 
@@ -88,38 +85,45 @@ class GltfView
      * @param {*} state GltfState about which the statistics should be collected
      * @returns {Object} an object containing statistics information
      */
-    gatherStatistics(state)
-    {
-        if(state.gltf === undefined)
-        {
+    gatherStatistics(state) {
+        if (state.gltf === undefined) {
             return;
         }
 
         // gather information from the active scene
         const scene = state.gltf.scenes[state.sceneIndex];
-        if (scene === undefined)
-        {
+        if (scene === undefined) {
             return {
                 meshCount: 0,
                 faceCount: 0,
                 opaqueMaterialsCount: 0,
-                transparentMaterialsCount: 0};
+                transparentMaterialsCount: 0
+            };
         }
         const nodes = scene.gatherNodes(state.gltf);
-        const activeMeshes = nodes.filter(node => node.mesh !== undefined).map(node => state.gltf.meshes[node.mesh]);
+        const activeMeshes = nodes
+            .filter((node) => node.mesh !== undefined)
+            .map((node) => state.gltf.meshes[node.mesh]);
         const activePrimitives = activeMeshes
             .reduce((acc, mesh) => acc.concat(mesh.primitives), [])
-            .filter(primitive => primitive.material !== undefined);
-        const activeMaterials = [... new Set(activePrimitives.map(primitive => state.gltf.materials[primitive.material]))];
-        const opaqueMaterials = activeMaterials.filter(material => material.alphaMode !== "BLEND");
-        const transparentMaterials = activeMaterials.filter(material => material.alphaMode === "BLEND");
+            .filter((primitive) => primitive.material !== undefined);
+        const activeMaterials = [
+            ...new Set(
+                activePrimitives.map((primitive) => state.gltf.materials[primitive.material])
+            )
+        ];
+        const opaqueMaterials = activeMaterials.filter(
+            (material) => material.alphaMode !== "BLEND"
+        );
+        const transparentMaterials = activeMaterials.filter(
+            (material) => material.alphaMode === "BLEND"
+        );
         const faceCount = activePrimitives
-            .map(primitive => {
+            .map((primitive) => {
                 let vertexCount = 0;
                 if (primitive.indices !== undefined) {
                     vertexCount = state.gltf.accessors[primitive.indices].count;
-                }
-                else {
+                } else {
                     vertexCount = state.gltf.accessors[primitive.attributes["POSITION"]].count;
                 }
                 if (vertexCount === 0) {
@@ -154,32 +158,29 @@ class GltfView
         };
     }
 
-    _animate(state)
-    {
-        if(state.gltf === undefined)
-        {
+    _animate(state) {
+        if (state.gltf === undefined) {
             return;
         }
 
-        if(state.gltf.animations !== undefined && state.animationIndices !== undefined)
-        {
-            const disabledAnimations = state.gltf.animations.filter( (anim, index) => {
+        if (state.gltf.animations !== undefined && state.animationIndices !== undefined) {
+            const disabledAnimations = state.gltf.animations.filter((anim, index) => {
                 return false === state.animationIndices.includes(index);
             });
 
-            for(const disabledAnimation of disabledAnimations)
-            {
+            for (const disabledAnimation of disabledAnimations) {
                 disabledAnimation.advance(state.gltf, undefined);
             }
 
             const t = state.animationTimer.elapsedSec();
 
-            const animations = state.animationIndices.map(index => {
-                return state.gltf.animations[index];
-            }).filter(animation => animation !== undefined);
+            const animations = state.animationIndices
+                .map((index) => {
+                    return state.gltf.animations[index];
+                })
+                .filter((animation) => animation !== undefined);
 
-            for(const animation of animations)
-            {
+            for (const animation of animations) {
                 animation.advance(state.gltf, t);
             }
         }

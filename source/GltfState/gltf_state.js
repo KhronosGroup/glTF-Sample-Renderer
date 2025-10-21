@@ -1,18 +1,16 @@
-import { UserCamera } from '../gltf/user_camera.js';
-import { AnimationTimer } from '../gltf/utils.js';
+import { UserCamera } from "../gltf/user_camera.js";
+import { AnimationTimer } from "../gltf/utils.js";
 
 /**
  * GltfState containing a state for visualization in GltfView
  */
-class GltfState
-{
+class GltfState {
     /**
      * GltfState represents all state that can be visualized in a view. You could have
      * multiple GltfStates configured and switch between them on demand.
      * @param {*} view GltfView to which this state belongs
      */
-    constructor(view)
-    {
+    constructor(view) {
         /** loaded gltf data @see ResourceLoader.loadGltf */
         this.gltf = undefined;
         /** loaded environment data @see ResourceLoader.loadEnvironment */
@@ -62,7 +60,7 @@ class GltfState
                 KHR_materials_anisotropy: true,
                 /** KHR_materials_dispersion defines configuring the strength of the angular separation of colors (chromatic abberation)*/
                 KHR_materials_dispersion: true,
-                KHR_materials_emissive_strength: true,
+                KHR_materials_emissive_strength: true
             },
             /** clear color expressed as list of ints in the range [0, 255] */
             clearColor: [58, 64, 74, 255],
@@ -105,7 +103,7 @@ class GltfState
 /**
  * ToneMaps enum for the different tonemappings that are supported
  * by gltf sample viewer
-*/
+ */
 GltfState.ToneMaps = {
     /** Khronos PBR neutral tone mapping, see https://github.com/KhronosGroup/ToneMapping, https://modelviewer.dev/examples/tone-mapping */
     KHR_PBR_NEUTRAL: "Khronos PBR Neutral",
@@ -116,7 +114,7 @@ GltfState.ToneMaps = {
     /** more accurate implementation of the ACES sRGB RRT+ODT based on Stephen Hill's implementation*/
     ACES_HILL: "ACES Filmic Tone Mapping (Hill)",
     /** Linear mapping, clamped at 1.0 per channel */
-    NONE: "None (Linear mapping, clamped at 1.0)",
+    NONE: "None (Linear mapping, clamped at 1.0)"
 };
 
 /**
@@ -148,7 +146,7 @@ GltfState.DebugOutput = {
         /** output the occlusion value */
         OCCLUSION: "Occlusion",
         /** output the emissive value */
-        EMISSIVE: "Emissive",
+        EMISSIVE: "Emissive"
     },
 
     /** metallic roughness */
@@ -158,7 +156,7 @@ GltfState.DebugOutput = {
         /** output the metallic value from pbr metallic roughness */
         METALLIC: "Metallic",
         /** output the roughness value from pbr metallic roughness */
-        ROUGHNESS: "Roughness",
+        ROUGHNESS: "Roughness"
     },
 
     /** KHR_materials_clearcoat */
@@ -168,7 +166,7 @@ GltfState.DebugOutput = {
         /** output the clear coat roughness */
         CLEARCOAT_ROUGHNESS: "ClearCoat Roughness",
         /** output the clear coat normal */
-        CLEARCOAT_NORMAL: "ClearCoat Normal",
+        CLEARCOAT_NORMAL: "ClearCoat Normal"
     },
 
     /** KHR_materials_sheen */
@@ -176,7 +174,7 @@ GltfState.DebugOutput = {
         /** output the sheen color*/
         SHEEN_COLOR: "Sheen Color",
         /** output the sheen roughness*/
-        SHEEN_ROUGHNESS: "Sheen Roughness",
+        SHEEN_ROUGHNESS: "Sheen Roughness"
     },
 
     /** KHR_materials_specular */
@@ -184,7 +182,7 @@ GltfState.DebugOutput = {
         /** output the specular strength*/
         SPECULAR_FACTOR: "Specular Strength",
         /** output the specular color*/
-        SPECULAR_COLOR: "Specular Color",
+        SPECULAR_COLOR: "Specular Color"
     },
 
     /** KHR_materials_transmission */
@@ -192,7 +190,7 @@ GltfState.DebugOutput = {
         /** output the transmission strength*/
         TRANSMISSION_FACTOR: "Transmission Strength",
         /** output the volume thickness*/
-        VOLUME_THICKNESS: "Volume Thickness",
+        VOLUME_THICKNESS: "Volume Thickness"
     },
 
     /** KHR_materials_diffuse_tranmission */
@@ -200,7 +198,7 @@ GltfState.DebugOutput = {
         /** output the diffuse tranmission strength */
         DIFFUSE_TRANSMISSION_FACTOR: "Diffuse Transmission Strength",
         /** output the diffuse tranmission color factor */
-        DIFFUSE_TRANSMISSION_COLOR_FACTOR: "Diffuse Transmission Color",
+        DIFFUSE_TRANSMISSION_COLOR_FACTOR: "Diffuse Transmission Color"
     },
 
     /** KHR_materials_iridescence */
@@ -208,7 +206,7 @@ GltfState.DebugOutput = {
         /** output the iridescence strength*/
         IRIDESCENCE_FACTOR: "Iridescence Strength",
         /** output the iridescence thickness*/
-        IRIDESCENCE_THICKNESS: "Iridescence Thickness",
+        IRIDESCENCE_THICKNESS: "Iridescence Thickness"
     },
 
     /** KHR_materials_anisotropy */
@@ -216,7 +214,7 @@ GltfState.DebugOutput = {
         /** output the anisotropic strength*/
         ANISOTROPIC_STRENGTH: "Anisotropic Strength",
         /** output final direction as defined by the anisotropyTexture and rotation*/
-        ANISOTROPIC_DIRECTION: "Anisotropic Direction",
+        ANISOTROPIC_DIRECTION: "Anisotropic Direction"
     },
 
     volumeScatter: {
@@ -225,7 +223,7 @@ GltfState.DebugOutput = {
         /** output the single-scatter color */
         SINGLE_SCATTER_COLOR: "Single-Scatter Color",
         /** output for the pre scatter pass, which collects all lighting contribution for scattering */
-        PRE_SCATTER_PASS: "Pre-Scatter Pass",
+        PRE_SCATTER_PASS: "Pre-Scatter Pass"
     }
 };
 

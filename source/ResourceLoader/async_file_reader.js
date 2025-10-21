@@ -1,7 +1,6 @@
-class AsyncFileReader
-{
+class AsyncFileReader {
     static async readAsArrayBuffer(path) {
-        return new Promise( (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
@@ -10,7 +9,7 @@ class AsyncFileReader
     }
 
     static async readAsText(path) {
-        return new Promise( (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
@@ -19,7 +18,7 @@ class AsyncFileReader
     }
 
     static async readAsDataURL(path) {
-        return new Promise( (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;

@@ -1,12 +1,10 @@
-import { mat4, vec3, quat } from 'gl-matrix';
-import { jsToGl, UniformStruct } from './utils.js';
-import { GltfObject } from './gltf_object.js';
+import { mat4, vec3, quat } from "gl-matrix";
+import { jsToGl, UniformStruct } from "./utils.js";
+import { GltfObject } from "./gltf_object.js";
 
-class gltfLight extends GltfObject
-{
+class gltfLight extends GltfObject {
     static animatedProperties = ["color", "intensity", "range"];
-    constructor()
-    {
+    constructor() {
         super();
         this.name = undefined;
         this.type = "directional";
@@ -19,26 +17,22 @@ class gltfLight extends GltfObject
         this.direction = undefined;
     }
 
-    fromJson(json)
-    {
+    fromJson(json) {
         super.fromJson(json);
-        if (json.spot !== undefined)
-        {
+        if (json.spot !== undefined) {
             this.spot = new gltfLightSpot();
             this.spot.fromJson(json.spot);
         }
     }
 
-    toUniform(node)
-    {
+    toUniform(node) {
         const matrix = node?.worldTransform ?? mat4.identity;
 
         // To extract a correct rotation, the scaling component must be eliminated.
         var scale = vec3.fromValues(1, 1, 1);
         mat4.getScaling(scale, matrix);
         const mn = mat4.create();
-        for(const col of [0, 1, 2])
-        {
+        for (const col of [0, 1, 2]) {
             mn[col] = matrix[col] / scale[0];
             mn[col + 4] = matrix[col + 4] / scale[1];
             mn[col + 8] = matrix[col + 8] / scale[2];
@@ -56,8 +50,7 @@ class gltfLight extends GltfObject
         mat4.getTranslation(translation, matrix);
         uLight.position = translation;
 
-        if (this.direction !== undefined)
-        {
+        if (this.direction !== undefined) {
             uLight.direction = this.direction;
         }
 
@@ -68,8 +61,7 @@ class gltfLight extends GltfObject
         uLight.innerConeCos = Math.cos(this.spot.innerConeAngle);
         uLight.outerConeCos = Math.cos(this.spot.outerConeAngle);
 
-        switch(this.type)
-        {
+        switch (this.type) {
         case "spot":
             uLight.type = Type_Spot;
             break;
@@ -90,10 +82,8 @@ const Type_Directional = 0;
 const Type_Point = 1;
 const Type_Spot = 2;
 
-class UniformLight extends UniformStruct
-{
-    constructor()
-    {
+class UniformLight extends UniformStruct {
+    constructor() {
         super();
 
         const defaultDirection = vec3.fromValues(-0.7399, -0.6428, -0.1983);
@@ -111,11 +101,9 @@ class UniformLight extends UniformStruct
     }
 }
 
-class gltfLightSpot extends GltfObject
-{
+class gltfLightSpot extends GltfObject {
     static animatedProperties = ["innerConeAngle", "outerConeAngle"];
-    constructor()
-    {
+    constructor() {
         super();
         this.innerConeAngle = 0;
         this.outerConeAngle = Math.PI / 4;

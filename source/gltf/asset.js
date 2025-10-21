@@ -1,10 +1,8 @@
 import { GltfObject } from "./gltf_object";
 
-class gltfAsset extends GltfObject
-{
+class gltfAsset extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.copyright = undefined;
         this.generator = undefined;
