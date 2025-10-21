@@ -126,6 +126,10 @@ void main()
 #endif
     v_Position = vec3(pos.xyz) / pos.w;
 
+#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
+    v_TangentWSign = 1.0f;
+#endif
+
 #ifdef HAS_NORMAL_VEC3
 #ifdef HAS_TANGENT_VEC4
     vec3 tangent = getTangent();
@@ -146,14 +150,8 @@ void main()
     v_TBN = mat3(tangentW, bitangentW, normalW);
 #else
     v_Normal = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
-#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
-    v_TangentWSign = 1.0f;
-#endif
 #endif
 #else
-#if DEBUG_VERT == DEBUG_VERT_TANGENT_W
-    v_TangentWSign = 1.0f;
-#endif
 #endif
 
     v_texcoord_0 = vec2(0.0, 0.0);
