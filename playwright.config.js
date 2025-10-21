@@ -49,20 +49,20 @@ export default defineConfig({
             name: "chromium",
             use: { ...devices["Desktop Chrome"] },
             dependencies: ["download", "download math"],
-            testIgnore: /.*\.downloadAssets\.spec\.ts/,
+            testIgnore: "**/downloadAssets.spec.ts",
         },
         {
             name: "firefox",
             use: { ...devices["Desktop Firefox"] },
             dependencies: ["download"],
-            testIgnore: /.*\.downloadAssets\.spec\.ts/,
+            testIgnore: "**/downloadAssets.spec.ts",
         },
 
         {
             name: "webkit",
             use: { ...devices["Desktop Safari"] },
             dependencies: ["download"],
-            testIgnore: /.*\.downloadAssets\.spec\.ts/,
+            testIgnore: "**/downloadAssets.spec.ts",
         },
 
         /* Test against mobile viewports. */
