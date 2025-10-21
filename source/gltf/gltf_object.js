@@ -2,38 +2,36 @@ import { AnimatableProperty } from "./animatable_property";
 import { initGlForMembers, fromKeys } from "./utils";
 
 // base class for all gltf objects
-class GltfObject
-{
-    constructor()
-    {
+class GltfObject {
+    constructor() {
         this.extensions = undefined;
         this.extras = undefined;
         this.gltfObjectIndex = undefined;
         this.animatedPropertyObjects = {};
-        if (this.constructor.animatedProperties === undefined)
-        {
+        if (this.constructor.animatedProperties === undefined) {
             throw new Error("animatedProperties is not defined for " + this.constructor.name);
         }
-        for (const prop of this.constructor.animatedProperties)
-        {
+        for (const prop of this.constructor.animatedProperties) {
             this.animatedPropertyObjects[prop] = new AnimatableProperty(undefined);
             Object.defineProperty(this, prop, {
-                get: function() { return this.animatedPropertyObjects[prop].value(); },
-                set: function(value) { this.animatedPropertyObjects[prop].restAt(value); }
+                get: function () {
+                    return this.animatedPropertyObjects[prop].value();
+                },
+                set: function (value) {
+                    this.animatedPropertyObjects[prop].restAt(value);
+                }
             });
         }
     }
-    
+
     static animatedProperties = undefined;
     static readOnlyAnimatedProperties = []; // If an array property is defined here, the length can be queried
 
-    fromJson(json)
-    {
+    fromJson(json) {
         fromKeys(this, json);
     }
 
-    initGl(gltf, webGlContext)
-    {
+    initGl(gltf, webGlContext) {
         initGlForMembers(this, gltf, webGlContext);
     }
 }

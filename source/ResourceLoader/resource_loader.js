@@ -1,28 +1,26 @@
-import { glTF } from '../gltf/gltf.js';
-import { getIsGlb, getContainingFolder } from '../gltf/utils.js';
-import { GlbParser } from './glb_parser.js';
+import { glTF } from "../gltf/gltf.js";
+import { getIsGlb, getContainingFolder } from "../gltf/utils.js";
+import { GlbParser } from "./glb_parser.js";
 import { gltfLoader } from "./loader.js";
 import { gltfImage, ImageMimeType } from "../gltf/image.js";
-import { gltfTexture, gltfTextureInfo } from '../gltf/texture.js';
-import { gltfSampler } from '../gltf/sampler.js';
-import { GL } from '../Renderer/webgl.js';
-import { iblSampler } from '../ibl_sampler.js';
-import init from '../libs/mikktspace.js';
+import { gltfTexture, gltfTextureInfo } from "../gltf/texture.js";
+import { gltfSampler } from "../gltf/sampler.js";
+import { GL } from "../Renderer/webgl.js";
+import { iblSampler } from "../ibl_sampler.js";
+import init from "../libs/mikktspace.js";
 
+import { AsyncFileReader } from "./async_file_reader.js";
 
-import { AsyncFileReader } from './async_file_reader.js';
+import { DracoDecoder } from "./draco.js";
+import { KtxDecoder } from "./ktx.js";
 
-import { DracoDecoder } from './draco.js';
-import { KtxDecoder } from './ktx.js';
-
-import { loadHDR } from '../libs/hdrpng.js';
+import { loadHDR } from "../libs/hdrpng.js";
 
 /**
  * ResourceLoader can be used to load resources for the GltfState
  * that are then used to display the loaded data with GltfView
  */
-class ResourceLoader
-{
+class ResourceLoader {
     /**
      * ResourceLoader class that provides an interface to load resources into
      * the view. Typically this is created with GltfView.createResourceLoader()
@@ -31,8 +29,7 @@ class ResourceLoader
      * @param {Object} view the GltfView for which the resources are loaded
      * @param {String} libPath path to the lib folder. This can be used to find the WASM files if sample viewer is repackaged
      */
-    constructor(view, libPath = "./libs/")
-    {
+    constructor(view, libPath = "./libs/") {
         this.view = view;
         this.libPath = libPath;
     }
@@ -43,68 +40,57 @@ class ResourceLoader
      * @param {File[]} [externalFiles] additional files containing resources that are referenced in the gltf
      * @returns {Promise} a promise that fulfills when the gltf file was loaded
      */
-    async loadGltf(gltfFile, externalFiles)
-    {
+    async loadGltf(gltfFile, externalFiles) {
         let isGlb = undefined;
         let buffers = undefined;
         let json = undefined;
         let data = undefined;
         let filename = "";
-        if (typeof gltfFile === "string")
-        {
+        if (typeof gltfFile === "string") {
             const response = await fetch(gltfFile);
             const responseData = await response.arrayBuffer();
             const uintData = new Uint8Array(responseData);
             const fileMagicNumbers = new TextDecoder().decode(uintData.subarray(0, 5));
 
             isGlb = fileMagicNumbers.startsWith("glTF");
-            if(isGlb) {
+            if (isGlb) {
                 json = data = responseData;
             } else {
                 json = data = JSON.parse(new TextDecoder().decode(uintData));
             }
 
             filename = gltfFile;
-        }
-        else if (gltfFile instanceof ArrayBuffer)
-        {
+        } else if (gltfFile instanceof ArrayBuffer) {
             isGlb = externalFiles === undefined;
-            if (isGlb)
-            {
+            if (isGlb) {
                 data = gltfFile;
-            }
-            else
-            {
+            } else {
                 console.error("Only .glb files can be loaded from an array buffer");
             }
-        }
-        else if (Array.isArray(gltfFile) && typeof(File) !== 'undefined' && gltfFile[1] instanceof File)
-        {
+        } else if (
+            Array.isArray(gltfFile) &&
+            typeof File !== "undefined" &&
+            gltfFile[1] instanceof File
+        ) {
             let fileContent = gltfFile[1];
             filename = gltfFile[1].name;
             isGlb = getIsGlb(filename);
-            if (isGlb)
-            {
+            if (isGlb) {
                 data = await AsyncFileReader.readAsArrayBuffer(fileContent);
-            }
-            else
-            {
+            } else {
                 data = await AsyncFileReader.readAsText(fileContent);
                 json = JSON.parse(data);
                 buffers = externalFiles;
             }
-        }
-        else
-        {   
+        } else {
             // Load empty glTF
-            data = "{\"asset\":{\"version\": \"2.0\"}}";
+            data = '{"asset":{"version": "2.0"}}';
             filename = "empty";
             isGlb = false;
             json = JSON.parse(data);
         }
 
-        if (isGlb)
-        {
+        if (isGlb) {
             const glbParser = new GlbParser(data);
             const glb = glbParser.extractGlbData();
             json = glb.json;
@@ -118,8 +104,7 @@ class ResourceLoader
 
         // because the gltf image paths are not relative
         // to the gltf, we have to resolve all image paths before that
-        for (const image of gltf.images)
-        {
+        for (const image of gltf.images) {
             image.resolveRelativePath(getContainingFolder(gltf.path));
         }
         await init(`${this.libPath}mikktspace_bg.wasm`);
@@ -134,32 +119,22 @@ class ResourceLoader
      * @param {Object} [lutFiles] object containing paths or resources for the environment look up textures. Keys are lut_ggx_file, lut_charlie_file and lut_sheen_E_file
      * @returns {Promise} a promise that fulfills when the environment file was loaded
      */
-    async loadEnvironment(environmentFile, lutFiles)
-    {
+    async loadEnvironment(environmentFile, lutFiles) {
         let image = undefined;
-        if (typeof environmentFile === "string")
-        {
+        if (typeof environmentFile === "string") {
             let response = await fetch(environmentFile);
             image = await loadHDR(new Uint8Array(await response.arrayBuffer()));
-        }
-        else if (environmentFile instanceof ArrayBuffer)
-        {
+        } else if (environmentFile instanceof ArrayBuffer) {
             image = await loadHDR(new Uint8Array(environmentFile));
-        }
-        else if (typeof (File) !== 'undefined' && environmentFile instanceof File)
-        {
-            const imageData = await AsyncFileReader.readAsArrayBuffer(environmentFile).catch(() =>
-            {
+        } else if (typeof File !== "undefined" && environmentFile instanceof File) {
+            const imageData = await AsyncFileReader.readAsArrayBuffer(environmentFile).catch(() => {
                 console.error("Could not load image with FileReader");
             });
             image = await loadHDR(new Uint8Array(imageData));
+        } else {
+            console.error("Passed invalid type to loadEnvironment " + typeof gltfFile);
         }
-        else
-        {
-            console.error("Passed invalid type to loadEnvironment " + typeof (gltfFile));
-        }
-        if (image === undefined)
-        {
+        if (image === undefined) {
             return undefined;
         }
         return _loadEnvironmentFromPanorama(image, this.view, lutFiles);
@@ -169,8 +144,7 @@ class ResourceLoader
      * initKtxLib must be called before loading gltf files with ktx2 assets
      * @param {Object} [externalKtxLib] external ktx library (for example from a CDN)
      */
-    initKtxLib(externalKtxLib)
-    {
+    initKtxLib(externalKtxLib) {
         this.view.ktxDecoder = new KtxDecoder(this.view.context, externalKtxLib);
     }
 
@@ -178,18 +152,15 @@ class ResourceLoader
      * initDracoLib must be called before loading gltf files with draco meshes
      * @param {*} [externalDracoLib] external draco library (for example from a CDN)
      */
-    async initDracoLib(externalDracoLib)
-    {
+    async initDracoLib(externalDracoLib) {
         const dracoDecoder = new DracoDecoder(externalDracoLib);
-        if (dracoDecoder !== undefined)
-        {
+        if (dracoDecoder !== undefined) {
             await dracoDecoder.ready();
         }
     }
 }
 
-async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
-{
+async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
     // The environment uses the same type of samplers, textures and images as used in the glTF class
     // so we just use it as a template
     const environment = new glTF();
@@ -200,16 +171,42 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
 
     let samplerIdx = environment.samplers.length;
 
-    environment.samplers.push(new gltfSampler(GL.LINEAR, GL.LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "DiffuseCubeMapSampler"));
+    environment.samplers.push(
+        new gltfSampler(
+            GL.LINEAR,
+            GL.LINEAR,
+            GL.CLAMP_TO_EDGE,
+            GL.CLAMP_TO_EDGE,
+            "DiffuseCubeMapSampler"
+        )
+    );
     const diffuseCubeSamplerIdx = samplerIdx++;
 
-    environment.samplers.push(new gltfSampler(GL.LINEAR, GL.LINEAR_MIPMAP_LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "SpecularCubeMapSampler"));
+    environment.samplers.push(
+        new gltfSampler(
+            GL.LINEAR,
+            GL.LINEAR_MIPMAP_LINEAR,
+            GL.CLAMP_TO_EDGE,
+            GL.CLAMP_TO_EDGE,
+            "SpecularCubeMapSampler"
+        )
+    );
     const specularCubeSamplerIdx = samplerIdx++;
 
-    environment.samplers.push(new gltfSampler(GL.LINEAR, GL.LINEAR_MIPMAP_LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "SheenCubeMapSampler"));
+    environment.samplers.push(
+        new gltfSampler(
+            GL.LINEAR,
+            GL.LINEAR_MIPMAP_LINEAR,
+            GL.CLAMP_TO_EDGE,
+            GL.CLAMP_TO_EDGE,
+            "SheenCubeMapSampler"
+        )
+    );
     const sheenCubeSamplerIdx = samplerIdx++;
 
-    environment.samplers.push(new gltfSampler(GL.LINEAR, GL.LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "LUTSampler"));
+    environment.samplers.push(
+        new gltfSampler(GL.LINEAR, GL.LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "LUTSampler")
+    );
     const lutSamplerIdx = samplerIdx++;
 
     //
@@ -240,15 +237,14 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
     const diffuseTexture = new gltfTexture(
         diffuseCubeSamplerIdx,
         [imageIdx++],
-        GL.TEXTURE_CUBE_MAP);
+        GL.TEXTURE_CUBE_MAP
+    );
     diffuseTexture.initialized = true; // iblsampler has already initialized the texture
 
     environment.textures.push(diffuseTexture);
 
     environment.diffuseEnvMap = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.diffuseEnvMap.generateMips = false;
-
-
 
     // Specular
     const specularGltfImage = new gltfImage(
@@ -266,14 +262,14 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
     const specularTexture = new gltfTexture(
         specularCubeSamplerIdx,
         [imageIdx++],
-        GL.TEXTURE_CUBE_MAP);
+        GL.TEXTURE_CUBE_MAP
+    );
     specularTexture.initialized = true; // iblsampler has already initialized the texture
 
     environment.textures.push(specularTexture);
 
     environment.specularEnvMap = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.specularEnvMap.generateMips = false;
-
 
     // Sheen
     const sheenGltfImage = new gltfImage(
@@ -288,10 +284,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
 
     environment.images.push(sheenGltfImage);
 
-    const sheenTexture = new gltfTexture(
-        sheenCubeSamplerIdx,
-        [imageIdx++],
-        GL.TEXTURE_CUBE_MAP);
+    const sheenTexture = new gltfTexture(sheenCubeSamplerIdx, [imageIdx++], GL.TEXTURE_CUBE_MAP);
     sheenTexture.initialized = true; // iblsampler has already initialized the texture
 
     environment.textures.push(sheenTexture);
@@ -335,38 +328,43 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
 
     // GGX
 
-    if (luts === undefined)
-    {
+    if (luts === undefined) {
         luts = {
-            lut_sheen_E_file: "assets/images/lut_sheen_E.png",
+            lut_sheen_E_file: "assets/images/lut_sheen_E.png"
         };
     }
 
-    environment.images.push(new gltfImage(
-        undefined,
-        GL.TEXTURE_2D,
-        0,
-        undefined,
-        undefined,
-        ImageMimeType.GLTEXTURE,
-        environmentFiltering.ggxLutTextureID));
+    environment.images.push(
+        new gltfImage(
+            undefined,
+            GL.TEXTURE_2D,
+            0,
+            undefined,
+            undefined,
+            ImageMimeType.GLTEXTURE,
+            environmentFiltering.ggxLutTextureID
+        )
+    );
     const lutTexture = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
     lutTexture.initialized = true; // iblsampler has already initialized the texture
     environment.textures.push(lutTexture);
 
-    environment.lut = new gltfTextureInfo(environment.textures.length - 1, 0 , true);
+    environment.lut = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.lut.generateMips = false;
 
     // Sheen
     // Charlie
-    environment.images.push(new gltfImage(
-        undefined,
-        GL.TEXTURE_2D,
-        0,
-        undefined,
-        undefined,
-        ImageMimeType.GLTEXTURE,
-        environmentFiltering.charlieLutTextureID));
+    environment.images.push(
+        new gltfImage(
+            undefined,
+            GL.TEXTURE_2D,
+            0,
+            undefined,
+            undefined,
+            ImageMimeType.GLTEXTURE,
+            environmentFiltering.charlieLutTextureID
+        )
+    );
     const charlieLut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
     charlieLut.initialized = true; // iblsampler has already initialized the texture
     environment.textures.push(charlieLut);
@@ -376,7 +374,16 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts)
 
     // Sheen E LUT
 
-    environment.images.push(new gltfImage(luts.lut_sheen_E_file, GL.TEXTURE_2D, 0, undefined, undefined, ImageMimeType.PNG));
+    environment.images.push(
+        new gltfImage(
+            luts.lut_sheen_E_file,
+            GL.TEXTURE_2D,
+            0,
+            undefined,
+            undefined,
+            ImageMimeType.PNG
+        )
+    );
     const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
     sheenELut.initialized = false; // iblsampler does not create this texture
     environment.textures.push(sheenELut);

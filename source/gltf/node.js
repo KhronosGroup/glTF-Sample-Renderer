@@ -57,9 +57,12 @@ class gltfNode extends GltfObject
             gltfNode.currentPickingColor += 1;
         }
         if (this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined) {
-            const firstAccessor = Object.values(this.extensions?.EXT_mesh_gpu_instancing?.attributes)[0];
+            const firstAccessor = Object.values(
+                this.extensions?.EXT_mesh_gpu_instancing?.attributes
+            )[0];
             const count = gltf.accessors[firstAccessor].count;
-            const translationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
+            const translationAccessor =
+                this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
             let translationData = undefined;
             if (translationAccessor !== undefined) {
                 if (translationAccessor.componentType === GL.FLOAT) {
@@ -90,15 +93,16 @@ class gltfNode extends GltfObject
             }
             this.instanceMatrices = [];
             for (let i = 0; i < count; i++) {
-                const translation = translationData ? jsToGlSlice(translationData, i * 3, 3) : vec3.create();
+                const translation = translationData
+                    ? jsToGlSlice(translationData, i * 3, 3)
+                    : vec3.create();
                 const rotation = rotationData ? jsToGlSlice(rotationData, i * 4, 4) : quat.create();
-                const scale = scaleData ? jsToGlSlice(scaleData, i * 3, 3) : vec3.fromValues(1, 1, 1);
-                this.instanceMatrices.push(mat4.fromRotationTranslationScale(
-                    mat4.create(),
-                    rotation,
-                    translation,
-                    scale
-                ));
+                const scale = scaleData
+                    ? jsToGlSlice(scaleData, i * 3, 3)
+                    : vec3.fromValues(1, 1, 1);
+                this.instanceMatrices.push(
+                    mat4.fromRotationTranslationScale(mat4.create(), rotation, translation, scale)
+                );
             }
         }
     }
@@ -122,26 +126,22 @@ class gltfNode extends GltfObject
         }
     }
 
-    getWeights(gltf)
-    {
+    getWeights(gltf) {
         if (this.weights !== undefined && this.weights.length > 0) {
             return this.weights;
-        }
-        else {
+        } else {
             return gltf.meshes[this.mesh].weights;
         }
     }
 
-    applyMatrix(matrixData)
-    {
+    applyMatrix(matrixData) {
         this.matrix = jsToGl(matrixData);
 
         mat4.getScaling(this.scale, this.matrix);
 
         // To extract a correct rotation, the scaling component must be eliminated.
         const mn = mat4.create();
-        for(const col of [0, 1, 2])
-        {
+        for (const col of [0, 1, 2]) {
             mn[col] = this.matrix[col] / this.scale[0];
             mn[col + 4] = this.matrix[col + 4] / this.scale[1];
             mn[col + 8] = this.matrix[col + 8] / this.scale[2];
@@ -152,8 +152,7 @@ class gltfNode extends GltfObject
         mat4.getTranslation(this.translation, this.matrix);
     }
 
-    getLocalTransform()
-    {
+    getLocalTransform() {
         return mat4.fromRotationTranslationScale(
             mat4.create(),
             this.rotation,

@@ -1,13 +1,11 @@
 /* globals WebGl */
 
-import { GL } from '../Renderer/webgl.js';
-import { GltfObject } from './gltf_object.js';
+import { GL } from "../Renderer/webgl.js";
+import { GltfObject } from "./gltf_object.js";
 
-class gltfAccessor extends GltfObject
-{
+class gltfAccessor extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.bufferView = undefined;
         this.byteOffset = 0;
@@ -30,15 +28,12 @@ class gltfAccessor extends GltfObject
 
     // getTypedView provides a view to the accessors data in form of
     // a TypedArray. This data can directly be passed to vertexAttribPointer
-    getTypedView(gltf)
-    {
-        if (this.typedView !== undefined)
-        {
+    getTypedView(gltf) {
+        if (this.typedView !== undefined) {
             return this.typedView;
         }
 
-        if (this.bufferView !== undefined)
-        {
+        if (this.bufferView !== undefined) {
             const bufferView = gltf.bufferViews[this.bufferView];
             const buffer = gltf.buffers[bufferView.buffer];
             const byteOffset = this.byteOffset + bufferView.byteOffset;
@@ -47,30 +42,27 @@ class gltfAccessor extends GltfObject
             let componentCount = this.getComponentCount(this.type);
 
             let arrayLength = 0;
-            if(bufferView.byteStride !== 0)
-            {
-                if (componentSize !== 0)
-                {
-                    arrayLength = bufferView.byteStride / componentSize * (this.count - 1) + componentCount;
+            if (bufferView.byteStride !== 0) {
+                if (componentSize !== 0) {
+                    arrayLength =
+                        (bufferView.byteStride / componentSize) * (this.count - 1) + componentCount;
+                } else {
+                    console.warn(
+                        "Invalid component type in accessor '" + (this.name ? this.name : "") + "'"
+                    );
                 }
-                else
-                {
-                    console.warn("Invalid component type in accessor '" + (this.name ? this.name : "") + "'");
-                }
-            }
-            else
-            {
+            } else {
                 arrayLength = this.count * componentCount;
             }
 
-            if (arrayLength * componentSize > buffer.buffer.byteLength - byteOffset)
-            {
+            if (arrayLength * componentSize > buffer.buffer.byteLength - byteOffset) {
                 arrayLength = (buffer.buffer.byteLength - byteOffset) / componentSize;
-                console.warn("Count in accessor '" + (this.name ? this.name : "") + "' is too large.");
+                console.warn(
+                    "Count in accessor '" + (this.name ? this.name : "") + "' is too large."
+                );
             }
 
-            switch (this.componentType)
-            {
+            switch (this.componentType) {
             case GL.BYTE:
                 this.typedView = new Int8Array(buffer.buffer, byteOffset, arrayLength);
                 break;
@@ -93,14 +85,11 @@ class gltfAccessor extends GltfObject
                 this.typedView = new Float64Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             }
-        }
-        else
-        {
+        } else {
             this.typedView = this.createView();
         }
 
-        if (this.sparse !== undefined)
-        {
+        if (this.sparse !== undefined) {
             this.applySparse(gltf, this.typedView);
         }
 
@@ -110,15 +99,15 @@ class gltfAccessor extends GltfObject
     // getNormalizedTypedView provides an alternative view to the accessors data,
     // where quantized data is already normalized. This is useful if the data is not passed
     // to vertexAttribPointer but used immediately (like e.g. animations)
-    getNormalizedTypedView(gltf)
-    {
-        if(this.normalizedTypedView !== undefined)
-        {
+    getNormalizedTypedView(gltf) {
+        if (this.normalizedTypedView !== undefined) {
             return this.normalizedTypedView;
         }
 
         const typedView = this.getTypedView(gltf);
-        this.normalizedTypedView = this.normalized ? gltfAccessor.dequantize(typedView, this.componentType) : typedView;
+        this.normalizedTypedView = this.normalized
+            ? gltfAccessor.dequantize(typedView, this.componentType)
+            : typedView;
         return this.normalizedTypedView;
     }
 
@@ -126,15 +115,12 @@ class gltfAccessor extends GltfObject
     // a TypedArray. In contrast to getTypedView, getDeinterlacedView deinterlaces
     // data, i.e. stripping padding and unrelated components from the array. It then
     // only contains the data of the accessor
-    getDeinterlacedView(gltf)
-    {
-        if (this.filteredView !== undefined)
-        {
+    getDeinterlacedView(gltf) {
+        if (this.filteredView !== undefined) {
             return this.filteredView;
         }
 
-        if (this.bufferView !== undefined)
-        {
+        if (this.bufferView !== undefined) {
             const bufferView = gltf.bufferViews[this.bufferView];
             const buffer = gltf.buffers[bufferView.buffer];
 
@@ -142,36 +128,42 @@ class gltfAccessor extends GltfObject
             const componentCount = this.getComponentCount(this.type); // E.g. Vec3 -> 3
             const arrayLength = this.count * componentCount;
 
-            let stride = bufferView.byteStride !== 0 ? bufferView.byteStride : componentCount * componentSize;
+            let stride =
+                bufferView.byteStride !== 0
+                    ? bufferView.byteStride
+                    : componentCount * componentSize;
 
-            let bufferViewData = new DataView(buffer.buffer, bufferView.byteOffset, bufferView.byteLength);
+            let bufferViewData = new DataView(
+                buffer.buffer,
+                bufferView.byteOffset,
+                bufferView.byteLength
+            );
 
-            let func = 'getFloat32';
-            switch (this.componentType)
-            {
+            let func = "getFloat32";
+            switch (this.componentType) {
             case GL.BYTE:
                 this.filteredView = new Int8Array(arrayLength);
-                func = 'getInt8';
+                func = "getInt8";
                 break;
             case GL.UNSIGNED_BYTE:
                 this.filteredView = new Uint8Array(arrayLength);
-                func = 'getUint8';
+                func = "getUint8";
                 break;
             case GL.SHORT:
                 this.filteredView = new Int16Array(arrayLength);
-                func = 'getInt16';
+                func = "getInt16";
                 break;
             case GL.UNSIGNED_SHORT:
                 this.filteredView = new Uint16Array(arrayLength);
-                func = 'getUint16';
+                func = "getUint16";
                 break;
             case GL.UNSIGNED_INT:
                 this.filteredView = new Uint32Array(arrayLength);
-                func = 'getUint32';
+                func = "getUint32";
                 break;
             case GL.FLOAT:
                 this.filteredView = new Float32Array(arrayLength);
-                func = 'getFloat32';
+                func = "getFloat32";
                 break;
             case 5130: // KHR_accessor_float64
                 this.filteredView = new Float64Array(arrayLength);
@@ -179,30 +171,24 @@ class gltfAccessor extends GltfObject
                 break;
             }
 
-            for(let i = 0; i < arrayLength; ++i)
-            {
-                const vertexIndex = Math.floor(i/componentCount);
+            for (let i = 0; i < arrayLength; ++i) {
+                const vertexIndex = Math.floor(i / componentCount);
                 const componentIndex = (i % componentCount) * componentSize;
                 const offset = vertexIndex * stride + componentIndex + this.byteOffset; // Add Accessor byte offset
                 this.filteredView[i] = bufferViewData[func](offset, true);
             }
-              
-        }
-        else
-        {
+        } else {
             this.filteredView = this.createView();
         }
 
-        if (this.sparse !== undefined)
-        {
+        if (this.sparse !== undefined) {
             this.applySparse(gltf, this.filteredView);
         }
 
         return this.filteredView;
     }
 
-    createView()
-    {
+    createView() {
         const size = this.count * this.getComponentCount(this.type);
         if (this.componentType == GL.BYTE) return new Int8Array(size);
         if (this.componentType == GL.UNSIGNED_BYTE) return new Uint8Array(size);
@@ -216,54 +202,65 @@ class gltfAccessor extends GltfObject
     // getNormalizedDeinterlacedView provides an alternative view to the accessors data,
     // where quantized data is already normalized. This is useful if the data is not passed
     // to vertexAttribPointer but used immediately (like e.g. animations)
-    getNormalizedDeinterlacedView(gltf)
-    {
-        if(this.normalizedFilteredView !== undefined)
-        {
+    getNormalizedDeinterlacedView(gltf) {
+        if (this.normalizedFilteredView !== undefined) {
             return this.normalizedFilteredView;
         }
 
         const filteredView = this.getDeinterlacedView(gltf);
-        this.normalizedFilteredView = this.normalized ? gltfAccessor.dequantize(filteredView, this.componentType) : filteredView;
+        this.normalizedFilteredView = this.normalized
+            ? gltfAccessor.dequantize(filteredView, this.componentType)
+            : filteredView;
         return this.normalizedFilteredView;
     }
 
-    byteStride(gltf)
-    {
-        return gltf.bufferViews[this.bufferView]?.byteStride ??
+    byteStride(gltf) {
+        return (
+            gltf.bufferViews[this.bufferView]?.byteStride ??
             gltf.bufferViews[this.sparse?.values.bufferView]?.byteStride ??
-            0;
+            0
+        );
     }
 
-    applySparse(gltf, view)
-    {
+    applySparse(gltf, view) {
         // Gather indices.
 
         const indicesBufferView = gltf.bufferViews[this.sparse.indices.bufferView];
         const indicesBuffer = gltf.buffers[indicesBufferView.buffer];
-        const indicesByteOffset = (this.sparse.indices.byteOffset ?? 0) + (indicesBufferView.byteOffset ?? 0);
+        const indicesByteOffset =
+            (this.sparse.indices.byteOffset ?? 0) + (indicesBufferView.byteOffset ?? 0);
 
         const indicesComponentSize = this.getComponentSize(this.sparse.indices.componentType);
         let indicesComponentCount = 1;
 
-        if(indicesBufferView.byteStride !== 0)
-        {
+        if (indicesBufferView.byteStride !== 0) {
             indicesComponentCount = indicesBufferView.byteStride / indicesComponentSize;
         }
 
         const indicesArrayLength = this.sparse.count * indicesComponentCount;
 
         let indicesTypedView;
-        switch (this.sparse.indices.componentType)
-        {
+        switch (this.sparse.indices.componentType) {
         case GL.UNSIGNED_BYTE:
-            indicesTypedView = new Uint8Array(indicesBuffer.buffer, indicesByteOffset, indicesArrayLength);
+            indicesTypedView = new Uint8Array(
+                indicesBuffer.buffer,
+                indicesByteOffset,
+                indicesArrayLength
+            );
             break;
         case GL.UNSIGNED_SHORT:
-            indicesTypedView = new Uint16Array(indicesBuffer.buffer, indicesByteOffset, indicesArrayLength);
+            indicesTypedView = new Uint16Array(
+                indicesBuffer.buffer,
+                indicesByteOffset,
+                indicesArrayLength
+            );
             break;
         case GL.UNSIGNED_INT:
-            indicesTypedView = new Uint32Array(indicesBuffer.buffer, indicesByteOffset, indicesArrayLength);
+            indicesTypedView = new Uint32Array(
+                indicesBuffer.buffer,
+                indicesByteOffset,
+                indicesArrayLength
+            );
             break;
         }
 
@@ -271,38 +268,61 @@ class gltfAccessor extends GltfObject
 
         const valuesBufferView = gltf.bufferViews[this.sparse.values.bufferView];
         const valuesBuffer = gltf.buffers[valuesBufferView.buffer];
-        const valuesByteOffset = (this.sparse.values.byteOffset ?? 0) + (valuesBufferView.byteOffset ?? 0);
+        const valuesByteOffset =
+            (this.sparse.values.byteOffset ?? 0) + (valuesBufferView.byteOffset ?? 0);
 
         const valuesComponentSize = this.getComponentSize(this.componentType);
         let valuesComponentCount = this.getComponentCount(this.type);
 
-        if(valuesBufferView.byteStride !== 0)
-        {
+        if (valuesBufferView.byteStride !== 0) {
             valuesComponentCount = valuesBufferView.byteStride / valuesComponentSize;
         }
 
         const valuesArrayLength = this.sparse.count * valuesComponentCount;
 
         let valuesTypedView;
-        switch (this.componentType)
-        {
+        switch (this.componentType) {
         case GL.BYTE:
-            valuesTypedView = new Int8Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Int8Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         case GL.UNSIGNED_BYTE:
-            valuesTypedView = new Uint8Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Uint8Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         case GL.SHORT:
-            valuesTypedView = new Int16Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Int16Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         case GL.UNSIGNED_SHORT:
-            valuesTypedView = new Uint16Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Uint16Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         case GL.UNSIGNED_INT:
-            valuesTypedView = new Uint32Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Uint32Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         case GL.FLOAT:
-            valuesTypedView = new Float32Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Float32Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         case 5130: // KHR_accessor_float64
             valuesTypedView = new Float64Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
@@ -311,43 +331,37 @@ class gltfAccessor extends GltfObject
 
         // Overwrite values.
 
-        for(let i = 0; i < this.sparse.count; ++i)
-        {
-            for(let k = 0; k < valuesComponentCount; ++k)
-            {
-                view[indicesTypedView[i] * valuesComponentCount + k] = valuesTypedView[i * valuesComponentCount + k];
+        for (let i = 0; i < this.sparse.count; ++i) {
+            for (let k = 0; k < valuesComponentCount; ++k) {
+                view[indicesTypedView[i] * valuesComponentCount + k] =
+                    valuesTypedView[i * valuesComponentCount + k];
             }
         }
     }
 
     // dequantize can be used to perform the normalization from WebGL2 vertexAttribPointer explicitly
     // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#encoding-quantized-data
-    static dequantize(typedArray, componentType)
-    {
-        switch (componentType)
-        {
+    static dequantize(typedArray, componentType) {
+        switch (componentType) {
         case GL.BYTE:
-            return new Float32Array(typedArray).map(c => Math.max(c / 127.0, -1.0));
+            return new Float32Array(typedArray).map((c) => Math.max(c / 127.0, -1.0));
         case GL.UNSIGNED_BYTE:
-            return new Float32Array(typedArray).map(c => c / 255.0);
+            return new Float32Array(typedArray).map((c) => c / 255.0);
         case GL.SHORT:
-            return new Float32Array(typedArray).map(c => Math.max(c / 32767.0, -1.0));
+            return new Float32Array(typedArray).map((c) => Math.max(c / 32767.0, -1.0));
         case GL.UNSIGNED_SHORT:
-            return new Float32Array(typedArray).map(c => c / 65535.0);
+            return new Float32Array(typedArray).map((c) => c / 65535.0);
         default:
             return typedArray;
         }
     }
 
-    getComponentCount(type)
-    {
+    getComponentCount(type) {
         return CompononentCount.get(type);
     }
 
-    getComponentSize(componentType)
-    {
-        switch (componentType)
-        {
+    getComponentSize(componentType) {
+        switch (componentType) {
         case GL.BYTE:
         case GL.UNSIGNED_BYTE:
             return 1;
@@ -364,10 +378,8 @@ class gltfAccessor extends GltfObject
         }
     }
 
-    destroy()
-    {
-        if (this.glBuffer !== undefined)
-        {
+    destroy() {
+        if (this.glBuffer !== undefined) {
             // TODO: this breaks the dependency direction
             WebGl.context.deleteBuffer(this.glBuffer);
         }
@@ -376,16 +388,14 @@ class gltfAccessor extends GltfObject
     }
 }
 
-const CompononentCount = new Map(
-    [
-        ["SCALAR", 1],
-        ["VEC2", 2],
-        ["VEC3", 3],
-        ["VEC4", 4],
-        ["MAT2", 4],
-        ["MAT3", 9],
-        ["MAT4", 16]
-    ]
-);
+const CompononentCount = new Map([
+    ["SCALAR", 1],
+    ["VEC2", 2],
+    ["VEC3", 3],
+    ["VEC4", 4],
+    ["MAT2", 4],
+    ["MAT3", 9],
+    ["MAT4", 16]
+]);
 
 export { gltfAccessor };

@@ -1,8 +1,10 @@
 
 import js from "@eslint/js";
+import eslint from '@eslint/js';
 import globals from 'globals';
 
 export default [
+    eslint.configs.recommended,
     js.configs.recommended,
     {
         languageOptions: {
@@ -38,6 +40,6 @@ export default [
         }
     },
     {
-        ignores: ["/**/dist/*", "/**/libs/*"]
+        ignores: ["**/dist/*", "source/libs/*"]
     }
 ];

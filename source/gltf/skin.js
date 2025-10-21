@@ -1,15 +1,14 @@
-import { jsToGlSlice } from './utils.js';
-import { GltfObject } from './gltf_object.js';
-import { mat4 } from 'gl-matrix';
-import { GL  } from '../Renderer/webgl.js';
-import { gltfImage } from './image.js';
-import { ImageMimeType } from './image_mime_type.js';
-import { gltfTexture } from './texture.js';
-import { gltfTextureInfo } from './texture.js';
-import { gltfSampler } from './sampler.js';
+import { jsToGlSlice } from "./utils.js";
+import { GltfObject } from "./gltf_object.js";
+import { mat4 } from "gl-matrix";
+import { GL } from "../Renderer/webgl.js";
+import { gltfImage } from "./image.js";
+import { ImageMimeType } from "./image_mime_type.js";
+import { gltfTexture } from "./texture.js";
+import { gltfTextureInfo } from "./texture.js";
+import { gltfSampler } from "./sampler.js";
 
-class gltfSkin extends GltfObject
-{
+class gltfSkin extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["joints", "skeleton"];
     constructor()
@@ -26,19 +25,18 @@ class gltfSkin extends GltfObject
         this.jointWebGlTexture = undefined;
     }
 
-    initGl(gltf, webGlContext)
-    {
+    initGl(gltf, webGlContext) {
         this.jointWebGlTexture = webGlContext.createTexture();
-        webGlContext.bindTexture( webGlContext.TEXTURE_2D, this.jointWebGlTexture);
+        webGlContext.bindTexture(webGlContext.TEXTURE_2D, this.jointWebGlTexture);
 
         // Ensure mipmapping is disabled and the sampler is configured correctly.
-        webGlContext.texParameteri( GL.TEXTURE_2D,  GL.TEXTURE_WRAP_S,  GL.CLAMP_TO_EDGE);
-        webGlContext.texParameteri( GL.TEXTURE_2D,  GL.TEXTURE_WRAP_T,  GL.CLAMP_TO_EDGE);
-        webGlContext.texParameteri( GL.TEXTURE_2D,  GL.TEXTURE_WRAP_R,  GL.CLAMP_TO_EDGE);
-        webGlContext.texParameteri( GL.TEXTURE_2D,  GL.TEXTURE_MIN_FILTER,  GL.NEAREST);
-        webGlContext.texParameteri( GL.TEXTURE_2D,  GL.TEXTURE_MAG_FILTER,  GL.NEAREST);
-        
-        // Now we add the joints texture as a gltf texture info resource, so that 
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_R, GL.CLAMP_TO_EDGE);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+
+        // Now we add the joints texture as a gltf texture info resource, so that
         // we can just call webGl.setTexture(..., gltfTextureInfo, ...) in the renderer.
         const jointsImage = new gltfImage(
             undefined, // uri
@@ -51,12 +49,15 @@ class gltfSkin extends GltfObject
         );
         gltf.images.push(jointsImage);
 
-        gltf.samplers.push(new gltfSampler(GL.NEAREST, GL.NEAREST, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, undefined));
+        gltf.samplers.push(
+            new gltfSampler(GL.NEAREST, GL.NEAREST, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, undefined)
+        );
 
         const jointsTexture = new gltfTexture(
             gltf.samplers.length - 1,
             gltf.images.length - 1,
-            GL.TEXTURE_2D);
+            GL.TEXTURE_2D
+        );
         // The webgl texture is already initialized -> this flag informs
         // webgl.setTexture about this.
         jointsTexture.initialized = true;
@@ -87,8 +88,7 @@ class gltfSkin extends GltfObject
         let textureData = new Float32Array(Math.pow(width, 2) * 4);
 
         let i = 0;
-        for(const joint of this.joints)
-        {
+        for (const joint of this.joints) {
             const node = gltf.nodes[joint];
 
             let jointMatrix = mat4.clone(node.worldTransform);
@@ -101,13 +101,13 @@ class gltfSkin extends GltfObject
             let normalMatrix = mat4.create();
             mat4.invert(normalMatrix, jointMatrix);
             mat4.transpose(normalMatrix, normalMatrix);
-            
+
             textureData.set(jointMatrix, i * 32);
             textureData.set(normalMatrix, i * 32 + 16);
             ++i;
         }
 
-        webGlContext.bindTexture( webGlContext.TEXTURE_2D, this.jointWebGlTexture);
+        webGlContext.bindTexture(webGlContext.TEXTURE_2D, this.jointWebGlTexture);
         // Set texture format and upload data.
         let internalFormat = webGlContext.RGBA32F;
         let format = webGlContext.RGBA;
@@ -122,7 +122,8 @@ class gltfSkin extends GltfObject
             0, //border
             format,
             type,
-            data);
+            data
+        );
     }
 }
 

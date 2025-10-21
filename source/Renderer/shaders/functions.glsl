@@ -42,6 +42,9 @@ struct NormalInfo {
     vec3 b;    // Geometry bitangent
     vec3 n;    // Shading normal
     vec3 ntex; // Normal from texture, scaling is accounted for.
+#if DEBUG == DEBUG_TANGENT_W
+    float tangentWSign; // W component of the tangent attribute, used to determine handedness of TBN matrix
+#endif
 };
 
 

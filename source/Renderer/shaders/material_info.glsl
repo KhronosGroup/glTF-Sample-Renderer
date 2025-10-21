@@ -58,6 +58,10 @@ uniform mat4 u_ModelMatrix;
 uniform mat4 u_ViewMatrix;
 uniform mat4 u_ProjectionMatrix;
 
+#if DEBUG == DEBUG_TANGENT_W
+in float v_TangentWSign;
+#endif
+
 
 struct MaterialInfo
 {
@@ -174,6 +178,11 @@ NormalInfo getNormalInfo(vec3 v)
 #endif
     info.t = t;
     info.b = b;
+
+#if DEBUG == DEBUG_TANGENT_W
+    // only run this if debug channel is enabled
+    info.tangentWSign = v_TangentWSign;
+#endif
     return info;
 }
 

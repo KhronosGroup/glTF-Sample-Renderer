@@ -1,10 +1,8 @@
-import { GltfObject } from './gltf_object.js';
+import { GltfObject } from "./gltf_object.js";
 
-class gltfBufferView extends GltfObject
-{
+class gltfBufferView extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.buffer = undefined;
         this.byteOffset = 0;

@@ -1,5 +1,4 @@
-Khronos glTF Sample Renderer
-============================
+# Khronos glTF Sample Renderer
 
 [![](assets/images/ToyCar.jpg)](https://github.khronos.org/glTF-Sample-Viewer-Release/)
 
@@ -7,27 +6,26 @@ This is the official [Khronos glTF 2.0](https://www.khronos.org/gltf/) Sample Re
 
 Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-Release/) which uses this renderer in combination with a custom frontend.
 
-Table of Contents
------------------
+## Table of Contents
 
 - [Khronos glTF Sample Renderer](#khronos-gltf-sample-renderer)
-  - [Table of Contents](#table-of-contents)
-  - [Credits](#credits)
-  - [Features](#features)
-  - [API](#api)
-    - [GltfView](#gltfview)
-    - [GltfState](#gltfstate)
-    - [ResourceLoader](#resourceloader)
-  - [Render Fidelity Tools](#render-fidelity-tools)
+    - [Table of Contents](#table-of-contents)
+    - [Credits](#credits)
+    - [Features](#features)
+    - [API](#api)
+        - [GltfView](#gltfview)
+        - [GltfState](#gltfstate)
+        - [ResourceLoader](#resourceloader)
+    - [Render Fidelity Tools](#render-fidelity-tools)
+    - [Formatting](#formatting)
+        - [Visual Studio Code](#visual-studio-code)
 
-Credits
--------
+## Credits
 
 Developed and refactored by [UX3D](https://www.ux3d.io/). Supported by the [Khronos Group](https://www.khronos.org/) and by [Google](https://www.google.com/) for the glTF Draco mesh compression import.
 Formerly hosted together with the example frontend at the [glTF Sample Viewer](https://github.com/KhronosGroup/glTF-Sample-Viewer) repository. Original code based on the concluded [glTF-WebGL-PBR](https://github.com/KhronosGroup/glTF-Sample-Viewer/tree/glTF-WebGL-PBR) project. Previously supported by [Facebook](https://www.facebook.com/) for animations, skinning and morphing.
 
-Features
---------
+## Features
 
 - [x] glTF 2.0
 - [KHR_accessor_float64](https://github.com/KhronosGroup/glTF/pull/2397)
@@ -53,8 +51,8 @@ Features
 - [x] [KHR_materials_variants](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_variants)
 - [x] [KHR_materials_volume](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_volume)
 - [KHR_materials_volume_scatter](https://github.com/KhronosGroup/glTF/blob/e17468db6fd9ae3ce73504a9f317bd853af01a30/extensions/2.0/Khronos/KHR_materials_volume_scatter/README.md)
-  - [x] For dense volumes using KHR_materials_diffuse_transmission
-  - [ ] For sparse volumes using KHR_materials_transmission
+    - [x] For dense volumes using KHR_materials_diffuse_transmission
+    - [ ] For sparse volumes using KHR_materials_transmission
 - [x] [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_mesh_quantization)
 - [x] [KHR_node_visibility](https://github.com/KhronosGroup/glTF/pull/2410)
 - [x] [KHR_texture_basisu](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_texture_basisu)
@@ -63,9 +61,7 @@ Features
 - [x] [EXT_mesh_gpu_instancing](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Vendor/EXT_mesh_gpu_instancing)
 - [x] [EXT_texture_webp](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Vendor/EXT_texture_webp)
 
-
-API
-----
+## API
 
 glTF Sample Renderer is made to be integrated into web applications (see [glTF Sample Viewer](https://github.com/KhronosGroup/glTF-Sample-Viewer)) or to be used for automated testing (see [Render Fidelity Tools](#render-fidelity-tools)).
 
@@ -84,8 +80,7 @@ const view = new GltfView(webGl2Context);
 The view is also used to render frames, either on every window repaint event or on demand, e.g. when taking a frame capture.
 
 ```js
-const update = () =>
-{
+const update = () => {
     view.renderFrame(state, canvas.width, canvas.height);
     window.requestAnimationFrame(update);
 };
@@ -113,6 +108,27 @@ The ResourceLoader can be used to load external resources and make them availabl
 state.gltf = await resourceLoader.loadGltf("path/to/some.gltf");
 ```
 
-Render Fidelity Tools
----------------------
+## Render Fidelity Tools
+
 The glTF Sample Renderer is integrated into Google's [render fidelity tools](https://github.com/google/model-viewer/tree/master/packages/render-fidelity-tools). The render fidelity tools allow the comparison of different renderers. To run the project follow the instructions [here](https://github.com/google/model-viewer/blob/master/README.md) and [here](https://github.com/google/model-viewer/blob/master/packages/render-fidelity-tools/README.md). For information on how the glTF Sample Renderer was integrated see the [pull request on Github](https://github.com/google/model-viewer/pull/1962).
+
+## Formatting
+
+This repository uses [Prettier](https://prettier.io/) for code formatting and [ESLint](https://eslint.org/) for linting.
+
+To check the formatting and linting of the code run:
+
+```bash
+npm run format
+```
+
+Prettier and ESLint are configured to only run on files in the "source" folder and ignore files in "source/libs".
+
+#### Visual Studio Code
+
+There are extensions for both Prettier and ESLint in Visual Studio Code. They can be found in the marketplace:
+
+- [Prettier - Code formatter](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+- [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
+
+You are encouraged to run Prettier and ESLint on your code before committing.

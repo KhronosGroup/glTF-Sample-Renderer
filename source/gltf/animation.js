@@ -1,20 +1,18 @@
-import { GltfObject } from './gltf_object.js';
-import { objectsFromJsons } from './utils.js';
-import { gltfAnimationChannel, InterpolationPath } from './channel.js';
-import { gltfAnimationSampler } from './animation_sampler.js';
-import { gltfInterpolator } from './interpolator.js';
-import { AnimatableProperty } from './animatable_property.js';
-import { JsonPointer } from 'json-ptr';
+import { GltfObject } from "./gltf_object.js";
+import { objectsFromJsons } from "./utils.js";
+import { gltfAnimationChannel, InterpolationPath } from "./channel.js";
+import { gltfAnimationSampler } from "./animation_sampler.js";
+import { gltfInterpolator } from "./interpolator.js";
+import { AnimatableProperty } from "./animatable_property.js";
+import { JsonPointer } from "json-ptr";
 
-class gltfAnimation extends GltfObject
-{
+class gltfAnimation extends GltfObject {
     static animatedProperties = [];
-    constructor()
-    {
+    constructor() {
         super();
         this.channels = [];
         this.samplers = [];
-        this.name = '';
+        this.name = "";
 
         // For KHR_interactivity
         this.createdTimestamp = undefined; // Time in seconds after graph creation when the animation was created. Computed via animation timer.
@@ -34,22 +32,19 @@ class gltfAnimation extends GltfObject
         this.errors = [];
     }
 
-    fromJson(jsonAnimation)
-    {
+    fromJson(jsonAnimation) {
         super.fromJson(jsonAnimation);
 
         this.channels = objectsFromJsons(jsonAnimation.channels, gltfAnimationChannel);
         this.samplers = objectsFromJsons(jsonAnimation.samplers, gltfAnimationSampler);
         this.name = jsonAnimation.name;
 
-        if(this.channels === undefined)
-        {
+        if (this.channels === undefined) {
             console.error("No channel data found for skin");
             return;
         }
 
-        for(let i = 0; i < this.channels.length; ++i)
-        {
+        for (let i = 0; i < this.channels.length; ++i) {
             this.interpolators.push(new gltfInterpolator());
         }
     }
@@ -96,10 +91,8 @@ class gltfAnimation extends GltfObject
     }
 
     // advance the animation, if totalTime is undefined, the animation is deactivated
-    advance(gltf, totalTime)
-    {
-        if(this.channels === undefined)
-        {
+    advance(gltf, totalTime) {
+        if (this.channels === undefined) {
             return;
         }
 
@@ -146,8 +139,7 @@ class gltfAnimation extends GltfObject
             const interpolator = this.interpolators[i];
 
             let property = null;
-            switch(channel.target.path)
-            {
+            switch (channel.target.path) {
             case InterpolationPath.TRANSLATION:
                 property = `/nodes/${channel.target.node}/translation`;
                 break;
@@ -181,10 +173,16 @@ class gltfAnimation extends GltfObject
                     back = jsonPointer.path.at(-1);
                 }
                 let animatedProperty = undefined;
-                if (parentObject.animatedPropertyObjects && back in parentObject.animatedPropertyObjects) {
+                if (
+                    parentObject.animatedPropertyObjects &&
+                    back in parentObject.animatedPropertyObjects
+                ) {
                     animatedProperty = parentObject.animatedPropertyObjects[back];
                 }
-                if (animatedProperty === undefined || !(animatedProperty instanceof AnimatableProperty)) {
+                if (
+                    animatedProperty === undefined ||
+                    !(animatedProperty instanceof AnimatableProperty)
+                ) {
                     if (!this.errors.includes(property)) {
                         console.warn(`Cannot animate ${property}`);
                         this.errors.push(property);
@@ -216,16 +214,14 @@ class gltfAnimation extends GltfObject
                     const array = animatedProperty.value();
                     if (interpolant.length == 1) {
                         array[animatedArrayElement] = interpolant[0];
-                    }
-                    else {
+                    } else {
                         array[animatedArrayElement] = interpolant;
                     }
                     animatedProperty.animate(array);
                 } else {
                     if (interpolant.length == 1 && !Array.isArray(animatedProperty.restValue)) {
                         animatedProperty.animate(interpolant[0]);
-                    }
-                    else {
+                    } else {
                         animatedProperty.animate(interpolant);
                     }
                 }

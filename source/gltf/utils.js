@@ -1,4 +1,4 @@
-import { glMatrix } from 'gl-matrix';
+import { glMatrix } from "gl-matrix";
 
 function jsToGl(array) {
     if (array === undefined) {
@@ -65,7 +65,12 @@ function objectFromJson(jsonObject, GltfType) {
 
 function fromKeys(target, jsonObj, ignore = []) {
     for (let k of Object.keys(jsonObj)) {
-        if (ignore && ignore.find(function (elem) { return elem == k; }) !== undefined) {
+        if (
+            ignore &&
+            ignore.find(function (elem) {
+                return elem == k;
+            }) !== undefined
+        ) {
             continue; // skip
         }
 
@@ -87,7 +92,7 @@ function stringHash(str, seed = 0) {
     if (str.length === 0) return hash;
     for (let i = 0; i < str.length; i++) {
         let chr = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + chr;
+        hash = (hash << 5) - hash + chr;
         hash |= 0; // Convert to 32bit integer
     }
     return hash;
@@ -138,7 +143,7 @@ function combinePaths() {
 }
 
 // marker interface used to for parsing the uniforms
-class UniformStruct { }
+class UniformStruct {}
 
 class Timer {
     constructor() {
@@ -179,8 +184,7 @@ class AnimationTimer {
     toggle() {
         if (this.paused) {
             this.unpause();
-        }
-        else {
+        } else {
             this.pause();
         }
     }

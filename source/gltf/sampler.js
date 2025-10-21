@@ -1,15 +1,14 @@
-import { GltfObject } from './gltf_object.js';
-import { GL } from '../Renderer/webgl.js';
+import { GltfObject } from "./gltf_object.js";
+import { GL } from "../Renderer/webgl.js";
 
-class gltfSampler extends GltfObject
-{
+class gltfSampler extends GltfObject {
     static animatedProperties = [];
     constructor(
         magFilter = GL.LINEAR,
         minFilter = GL.LINEAR_MIPMAP_LINEAR,
         wrapS = GL.REPEAT,
-        wrapT = GL.REPEAT)
-    {
+        wrapT = GL.REPEAT
+    ) {
         super();
         this.magFilter = magFilter;
         this.minFilter = minFilter;
@@ -18,8 +17,7 @@ class gltfSampler extends GltfObject
         this.name = undefined;
     }
 
-    static createDefault()
-    {
+    static createDefault() {
         return new gltfSampler();
     }
 }
