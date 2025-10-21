@@ -151,7 +151,6 @@ void main()
 #else
     v_Normal = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
 #endif
-#else
 #endif
 
     v_texcoord_0 = vec2(0.0, 0.0);
