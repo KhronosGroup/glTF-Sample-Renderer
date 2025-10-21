@@ -8,6 +8,7 @@ class EnvironmentRenderer {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(
             gl.ELEMENT_ARRAY_BUFFER,
+            // prettier-ignore
             new Uint16Array([
                 1, 2, 0,
                 2, 3, 0,
@@ -29,6 +30,7 @@ class EnvironmentRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
         gl.bufferData(
             gl.ARRAY_BUFFER,
+            // prettier-ignore
             new Float32Array([
                 -1, -1, -1,
                 1, -1, -1,
