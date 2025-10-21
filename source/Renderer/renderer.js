@@ -692,7 +692,14 @@ class gltfRenderer {
         //select shader permutation, compile and link program.
 
         let vertDefines = [];
-        this.pushVertParameterDefines(vertDefines, state.renderingParameters, state.gltf, node, primitive);
+        this.pushVertParameterDefines(
+            vertDefines,
+            state.renderingParameters,
+            state.gltf,
+            node,
+            primitive,
+            state.renderingParameters.debugOutput
+        );
         vertDefines = primitive.defines.concat(vertDefines);
         if (instanceOffset !== undefined) {
             vertDefines.push("USE_INSTANCING 1");
@@ -1072,7 +1079,7 @@ class gltfRenderer {
         }
     }
 
-    pushVertParameterDefines(vertDefines, parameters, gltf, node, primitive) {
+    pushVertParameterDefines(vertDefines, parameters, gltf, node, primitive, debugOutput) {
         // skinning
         if (
             parameters.skinning &&
@@ -1090,6 +1097,14 @@ class gltfRenderer {
                 vertDefines.push("USE_MORPHING 1");
                 vertDefines.push("WEIGHT_COUNT " + weights.length);
             }
+        }
+
+        vertDefines.push("DEBUG_VERT_NONE 0");
+        vertDefines.push("DEBUG_VERT_TANGENT_W 1");
+        if (debugOutput == GltfState.DebugOutput.generic.TANGENTW) {
+            vertDefines.push("DEBUG_VERT DEBUG_VERT_TANGENT_W");
+        } else {
+            vertDefines.push("DEBUG_VERT DEBUG_VERT_NONE");
         }
     }
 
@@ -1117,21 +1132,21 @@ class gltfRenderer {
         }
 
         switch (state.renderingParameters.toneMap) {
-        case GltfState.ToneMaps.KHR_PBR_NEUTRAL:
-            fragDefines.push("TONEMAP_KHR_PBR_NEUTRAL 1");
-            break;
-        case GltfState.ToneMaps.ACES_NARKOWICZ:
-            fragDefines.push("TONEMAP_ACES_NARKOWICZ 1");
-            break;
-        case GltfState.ToneMaps.ACES_HILL:
-            fragDefines.push("TONEMAP_ACES_HILL 1");
-            break;
-        case GltfState.ToneMaps.ACES_HILL_EXPOSURE_BOOST:
-            fragDefines.push("TONEMAP_ACES_HILL_EXPOSURE_BOOST 1");
-            break;
-        case GltfState.ToneMaps.NONE:
-        default:
-            break;
+            case GltfState.ToneMaps.KHR_PBR_NEUTRAL:
+                fragDefines.push("TONEMAP_KHR_PBR_NEUTRAL 1");
+                break;
+            case GltfState.ToneMaps.ACES_NARKOWICZ:
+                fragDefines.push("TONEMAP_ACES_NARKOWICZ 1");
+                break;
+            case GltfState.ToneMaps.ACES_HILL:
+                fragDefines.push("TONEMAP_ACES_HILL 1");
+                break;
+            case GltfState.ToneMaps.ACES_HILL_EXPOSURE_BOOST:
+                fragDefines.push("TONEMAP_ACES_HILL_EXPOSURE_BOOST 1");
+                break;
+            case GltfState.ToneMaps.NONE:
+            default:
+                break;
         }
 
         let debugOutputMapping = [
@@ -1150,6 +1165,10 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_NORMAL_GEOMETRY"
             },
             { debugOutput: GltfState.DebugOutput.generic.TANGENT, shaderDefine: "DEBUG_TANGENT" },
+            {
+                debugOutput: GltfState.DebugOutput.generic.TANGENTW,
+                shaderDefine: "DEBUG_TANGENT_W"
+            },
             {
                 debugOutput: GltfState.DebugOutput.generic.BITANGENT,
                 shaderDefine: "DEBUG_BITANGENT"
