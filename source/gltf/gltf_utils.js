@@ -25,9 +25,7 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
         }
 
         for (const primitive of mesh.primitives) {
-            const attribute = primitive.glAttributes.find(
-                (a) => a.attribute == "POSITION"
-            );
+            const attribute = primitive.glAttributes.find((a) => a.attribute == "POSITION");
             if (attribute === undefined) {
                 continue;
             }
@@ -35,12 +33,7 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
             const accessor = gltf.accessors[attribute.accessor];
             const assetMin = vec3.create();
             const assetMax = vec3.create();
-            getExtentsFromAccessor(
-                accessor,
-                node.worldTransform,
-                assetMin,
-                assetMax
-            );
+            getExtentsFromAccessor(accessor, node.worldTransform, assetMin, assetMax);
 
             for (const i of [0, 1, 2]) {
                 outMin[i] = Math.min(outMin[i], assetMin[i]);
@@ -83,14 +76,8 @@ function getExtentsFromAccessor(accessor, worldTransform, outMin, outMax) {
 
     for (let i in boxVertices) {
         for (const component of [0, 1, 2]) {
-            boxMin[component] = Math.min(
-                boxMin[component],
-                boxVertices[i][component]
-            );
-            boxMax[component] = Math.max(
-                boxMax[component],
-                boxVertices[i][component]
-            );
+            boxMin[component] = Math.min(boxMin[component], boxVertices[i][component]);
+            boxMax[component] = Math.max(boxMax[component], boxVertices[i][component]);
         }
     }
 

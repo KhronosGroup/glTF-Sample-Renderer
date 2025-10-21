@@ -45,75 +45,41 @@ class gltfAccessor extends GltfObject {
             if (bufferView.byteStride !== 0) {
                 if (componentSize !== 0) {
                     arrayLength =
-                        (bufferView.byteStride / componentSize) *
-                            (this.count - 1) +
-                        componentCount;
+                        (bufferView.byteStride / componentSize) * (this.count - 1) + componentCount;
                 } else {
                     console.warn(
-                        "Invalid component type in accessor '" +
-                            (this.name ? this.name : "") +
-                            "'"
+                        "Invalid component type in accessor '" + (this.name ? this.name : "") + "'"
                     );
                 }
             } else {
                 arrayLength = this.count * componentCount;
             }
 
-            if (
-                arrayLength * componentSize >
-                buffer.buffer.byteLength - byteOffset
-            ) {
-                arrayLength =
-                    (buffer.buffer.byteLength - byteOffset) / componentSize;
+            if (arrayLength * componentSize > buffer.buffer.byteLength - byteOffset) {
+                arrayLength = (buffer.buffer.byteLength - byteOffset) / componentSize;
                 console.warn(
-                    "Count in accessor '" +
-                        (this.name ? this.name : "") +
-                        "' is too large."
+                    "Count in accessor '" + (this.name ? this.name : "") + "' is too large."
                 );
             }
 
             switch (this.componentType) {
             case GL.BYTE:
-                this.typedView = new Int8Array(
-                    buffer.buffer,
-                    byteOffset,
-                    arrayLength
-                );
+                this.typedView = new Int8Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             case GL.UNSIGNED_BYTE:
-                this.typedView = new Uint8Array(
-                    buffer.buffer,
-                    byteOffset,
-                    arrayLength
-                );
+                this.typedView = new Uint8Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             case GL.SHORT:
-                this.typedView = new Int16Array(
-                    buffer.buffer,
-                    byteOffset,
-                    arrayLength
-                );
+                this.typedView = new Int16Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             case GL.UNSIGNED_SHORT:
-                this.typedView = new Uint16Array(
-                    buffer.buffer,
-                    byteOffset,
-                    arrayLength
-                );
+                this.typedView = new Uint16Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             case GL.UNSIGNED_INT:
-                this.typedView = new Uint32Array(
-                    buffer.buffer,
-                    byteOffset,
-                    arrayLength
-                );
+                this.typedView = new Uint32Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             case GL.FLOAT:
-                this.typedView = new Float32Array(
-                    buffer.buffer,
-                    byteOffset,
-                    arrayLength
-                );
+                this.typedView = new Float32Array(buffer.buffer, byteOffset, arrayLength);
                 break;
             }
         } else {
@@ -201,8 +167,7 @@ class gltfAccessor extends GltfObject {
             for (let i = 0; i < arrayLength; ++i) {
                 const vertexIndex = Math.floor(i / componentCount);
                 const componentIndex = (i % componentCount) * componentSize;
-                const offset =
-                    vertexIndex * stride + componentIndex + this.byteOffset; // Add Accessor byte offset
+                const offset = vertexIndex * stride + componentIndex + this.byteOffset; // Add Accessor byte offset
                 this.filteredView[i] = bufferViewData[func](offset, true);
             }
         } else {
@@ -221,8 +186,7 @@ class gltfAccessor extends GltfObject {
         if (this.componentType == GL.BYTE) return new Int8Array(size);
         if (this.componentType == GL.UNSIGNED_BYTE) return new Uint8Array(size);
         if (this.componentType == GL.SHORT) return new Int16Array(size);
-        if (this.componentType == GL.UNSIGNED_SHORT)
-            return new Uint16Array(size);
+        if (this.componentType == GL.UNSIGNED_SHORT) return new Uint16Array(size);
         if (this.componentType == GL.UNSIGNED_INT) return new Uint32Array(size);
         if (this.componentType == GL.FLOAT) return new Float32Array(size);
         return undefined;
@@ -254,21 +218,16 @@ class gltfAccessor extends GltfObject {
     applySparse(gltf, view) {
         // Gather indices.
 
-        const indicesBufferView =
-            gltf.bufferViews[this.sparse.indices.bufferView];
+        const indicesBufferView = gltf.bufferViews[this.sparse.indices.bufferView];
         const indicesBuffer = gltf.buffers[indicesBufferView.buffer];
         const indicesByteOffset =
-            (this.sparse.indices.byteOffset ?? 0) +
-            (indicesBufferView.byteOffset ?? 0);
+            (this.sparse.indices.byteOffset ?? 0) + (indicesBufferView.byteOffset ?? 0);
 
-        const indicesComponentSize = this.getComponentSize(
-            this.sparse.indices.componentType
-        );
+        const indicesComponentSize = this.getComponentSize(this.sparse.indices.componentType);
         let indicesComponentCount = 1;
 
         if (indicesBufferView.byteStride !== 0) {
-            indicesComponentCount =
-                indicesBufferView.byteStride / indicesComponentSize;
+            indicesComponentCount = indicesBufferView.byteStride / indicesComponentSize;
         }
 
         const indicesArrayLength = this.sparse.count * indicesComponentCount;
@@ -300,19 +259,16 @@ class gltfAccessor extends GltfObject {
 
         // Gather values.
 
-        const valuesBufferView =
-            gltf.bufferViews[this.sparse.values.bufferView];
+        const valuesBufferView = gltf.bufferViews[this.sparse.values.bufferView];
         const valuesBuffer = gltf.buffers[valuesBufferView.buffer];
         const valuesByteOffset =
-            (this.sparse.values.byteOffset ?? 0) +
-            (valuesBufferView.byteOffset ?? 0);
+            (this.sparse.values.byteOffset ?? 0) + (valuesBufferView.byteOffset ?? 0);
 
         const valuesComponentSize = this.getComponentSize(this.componentType);
         let valuesComponentCount = this.getComponentCount(this.type);
 
         if (valuesBufferView.byteStride !== 0) {
-            valuesComponentCount =
-                valuesBufferView.byteStride / valuesComponentSize;
+            valuesComponentCount = valuesBufferView.byteStride / valuesComponentSize;
         }
 
         const valuesArrayLength = this.sparse.count * valuesComponentCount;
@@ -378,15 +334,11 @@ class gltfAccessor extends GltfObject {
     static dequantize(typedArray, componentType) {
         switch (componentType) {
         case GL.BYTE:
-            return new Float32Array(typedArray).map((c) =>
-                Math.max(c / 127.0, -1.0)
-            );
+            return new Float32Array(typedArray).map((c) => Math.max(c / 127.0, -1.0));
         case GL.UNSIGNED_BYTE:
             return new Float32Array(typedArray).map((c) => c / 255.0);
         case GL.SHORT:
-            return new Float32Array(typedArray).map((c) =>
-                Math.max(c / 32767.0, -1.0)
-            );
+            return new Float32Array(typedArray).map((c) => Math.max(c / 32767.0, -1.0));
         case GL.UNSIGNED_SHORT:
             return new Float32Array(typedArray).map((c) => c / 65535.0);
         default:

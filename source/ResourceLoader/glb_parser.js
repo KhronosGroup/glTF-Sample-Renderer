@@ -37,11 +37,7 @@ class GlbParser {
 
         if (
             !this.checkEquality(magic, this.glbMagic, "glb magic") ||
-            !this.checkEquality(
-                version,
-                this.glbVersion,
-                "glb header version"
-            ) ||
+            !this.checkEquality(version, this.glbVersion, "glb header version") ||
             !this.checkEquality(length, this.data.byteLength, "glb byte length")
         ) {
             return undefined;
@@ -62,11 +58,7 @@ class GlbParser {
     }
 
     getChunkInfo(headerStart) {
-        const header = new Uint32Array(
-            this.data,
-            headerStart,
-            this.glbChunkHeaderInts
-        );
+        const header = new Uint32Array(this.data, headerStart, this.glbChunkHeaderInts);
         const chunkStart = headerStart + this.glbChunkHeaderInts * 4;
         const chunkLength = header[0];
         const chunkType = header[1];
@@ -82,10 +74,7 @@ class GlbParser {
     }
 
     getBufferFromChunk(chunkInfo) {
-        return this.data.slice(
-            chunkInfo.start,
-            chunkInfo.start + chunkInfo.length
-        );
+        return this.data.slice(chunkInfo.start, chunkInfo.start + chunkInfo.length);
     }
 
     checkEquality(actual, expected, name) {
@@ -94,12 +83,7 @@ class GlbParser {
         }
 
         console.error(
-            "Found invalid/unsupported " +
-                name +
-                ", expected: " +
-                expected +
-                ", but was: " +
-                actual
+            "Found invalid/unsupported " + name + ", expected: " + expected + ", but was: " + actual
         );
         return false;
     }

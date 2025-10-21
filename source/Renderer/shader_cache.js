@@ -79,11 +79,7 @@ class ShaderCache {
         if (shader === undefined) {
             // console.log(defines);
             // compile this variant
-            shader = this.gl.compileShader(
-                shaderIdentifier,
-                isVert,
-                defines + src
-            );
+            shader = this.gl.compileShader(shaderIdentifier, isVert, defines + src);
             this.shaders.set(hash, shader);
         }
 
@@ -92,8 +88,7 @@ class ShaderCache {
 
     getShaderProgram(vertexShaderHash, fragmentShaderHash) {
         // just use a long string for this (the javascript engine should be fast enough with comparing this)
-        const hash =
-            String(vertexShaderHash) + "," + String(fragmentShaderHash);
+        const hash = String(vertexShaderHash) + "," + String(fragmentShaderHash);
 
         let program = this.programs.get(hash);
 

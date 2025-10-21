@@ -97,10 +97,7 @@ class glTF extends GltfObject {
         this.scenes = objectsFromJsons(json.scenes, gltfScene);
         this.textures = objectsFromJsons(json.textures, gltfTexture);
         this.nodes = objectsFromJsons(json.nodes, gltfNode);
-        this.lights = objectsFromJsons(
-            getJsonLightsFromExtensions(json.extensions),
-            gltfLight
-        );
+        this.lights = objectsFromJsons(getJsonLightsFromExtensions(json.extensions), gltfLight);
         this.imageBasedLights = objectsFromJsons(
             getJsonIBLsFromExtensions(json.extensions),
             ImageBasedLight
@@ -153,32 +150,21 @@ class glTF extends GltfObject {
                             property = `/nodes/${channel.target.node}/scale`;
                             break;
                         case "weights":
-                            if (
-                                nodes[channel.target.node].weights !==
-                                    undefined
-                            ) {
+                            if (nodes[channel.target.node].weights !== undefined) {
                                 property = `/nodes/${channel.target.node}/weights`;
                             } else {
                                 property = `/meshes/${nodes[channel.target.node].mesh}/weights`;
                             }
                             break;
                         case "pointer":
-                            property =
-                                    channel.target.extensions
-                                        .KHR_animation_pointer.pointer;
+                            property = channel.target.extensions.KHR_animation_pointer.pointer;
                             break;
                         }
                         return property;
                     };
-                    const iProperty = getAnimationProperty(
-                        iChannel,
-                        this.nodes
-                    );
+                    const iProperty = getAnimationProperty(iChannel, this.nodes);
                     for (const kChannel of this.animations[k].channels) {
-                        const kProperty = getAnimationProperty(
-                            kChannel,
-                            this.nodes
-                        );
+                        const kProperty = getAnimationProperty(kChannel, this.nodes);
                         if (iProperty === kProperty) {
                             isDisjoint = false;
                             break;

@@ -33,55 +33,38 @@ class gltfNode extends GltfObject {
 
     // eslint-disable-next-line no-unused-vars
     initGl(gltf, webGlContext) {
-        if (
-            this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined
-        ) {
+        if (this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined) {
             const firstAccessor = Object.values(
                 this.extensions?.EXT_mesh_gpu_instancing?.attributes
             )[0];
             const count = gltf.accessors[firstAccessor].count;
             const translationAccessor =
-                this.extensions?.EXT_mesh_gpu_instancing?.attributes
-                    ?.TRANSLATION;
+                this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
             let translationData = undefined;
             if (translationAccessor !== undefined) {
-                translationData =
-                    gltf.accessors[translationAccessor].getDeinterlacedView(
-                        gltf
-                    );
+                translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
             }
-            const rotationAccessor =
-                this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
+            const rotationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
             let rotationData = undefined;
             if (rotationAccessor !== undefined) {
-                rotationData =
-                    gltf.accessors[rotationAccessor].getDeinterlacedView(gltf);
+                rotationData = gltf.accessors[rotationAccessor].getDeinterlacedView(gltf);
             }
-            const scaleAccessor =
-                this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
+            const scaleAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
             let scaleData = undefined;
             if (scaleAccessor !== undefined) {
-                scaleData =
-                    gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+                scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
             }
             this.instanceMatrices = [];
             for (let i = 0; i < count; i++) {
                 const translation = translationData
                     ? jsToGlSlice(translationData, i * 3, 3)
                     : vec3.create();
-                const rotation = rotationData
-                    ? jsToGlSlice(rotationData, i * 4, 4)
-                    : quat.create();
+                const rotation = rotationData ? jsToGlSlice(rotationData, i * 4, 4) : quat.create();
                 const scale = scaleData
                     ? jsToGlSlice(scaleData, i * 3, 3)
                     : vec3.fromValues(1, 1, 1);
                 this.instanceMatrices.push(
-                    mat4.fromRotationTranslationScale(
-                        mat4.create(),
-                        rotation,
-                        translation,
-                        scale
-                    )
+                    mat4.fromRotationTranslationScale(mat4.create(), rotation, translation, scale)
                 );
             }
         }

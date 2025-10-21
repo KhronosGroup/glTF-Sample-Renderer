@@ -15,8 +15,7 @@ class gltfWebGl {
             "EXT_texture_filter_anisotropic"
         );
         if (EXT_texture_filter_anisotropic) {
-            this.context.anisotropy =
-                EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT;
+            this.context.anisotropy = EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT;
             this.context.maxAnisotropy = this.context.getParameter(
                 EXT_texture_filter_anisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT
             );
@@ -25,13 +24,14 @@ class gltfWebGl {
             console.warn("Anisotropic filtering is not supported");
             this.context.supports_EXT_texture_filter_anisotropic = false;
         }
-        this.context.supports_EXT_color_buffer_float =
-            this.context.getExtension("EXT_color_buffer_float") ? true : false;
+        this.context.supports_EXT_color_buffer_float = this.context.getExtension(
+            "EXT_color_buffer_float"
+        )
+            ? true
+            : false;
         this.context.supports_EXT_color_buffer_half_float =
             this.context.supports_EXT_color_buffer_float ||
-            (this.context.getExtension("EXT_color_buffer_half_float")
-                ? true
-                : false);
+            (this.context.getExtension("EXT_color_buffer_half_float") ? true : false);
     }
 
     setTexture(loc, gltf, textureInfo, texSlot) {
@@ -89,9 +89,7 @@ class gltfWebGl {
             const gltfSampler = gltf.samplers[gltfTex.sampler];
 
             if (gltfSampler === undefined) {
-                console.warn(
-                    "Sampler is undefined for texture: " + textureInfo.index
-                );
+                console.warn("Sampler is undefined for texture: " + textureInfo.index);
                 return false;
             }
 
@@ -106,9 +104,7 @@ class gltfWebGl {
             ) {
                 // the check `GL.SRGB8_ALPHA8 === undefined` is needed as at the moment node-gles does not define the full format enum
                 const internalformat =
-                    textureInfo.linear || GL.SRGB8_ALPHA8 === undefined
-                        ? GL.RGBA
-                        : GL.SRGB8_ALPHA8;
+                    textureInfo.linear || GL.SRGB8_ALPHA8 === undefined ? GL.RGBA : GL.SRGB8_ALPHA8;
                 this.context.texImage2D(
                     image.type,
                     image.miplevel,
@@ -119,11 +115,7 @@ class gltfWebGl {
                 );
             }
 
-            this.setSampler(
-                gltfSampler,
-                gltfTex.type,
-                textureInfo.generateMips
-            );
+            this.setSampler(gltfSampler, gltfTex.type, textureInfo.generateMips);
 
             if (textureInfo.generateMips) {
                 switch (gltfSampler.minFilter) {
@@ -162,20 +154,10 @@ class gltfWebGl {
                 return false;
             }
 
-            this.context.bindBuffer(
-                GL.ELEMENT_ARRAY_BUFFER,
-                gltfAccessor.glBuffer
-            );
-            this.context.bufferData(
-                GL.ELEMENT_ARRAY_BUFFER,
-                data,
-                GL.STATIC_DRAW
-            );
+            this.context.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, gltfAccessor.glBuffer);
+            this.context.bufferData(GL.ELEMENT_ARRAY_BUFFER, data, GL.STATIC_DRAW);
         } else {
-            this.context.bindBuffer(
-                GL.ELEMENT_ARRAY_BUFFER,
-                gltfAccessor.glBuffer
-            );
+            this.context.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, gltfAccessor.glBuffer);
         }
 
         return true;
@@ -216,24 +198,17 @@ class gltfWebGl {
     }
 
     compileShader(shaderIdentifier, isVert, shaderSource) {
-        const shader = this.context.createShader(
-            isVert ? GL.VERTEX_SHADER : GL.FRAGMENT_SHADER
-        );
+        const shader = this.context.createShader(isVert ? GL.VERTEX_SHADER : GL.FRAGMENT_SHADER);
         this.context.shaderSource(shader, shaderSource);
         this.context.compileShader(shader);
-        const compiled = this.context.getShaderParameter(
-            shader,
-            GL.COMPILE_STATUS
-        );
+        const compiled = this.context.getShaderParameter(shader, GL.COMPILE_STATUS);
 
         if (!compiled) {
             // output surrounding source code
             let info = "";
             const messages = this.context.getShaderInfoLog(shader).split("\n");
             for (const message of messages) {
-                const matches = message.match(
-                    /(WARNING|ERROR): ([0-9]*):([0-9]*):(.*)/i
-                );
+                const matches = message.match(/(WARNING|ERROR): ([0-9]*):([0-9]*):(.*)/i);
                 if (matches && matches.length == 5) {
                     const lineNumber = parseInt(matches[3]) - 1;
                     const lines = shaderSource.split("\n");
@@ -255,12 +230,7 @@ class gltfWebGl {
                 }
             }
 
-            throw new Error(
-                "Could not compile WebGL program '" +
-                    shaderIdentifier +
-                    "': " +
-                    info
-            );
+            throw new Error("Could not compile WebGL program '" + shaderIdentifier + "': " + info);
         }
 
         return shader;
@@ -287,27 +257,11 @@ class gltfWebGl {
         generateMipmaps // TEXTURE_2D
     ) {
         if (generateMipmaps) {
-            this.context.texParameteri(
-                type,
-                GL.TEXTURE_WRAP_S,
-                gltfSamplerObj.wrapS
-            );
-            this.context.texParameteri(
-                type,
-                GL.TEXTURE_WRAP_T,
-                gltfSamplerObj.wrapT
-            );
+            this.context.texParameteri(type, GL.TEXTURE_WRAP_S, gltfSamplerObj.wrapS);
+            this.context.texParameteri(type, GL.TEXTURE_WRAP_T, gltfSamplerObj.wrapT);
         } else {
-            this.context.texParameteri(
-                type,
-                GL.TEXTURE_WRAP_S,
-                GL.CLAMP_TO_EDGE
-            );
-            this.context.texParameteri(
-                type,
-                GL.TEXTURE_WRAP_T,
-                GL.CLAMP_TO_EDGE
-            );
+            this.context.texParameteri(type, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+            this.context.texParameteri(type, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
         }
 
         // If not mip-mapped, force to non-mip-mapped sampler.
@@ -320,30 +274,14 @@ class gltfWebGl {
                 gltfSamplerObj.minFilter == GL.NEAREST_MIPMAP_NEAREST ||
                 gltfSamplerObj.minFilter == GL.NEAREST_MIPMAP_LINEAR
             ) {
-                this.context.texParameteri(
-                    type,
-                    GL.TEXTURE_MIN_FILTER,
-                    GL.NEAREST
-                );
+                this.context.texParameteri(type, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
             } else {
-                this.context.texParameteri(
-                    type,
-                    GL.TEXTURE_MIN_FILTER,
-                    GL.LINEAR
-                );
+                this.context.texParameteri(type, GL.TEXTURE_MIN_FILTER, GL.LINEAR);
             }
         } else {
-            this.context.texParameteri(
-                type,
-                GL.TEXTURE_MIN_FILTER,
-                gltfSamplerObj.minFilter
-            );
+            this.context.texParameteri(type, GL.TEXTURE_MIN_FILTER, gltfSamplerObj.minFilter);
         }
-        this.context.texParameteri(
-            type,
-            GL.TEXTURE_MAG_FILTER,
-            gltfSamplerObj.magFilter
-        );
+        this.context.texParameteri(type, GL.TEXTURE_MAG_FILTER, gltfSamplerObj.magFilter);
 
         if (this.context.supports_EXT_texture_filter_anisotropic) {
             if (

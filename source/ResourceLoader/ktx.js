@@ -14,15 +14,11 @@ class KtxDecoder {
             if (externalKtxlib !== undefined) {
                 this.initializied = this.init(context, externalKtxlib);
             } else {
-                console.error(
-                    "Failed to initalize KTXDecoder: ktx library undefined"
-                );
+                console.error("Failed to initalize KTXDecoder: ktx library undefined");
                 return undefined;
             }
         } else {
-            console.error(
-                "Failed to initalize KTXDecoder: WebGL context undefined"
-            );
+            console.error("Failed to initalize KTXDecoder: WebGL context undefined");
             return undefined;
         }
     }
@@ -46,18 +42,10 @@ class KtxDecoder {
             let bptcSupported = false;
             let pvrtcSupported = false;
 
-            astcSupported = !!this.gl.getExtension(
-                "WEBGL_compressed_texture_astc"
-            );
-            etcSupported = !!this.gl.getExtension(
-                "WEBGL_compressed_texture_etc1"
-            );
-            dxtSupported = !!this.gl.getExtension(
-                "WEBGL_compressed_texture_s3tc"
-            );
-            bptcSupported = !!this.gl.getExtension(
-                "EXT_texture_compression_bptc"
-            );
+            astcSupported = !!this.gl.getExtension("WEBGL_compressed_texture_astc");
+            etcSupported = !!this.gl.getExtension("WEBGL_compressed_texture_etc1");
+            dxtSupported = !!this.gl.getExtension("WEBGL_compressed_texture_s3tc");
+            bptcSupported = !!this.gl.getExtension("EXT_texture_compression_bptc");
 
             pvrtcSupported =
                 !!this.gl.getExtension("WEBGL_compressed_texture_pvrtc") ||
@@ -76,13 +64,8 @@ class KtxDecoder {
             } else {
                 format = this.libktx.TranscodeTarget.RGBA4444;
             }
-            if (
-                ktexture.transcodeBasis(format, 0) !=
-                this.libktx.ErrorCode.SUCCESS
-            ) {
-                console.warn(
-                    "Texture transcode failed. See console for details."
-                );
+            if (ktexture.transcodeBasis(format, 0) != this.libktx.ErrorCode.SUCCESS) {
+                console.warn("Texture transcode failed. See console for details.");
             }
         }
     }
@@ -96,8 +79,7 @@ class KtxDecoder {
         let uploadResult = texture.glUpload();
         if (uploadResult.error != this.gl.NO_ERROR) {
             console.error(
-                "WebGL error when uploading texture, code = " +
-                    uploadResult.error.toString(16)
+                "WebGL error when uploading texture, code = " + uploadResult.error.toString(16)
             );
             return undefined;
         }
@@ -116,8 +98,7 @@ class KtxDecoder {
         const uploadResult = texture.glUpload();
         if (uploadResult.error != this.gl.NO_ERROR) {
             console.error(
-                "WebGL error when uploading texture, code = " +
-                    uploadResult.error.toString(16)
+                "WebGL error when uploading texture, code = " + uploadResult.error.toString(16)
             );
             return undefined;
         }

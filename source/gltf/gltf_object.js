@@ -8,14 +8,10 @@ class GltfObject {
         this.extras = undefined;
         this.animatedPropertyObjects = {};
         if (this.constructor.animatedProperties === undefined) {
-            throw new Error(
-                "animatedProperties is not defined for " + this.constructor.name
-            );
+            throw new Error("animatedProperties is not defined for " + this.constructor.name);
         }
         for (const prop of this.constructor.animatedProperties) {
-            this.animatedPropertyObjects[prop] = new AnimatableProperty(
-                undefined
-            );
+            this.animatedPropertyObjects[prop] = new AnimatableProperty(undefined);
             Object.defineProperty(this, prop, {
                 get: function () {
                     return this.animatedPropertyObjects[prop].value();

@@ -3,11 +3,7 @@ class gltfLoader {
         const buffers = gltfLoader.getBuffers(appendix);
         const additionalFiles = gltfLoader.getAdditionalFiles(appendix);
 
-        const buffersPromise = gltfLoader.loadBuffers(
-            gltf,
-            buffers,
-            additionalFiles
-        );
+        const buffersPromise = gltfLoader.loadBuffers(gltf, buffers, additionalFiles);
 
         await buffersPromise; // images might be stored in the buffers
         const imagesPromise = gltfLoader.loadImages(gltf, additionalFiles);
@@ -62,9 +58,7 @@ class gltfLoader {
             //There is only one buffer for the glb binary data
             //see https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#glb-file-format-specification
             if (buffers.length > 1) {
-                console.warn(
-                    "Too many buffer chunks in GLB file. Only one or zero allowed"
-                );
+                console.warn("Too many buffer chunks in GLB file. Only one or zero allowed");
             }
 
             gltf.buffers[0].buffer = buffers[0];

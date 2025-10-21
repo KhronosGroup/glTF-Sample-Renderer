@@ -38,9 +38,7 @@ class gltfInterpolator {
         const result = new glMatrix.ARRAY_TYPE(stride);
 
         for (let i = 0; i < stride; ++i) {
-            result[i] =
-                output[prevKey * stride + i] * (1 - t) +
-                output[nextKey * stride + i] * t;
+            result[i] = output[prevKey * stride + i] * (1 - t) + output[nextKey * stride + i] * t;
         }
 
         return result;
@@ -86,10 +84,8 @@ class gltfInterpolator {
             return undefined;
         }
 
-        const input =
-            gltf.accessors[sampler.input].getNormalizedDeinterlacedView(gltf);
-        const output =
-            gltf.accessors[sampler.output].getNormalizedDeinterlacedView(gltf);
+        const input = gltf.accessors[sampler.input].getNormalizedDeinterlacedView(gltf);
+        const output = gltf.accessors[sampler.output].getNormalizedDeinterlacedView(gltf);
 
         if (output.length === stride) {
             // no interpolation for single keyFrame animations
@@ -126,14 +122,7 @@ class gltfInterpolator {
             if (InterpolationModes.CUBICSPLINE === sampler.interpolation) {
                 // GLTF requires cubic spline interpolation for quaternions.
                 // https://github.com/KhronosGroup/glTF/issues/1386
-                const result = this.cubicSpline(
-                    this.prevKey,
-                    nextKey,
-                    output,
-                    keyDelta,
-                    tn,
-                    4
-                );
+                const result = this.cubicSpline(this.prevKey, nextKey, output, keyDelta, tn, 4);
                 quat.normalize(result, result);
                 return result;
             } else if (sampler.interpolation === InterpolationModes.LINEAR) {
@@ -149,14 +138,7 @@ class gltfInterpolator {
         case InterpolationModes.STEP:
             return this.step(this.prevKey, output, stride);
         case InterpolationModes.CUBICSPLINE:
-            return this.cubicSpline(
-                this.prevKey,
-                nextKey,
-                output,
-                keyDelta,
-                tn,
-                stride
-            );
+            return this.cubicSpline(this.prevKey, nextKey, output, keyDelta, tn, stride);
         default:
             return this.linear(this.prevKey, nextKey, output, tn, stride);
         }

@@ -25,37 +25,14 @@ class gltfSkin extends GltfObject {
 
     initGl(gltf, webGlContext) {
         this.jointWebGlTexture = webGlContext.createTexture();
-        webGlContext.bindTexture(
-            webGlContext.TEXTURE_2D,
-            this.jointWebGlTexture
-        );
+        webGlContext.bindTexture(webGlContext.TEXTURE_2D, this.jointWebGlTexture);
 
         // Ensure mipmapping is disabled and the sampler is configured correctly.
-        webGlContext.texParameteri(
-            GL.TEXTURE_2D,
-            GL.TEXTURE_WRAP_S,
-            GL.CLAMP_TO_EDGE
-        );
-        webGlContext.texParameteri(
-            GL.TEXTURE_2D,
-            GL.TEXTURE_WRAP_T,
-            GL.CLAMP_TO_EDGE
-        );
-        webGlContext.texParameteri(
-            GL.TEXTURE_2D,
-            GL.TEXTURE_WRAP_R,
-            GL.CLAMP_TO_EDGE
-        );
-        webGlContext.texParameteri(
-            GL.TEXTURE_2D,
-            GL.TEXTURE_MIN_FILTER,
-            GL.NEAREST
-        );
-        webGlContext.texParameteri(
-            GL.TEXTURE_2D,
-            GL.TEXTURE_MAG_FILTER,
-            GL.NEAREST
-        );
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_R, GL.CLAMP_TO_EDGE);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+        webGlContext.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
 
         // Now we add the joints texture as a gltf texture info resource, so that
         // we can just call webGl.setTexture(..., gltfTextureInfo, ...) in the renderer.
@@ -71,13 +48,7 @@ class gltfSkin extends GltfObject {
         gltf.images.push(jointsImage);
 
         gltf.samplers.push(
-            new gltfSampler(
-                GL.NEAREST,
-                GL.NEAREST,
-                GL.CLAMP_TO_EDGE,
-                GL.CLAMP_TO_EDGE,
-                undefined
-            )
+            new gltfSampler(GL.NEAREST, GL.NEAREST, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, undefined)
         );
 
         const jointsTexture = new gltfTexture(
@@ -91,11 +62,7 @@ class gltfSkin extends GltfObject {
 
         gltf.textures.push(jointsTexture);
 
-        this.jointTextureInfo = new gltfTextureInfo(
-            gltf.textures.length - 1,
-            0,
-            true
-        );
+        this.jointTextureInfo = new gltfTextureInfo(gltf.textures.length - 1, 0, true);
         this.jointTextureInfo.samplerName = "u_jointsSampler";
         this.jointTextureInfo.generateMips = false;
     }
@@ -103,10 +70,7 @@ class gltfSkin extends GltfObject {
     computeJoints(gltf, webGlContext) {
         let ibmAccessor = null;
         if (this.inverseBindMatrices !== undefined) {
-            ibmAccessor =
-                gltf.accessors[this.inverseBindMatrices].getDeinterlacedView(
-                    gltf
-                );
+            ibmAccessor = gltf.accessors[this.inverseBindMatrices].getDeinterlacedView(gltf);
         }
 
         this.jointMatrices = [];
@@ -135,10 +99,7 @@ class gltfSkin extends GltfObject {
             ++i;
         }
 
-        webGlContext.bindTexture(
-            webGlContext.TEXTURE_2D,
-            this.jointWebGlTexture
-        );
+        webGlContext.bindTexture(webGlContext.TEXTURE_2D, this.jointWebGlTexture);
         // Set texture format and upload data.
         let internalFormat = webGlContext.RGBA32F;
         let format = webGlContext.RGBA;

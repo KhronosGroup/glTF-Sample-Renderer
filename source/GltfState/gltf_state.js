@@ -108,8 +108,7 @@ GltfState.ToneMaps = {
     /** Khronos PBR neutral tone mapping, see https://github.com/KhronosGroup/ToneMapping, https://modelviewer.dev/examples/tone-mapping */
     KHR_PBR_NEUTRAL: "Khronos PBR Neutral",
     /** ACES sRGB RRT+ODT implementation for 3D Commerce based on Stephen Hill's implementation with a exposure factor of 1.0 / 0.6 */
-    ACES_HILL_EXPOSURE_BOOST:
-        "ACES Filmic Tone Mapping (Hill - Exposure Boost)",
+    ACES_HILL_EXPOSURE_BOOST: "ACES Filmic Tone Mapping (Hill - Exposure Boost)",
     /** fast implementation of the ACES sRGB RRT+ODT based on Krzysztof Narkowicz' implementation*/
     ACES_NARKOWICZ: "ACES Filmic Tone Mapping (Narkowicz)",
     /** more accurate implementation of the ACES sRGB RRT+ODT based on Stephen Hill's implementation*/

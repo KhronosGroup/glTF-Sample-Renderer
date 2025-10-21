@@ -50,9 +50,7 @@ class ResourceLoader {
             const response = await fetch(gltfFile);
             const responseData = await response.arrayBuffer();
             const uintData = new Uint8Array(responseData);
-            const fileMagicNumbers = new TextDecoder().decode(
-                uintData.subarray(0, 5)
-            );
+            const fileMagicNumbers = new TextDecoder().decode(uintData.subarray(0, 5));
 
             isGlb = fileMagicNumbers.startsWith("glTF");
             if (isGlb) {
@@ -67,9 +65,7 @@ class ResourceLoader {
             if (isGlb) {
                 data = gltfFile;
             } else {
-                console.error(
-                    "Only .glb files can be loaded from an array buffer"
-                );
+                console.error("Only .glb files can be loaded from an array buffer");
             }
         } else if (
             Array.isArray(gltfFile) &&
@@ -130,20 +126,13 @@ class ResourceLoader {
             image = await loadHDR(new Uint8Array(await response.arrayBuffer()));
         } else if (environmentFile instanceof ArrayBuffer) {
             image = await loadHDR(new Uint8Array(environmentFile));
-        } else if (
-            typeof File !== "undefined" &&
-            environmentFile instanceof File
-        ) {
-            const imageData = await AsyncFileReader.readAsArrayBuffer(
-                environmentFile
-            ).catch(() => {
+        } else if (typeof File !== "undefined" && environmentFile instanceof File) {
+            const imageData = await AsyncFileReader.readAsArrayBuffer(environmentFile).catch(() => {
                 console.error("Could not load image with FileReader");
             });
             image = await loadHDR(new Uint8Array(imageData));
         } else {
-            console.error(
-                "Passed invalid type to loadEnvironment " + typeof gltfFile
-            );
+            console.error("Passed invalid type to loadEnvironment " + typeof gltfFile);
         }
         if (image === undefined) {
             return undefined;
@@ -156,10 +145,7 @@ class ResourceLoader {
      * @param {Object} [externalKtxLib] external ktx library (for example from a CDN)
      */
     initKtxLib(externalKtxLib) {
-        this.view.ktxDecoder = new KtxDecoder(
-            this.view.context,
-            externalKtxLib
-        );
+        this.view.ktxDecoder = new KtxDecoder(this.view.context, externalKtxLib);
     }
 
     /**
@@ -219,13 +205,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
     const sheenCubeSamplerIdx = samplerIdx++;
 
     environment.samplers.push(
-        new gltfSampler(
-            GL.LINEAR,
-            GL.LINEAR,
-            GL.CLAMP_TO_EDGE,
-            GL.CLAMP_TO_EDGE,
-            "LUTSampler"
-        )
+        new gltfSampler(GL.LINEAR, GL.LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "LUTSampler")
     );
     const lutSamplerIdx = samplerIdx++;
 
@@ -263,11 +243,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
 
     environment.textures.push(diffuseTexture);
 
-    environment.diffuseEnvMap = new gltfTextureInfo(
-        environment.textures.length - 1,
-        0,
-        true
-    );
+    environment.diffuseEnvMap = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.diffuseEnvMap.generateMips = false;
 
     // Specular
@@ -292,11 +268,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
 
     environment.textures.push(specularTexture);
 
-    environment.specularEnvMap = new gltfTextureInfo(
-        environment.textures.length - 1,
-        0,
-        true
-    );
+    environment.specularEnvMap = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.specularEnvMap.generateMips = false;
 
     // Sheen
@@ -312,20 +284,12 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
 
     environment.images.push(sheenGltfImage);
 
-    const sheenTexture = new gltfTexture(
-        sheenCubeSamplerIdx,
-        [imageIdx++],
-        GL.TEXTURE_CUBE_MAP
-    );
+    const sheenTexture = new gltfTexture(sheenCubeSamplerIdx, [imageIdx++], GL.TEXTURE_CUBE_MAP);
     sheenTexture.initialized = true; // iblsampler has already initialized the texture
 
     environment.textures.push(sheenTexture);
 
-    environment.sheenEnvMap = new gltfTextureInfo(
-        environment.textures.length - 1,
-        0,
-        true
-    );
+    environment.sheenEnvMap = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.sheenEnvMap.generateMips = false;
 
     /*
@@ -381,19 +345,11 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
             environmentFiltering.ggxLutTextureID
         )
     );
-    const lutTexture = new gltfTexture(
-        lutSamplerIdx,
-        [imageIdx++],
-        GL.TEXTURE_2D
-    );
+    const lutTexture = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
     lutTexture.initialized = true; // iblsampler has already initialized the texture
     environment.textures.push(lutTexture);
 
-    environment.lut = new gltfTextureInfo(
-        environment.textures.length - 1,
-        0,
-        true
-    );
+    environment.lut = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.lut.generateMips = false;
 
     // Sheen
@@ -409,19 +365,11 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
             environmentFiltering.charlieLutTextureID
         )
     );
-    const charlieLut = new gltfTexture(
-        lutSamplerIdx,
-        [imageIdx++],
-        GL.TEXTURE_2D
-    );
+    const charlieLut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
     charlieLut.initialized = true; // iblsampler has already initialized the texture
     environment.textures.push(charlieLut);
 
-    environment.sheenLUT = new gltfTextureInfo(
-        environment.textures.length - 1,
-        0,
-        true
-    );
+    environment.sheenLUT = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.sheenLUT.generateMips = false;
 
     // Sheen E LUT
@@ -436,19 +384,11 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
             ImageMimeType.PNG
         )
     );
-    const sheenELut = new gltfTexture(
-        lutSamplerIdx,
-        [imageIdx++],
-        GL.TEXTURE_2D
-    );
+    const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
     sheenELut.initialized = false; // iblsampler does not create this texture
     environment.textures.push(sheenELut);
 
-    environment.sheenELUT = new gltfTextureInfo(
-        environment.textures.length - 1,
-        0,
-        true
-    );
+    environment.sheenELUT = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.sheenELUT.generateMips = false;
 
     await gltfLoader.loadImages(environment);
