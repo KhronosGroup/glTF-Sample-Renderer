@@ -59,18 +59,20 @@ class gltfAnimation extends GltfObject {
         this.stopCallback = undefined;
     }
 
-    computeMinMaxTime(gltf)
-    {
-        if(isNaN(this.maxTime) || isNaN(this.minTime))
-        {
+    computeMinMaxTime(gltf) {
+        if (isNaN(this.maxTime) || isNaN(this.minTime)) {
             this.maxTime = -Infinity;
             this.minTime = Infinity;
-            for(let i = 0; i < this.channels.length; ++i)
-            {
+            for (let i = 0; i < this.channels.length; ++i) {
                 const channel = this.channels[i];
                 const sampler = this.samplers[channel.sampler];
                 const input = gltf.accessors[sampler.input];
-                if (input.max === undefined || input.min === undefined || input.max.length !== 1 || input.min.length !== 1) {
+                if (
+                    input.max === undefined ||
+                    input.min === undefined ||
+                    input.max.length !== 1 ||
+                    input.min.length !== 1
+                ) {
                     console.error("Invalid input accessor for animation channel:", channel);
                     this.minTime = undefined;
                     this.maxTime = undefined;
@@ -78,12 +80,10 @@ class gltfAnimation extends GltfObject {
                 }
                 const max = input.max[0];
                 const min = input.min[0];
-                if(max > this.maxTime)
-                {
+                if (max > this.maxTime) {
                     this.maxTime = max;
                 }
-                if(min < this.minTime)
-                {
+                if (min < this.minTime) {
                     this.minTime = min;
                 }
             }
@@ -119,21 +119,29 @@ class gltfAnimation extends GltfObject {
                 elapsedTime = this.startTime;
                 endAnimation = true;
             } else if (this.stopTime !== undefined) {
-                if ((this.startTime < this.endTime && elapsedTime >= this.stopTime && this.stopTime >= this.startTime && this.stopTime < this.endTime)
-                    || (this.startTime > this.endTime && elapsedTime <= this.stopTime && this.stopTime <= this.startTime && this.stopTime > this.endTime)) {
+                if (
+                    (this.startTime < this.endTime &&
+                        elapsedTime >= this.stopTime &&
+                        this.stopTime >= this.startTime &&
+                        this.stopTime < this.endTime) ||
+                    (this.startTime > this.endTime &&
+                        elapsedTime <= this.stopTime &&
+                        this.stopTime <= this.startTime &&
+                        this.stopTime > this.endTime)
+                ) {
                     elapsedTime = this.stopTime;
                     stopAnimation = true;
                 }
-            } else if ((this.startTime < this.endTime && elapsedTime >= this.endTime) || (this.startTime > this.endTime && elapsedTime <= this.endTime)) {
+            } else if (
+                (this.startTime < this.endTime && elapsedTime >= this.endTime) ||
+                (this.startTime > this.endTime && elapsedTime <= this.endTime)
+            ) {
                 elapsedTime = this.endTime;
                 endAnimation = true;
             }
         }
 
-
-
-        for(let i = 0; i < this.interpolators.length; ++i)
-        {
+        for (let i = 0; i < this.interpolators.length; ++i) {
             const channel = this.channels[i];
             const sampler = this.samplers[channel.sampler];
             const interpolator = this.interpolators[i];
@@ -197,8 +205,16 @@ class gltfAnimation extends GltfObject {
                 if (animatedArrayElement !== undefined) {
                     stride = animatedProperty.restValue[animatedArrayElement]?.length ?? 1;
                 }
-                
-                let interpolant = interpolator.interpolate(gltf, channel, sampler, elapsedTime, stride, this.maxTime, reverse);
+
+                let interpolant = interpolator.interpolate(
+                    gltf,
+                    channel,
+                    sampler,
+                    elapsedTime,
+                    stride,
+                    this.maxTime,
+                    reverse
+                );
                 if (interpolant === undefined) {
                     animatedProperty.rest();
                     continue;

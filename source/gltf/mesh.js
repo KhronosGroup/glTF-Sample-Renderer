@@ -5,8 +5,7 @@ import { GltfObject } from "./gltf_object.js";
 class gltfMesh extends GltfObject {
     static animatedProperties = ["weights"];
     static readOnlyAnimatedProperties = ["weights", "primitives"];
-    constructor()
-    {
+    constructor() {
         super();
         this.primitives = [];
         this.name = undefined;

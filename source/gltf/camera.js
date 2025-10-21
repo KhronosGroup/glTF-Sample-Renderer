@@ -78,9 +78,8 @@ class gltfCamera extends GltfObject {
     getProjectionMatrixForPixel(x, y, width, height) {
         const projection = mat4.create();
 
-        if (this.type === "perspective")
-        {
-            const aspectRatio = this.perspective.aspectRatio ?? (width / height);
+        if (this.type === "perspective") {
+            const aspectRatio = this.perspective.aspectRatio ?? width / height;
             const top = Math.tan(this.perspective.yfov / 2) * this.perspective.znear;
             const bottom = -top;
             const left = bottom * aspectRatio;
@@ -102,19 +101,18 @@ class gltfCamera extends GltfObject {
                 this.perspective.znear,
                 this.perspective.zfar
             );
-
-
-        }
-        else if (this.type === "orthographic")
-        {
-            const subLeft = -this.orthographic.xmag + (2 * this.orthographic.xmag / width) * x;
-            const subRight = subLeft + (2 * this.orthographic.xmag / width);
-            const subBottom = -this.orthographic.ymag + (2 * this.orthographic.ymag / height) * y;
-            const subTop = subBottom + (2 * this.orthographic.ymag / height);
+        } else if (this.type === "orthographic") {
+            const subLeft = -this.orthographic.xmag + ((2 * this.orthographic.xmag) / width) * x;
+            const subRight = subLeft + (2 * this.orthographic.xmag) / width;
+            const subBottom = -this.orthographic.ymag + ((2 * this.orthographic.ymag) / height) * y;
+            const subTop = subBottom + (2 * this.orthographic.ymag) / height;
 
             mat4.ortho(
                 projection,
-                subLeft, subRight, subBottom, subTop,
+                subLeft,
+                subRight,
+                subBottom,
+                subTop,
                 this.orthographic.znear,
                 this.orthographic.zfar
             );
@@ -123,8 +121,7 @@ class gltfCamera extends GltfObject {
         return projection;
     }
 
-    getViewMatrix(gltf)
-    {
+    getViewMatrix(gltf) {
         let result = mat4.create();
         mat4.invert(result, this.getTransformMatrix(gltf));
         return result;

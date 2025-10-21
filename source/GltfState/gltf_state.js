@@ -1,6 +1,6 @@
-import { GraphController } from '../gltf/interactivity.js';
-import { UserCamera } from '../gltf/user_camera.js';
-import { AnimationTimer } from '../gltf/utils.js';
+import { GraphController } from "../gltf/interactivity.js";
+import { UserCamera } from "../gltf/user_camera.js";
+import { AnimationTimer } from "../gltf/utils.js";
 
 /**
  * GltfState containing a state for visualization in GltfView

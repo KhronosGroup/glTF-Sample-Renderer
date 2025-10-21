@@ -100,8 +100,13 @@ class GltfView {
                 transparentMaterialsCount: 0
             };
         }
-        const nodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions).nodes;
-        const activeMeshes = nodes.filter(node => node.mesh !== undefined).map(node => state.gltf.meshes[node.mesh]);
+        const nodes = scene.gatherNodes(
+            state.gltf,
+            state.renderingParameters.enabledExtensions
+        ).nodes;
+        const activeMeshes = nodes
+            .filter((node) => node.mesh !== undefined)
+            .map((node) => state.gltf.meshes[node.mesh]);
         const activePrimitives = activeMeshes
             .reduce((acc, mesh) => acc.concat(mesh.primitives), [])
             .filter((primitive) => primitive.material !== undefined);
@@ -156,31 +161,33 @@ class GltfView {
         };
     }
 
-    _animate(state)
-    {
-        if(state.gltf === undefined || state.gltf.animations === undefined)
-        {
+    _animate(state) {
+        if (state.gltf === undefined || state.gltf.animations === undefined) {
             return;
         }
         let disabledAnimations = [];
         let enabledAnimations = [];
 
-        if (state.gltf?.extensions?.KHR_interactivity !== undefined && state.renderingParameters.enabledExtensions.KHR_interactivity) {
-            if (state.graphController.playing){
+        if (
+            state.gltf?.extensions?.KHR_interactivity !== undefined &&
+            state.renderingParameters.enabledExtensions.KHR_interactivity
+        ) {
+            if (state.graphController.playing) {
                 for (const animation of state.gltf.animations) {
                     if (animation.createdTimestamp !== undefined) {
                         enabledAnimations.push(animation);
                     }
                 }
             }
-        } else if(state.animationIndices !== undefined)
-        {
-            disabledAnimations = state.gltf.animations.filter( (anim, index) => {
+        } else if (state.animationIndices !== undefined) {
+            disabledAnimations = state.gltf.animations.filter((anim, index) => {
                 return false === state.animationIndices.includes(index);
             });
-            enabledAnimations = state.animationIndices.map(index => {
-                return state.gltf.animations[index];
-            }).filter(animation => animation !== undefined);
+            enabledAnimations = state.animationIndices
+                .map((index) => {
+                    return state.gltf.animations[index];
+                })
+                .filter((animation) => animation !== undefined);
             for (const animation of enabledAnimations) {
                 if (animation.createdTimestamp !== undefined) {
                     animation.reset();
@@ -188,18 +195,15 @@ class GltfView {
             }
         }
 
-        for(const disabledAnimation of disabledAnimations)
-        {
+        for (const disabledAnimation of disabledAnimations) {
             disabledAnimation.advance(state.gltf, undefined);
         }
 
         const t = state.animationTimer.elapsedSec();
 
-        for(const animation of enabledAnimations)
-        {
+        for (const animation of enabledAnimations) {
             animation.advance(state.gltf, t);
         }
-        
     }
 }
 

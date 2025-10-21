@@ -74,7 +74,9 @@ class GraphController {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
             if (this.playing) {
-                this.state.enableHover = this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]?.hasHoverEvent ?? false;
+                this.state.enableHover =
+                    this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]
+                        ?.hasHoverEvent ?? false;
                 this.decorator.playEventQueue();
             } else {
                 this.state.enableHover = false;
@@ -110,7 +112,7 @@ class GraphController {
         this.playing = false;
         this.state.enableHover = false;
     }
-    
+
     /**
      * Resumes the currently paused graph.
      */
@@ -118,7 +120,9 @@ class GraphController {
         if (this.graphIndex === undefined || this.playing) {
             return;
         }
-        this.state.enableHover = this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]?.hasHoverEvent ?? false;
+        this.state.enableHover =
+            this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]
+                ?.hasHoverEvent ?? false;
         this.decorator.playEventQueue();
         this.playing = true;
     }
@@ -135,8 +139,8 @@ class GraphController {
 
     /**
      * Dispatches an event to the behavior engine.
-     * @param {string} eventName 
-     * @param {*} data 
+     * @param {string} eventName
+     * @param {*} data
      */
     dispatchEvent(eventName, data) {
         if (this.graphIndex !== undefined) {
@@ -148,8 +152,8 @@ class GraphController {
     /**
      * Adds a custom event listener to the decorator.
      * Khronos test assets use test/onStart, test/onFail and test/onSuccess.
-     * @param {string} eventName 
-     * @param {function(CustomEvent)} callback 
+     * @param {string} eventName
+     * @param {function(CustomEvent)} callback
      */
     addCustomEventListener(eventName, callback) {
         this.decorator.addCustomEventListener(eventName, callback);
@@ -161,11 +165,9 @@ class GraphController {
     clearCustomEventListeners() {
         this.decorator.clearCustomEventListeners();
     }
-
 }
 
 class SampleViewerDecorator extends interactivity.ADecorator {
-    
     constructor(behaveEngine, debug = false) {
         super(behaveEngine);
         this.behaveEngine = behaveEngine;
@@ -218,7 +220,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
     receiveSelection(pickingResult) {
         if (pickingResult.node) {
-            this.select(pickingResult.node?.gltfObjectIndex, 0, pickingResult.position, pickingResult.rayOrigin);
+            this.select(
+                pickingResult.node?.gltfObjectIndex,
+                0,
+                pickingResult.position,
+                pickingResult.rayOrigin
+            );
         }
     }
 
@@ -242,7 +249,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         if (graphArray && graphArray.length > graphIndex) {
             const graphCopy = JSON.parse(JSON.stringify(graphArray[graphIndex]));
             let events = graphCopy.events ?? [];
-            events = events.filter(event => event.id !== undefined);
+            events = events.filter((event) => event.id !== undefined);
             events = JSON.parse(JSON.stringify(events)); // Deep copy to avoid mutation
             for (const event of events) {
                 for (const value of Object.values(event.values)) {
@@ -256,7 +263,13 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     resetGraph() {
-        this.behaveEngine.loadBehaveGraph({nodes: [], types: [], events: [], declarations: [], variables: []});
+        this.behaveEngine.loadBehaveGraph({
+            nodes: [],
+            types: [],
+            events: [],
+            declarations: [],
+            variables: []
+        });
         if (this.world === undefined) {
             return;
         }
@@ -326,17 +339,29 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         case "float4":
             return [NaN, NaN, NaN, NaN];
         case "float2x2":
-            return [[NaN, NaN], [NaN, NaN]];
+            return [
+                [NaN, NaN],
+                [NaN, NaN]
+            ];
         case "float3x3":
-            return [[NaN, NaN, NaN], [NaN, NaN, NaN], [NaN, NaN, NaN]];
+            return [
+                [NaN, NaN, NaN],
+                [NaN, NaN, NaN],
+                [NaN, NaN, NaN]
+            ];
         case "float4x4":
-            return [[NaN, NaN, NaN, NaN], [NaN, NaN, NaN, NaN], [NaN, NaN, NaN, NaN], [NaN, NaN, NaN, NaN]];
+            return [
+                [NaN, NaN, NaN, NaN],
+                [NaN, NaN, NaN, NaN],
+                [NaN, NaN, NaN, NaN],
+                [NaN, NaN, NaN, NaN]
+            ];
         }
         return undefined;
     }
 
     traversePath(path, type, value = undefined) {
-        const pathPieces = path.split('/');
+        const pathPieces = path.split("/");
         pathPieces.shift(); // Remove first empty piece from split
         const lastPiece = pathPieces[pathPieces.length - 1];
         if (value !== undefined) {
@@ -381,7 +406,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         return currentNode;
     }
 
-
     recurseAllAnimatedProperties(gltfObject, callable, currentPath = "") {
         if (gltfObject === undefined || !(gltfObject instanceof GltfObject)) {
             return;
@@ -400,23 +424,34 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         }
         for (const key in gltfObject) {
             if (gltfObject[key] instanceof GltfObject) {
-                this.recurseAllAnimatedProperties(gltfObject[key], callable,currentPath + "/" + key);
+                this.recurseAllAnimatedProperties(
+                    gltfObject[key],
+                    callable,
+                    currentPath + "/" + key
+                );
             } else if (Array.isArray(gltfObject[key])) {
                 if (gltfObject[key].length === 0 || !(gltfObject[key][0] instanceof GltfObject)) {
                     continue;
                 }
                 for (let i = 0; i < gltfObject[key].length; i++) {
-                    this.recurseAllAnimatedProperties(gltfObject[key][i], callable, currentPath + "/" + key + "/" + i);
+                    this.recurseAllAnimatedProperties(
+                        gltfObject[key][i],
+                        callable,
+                        currentPath + "/" + key + "/" + i
+                    );
                 }
             }
         }
         for (const extensionName in gltfObject.extensions) {
             const extension = gltfObject.extensions[extensionName];
             if (extension instanceof GltfObject) {
-                this.recurseAllAnimatedProperties(extension, callable, currentPath + "/extensions/" + extensionName);
+                this.recurseAllAnimatedProperties(
+                    extension,
+                    callable,
+                    currentPath + "/extensions/" + extensionName
+                );
             }
         }
-        
     }
 
     registerKnownPointers() {
@@ -432,161 +467,281 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 if (Array.isArray(parent[propertyName])) {
                     jsonPtr += ".length";
                     type = "int";
-                    this.registerJsonPointer(jsonPtr, (path) => {
-                        const fixedPath = path.slice(0, -7); // Remove ".length"
-                        const result = this.traversePath(fixedPath, type);
-                        if (result === undefined) {
-                            return 0;
-                        }
-                        return result.length;
-                    }, (path, value) => {}, type, true);
+                    this.registerJsonPointer(
+                        jsonPtr,
+                        (path) => {
+                            const fixedPath = path.slice(0, -7); // Remove ".length"
+                            const result = this.traversePath(fixedPath, type);
+                            if (result === undefined) {
+                                return 0;
+                            }
+                            return result.length;
+                        },
+                        (_path, _value) => {},
+                        type,
+                        true
+                    );
                     return;
                 }
-                this.registerJsonPointer(jsonPtr, (path) => {
+                this.registerJsonPointer(
+                    jsonPtr,
+                    (path) => {
+                        const result = this.traversePath(path, type);
+                        if (result === undefined) {
+                            return this.getDefaultValueFromType(type);
+                        }
+                        return result;
+                    },
+                    (_path, _value) => {},
+                    type,
+                    true
+                );
+            }
+            if (type === undefined) {
+                return;
+            }
+            this.registerJsonPointer(
+                jsonPtr,
+                (path) => {
                     const result = this.traversePath(path, type);
                     if (result === undefined) {
                         return this.getDefaultValueFromType(type);
                     }
                     return result;
-                }, (path, value) => {}, type, true);
-            }
-            if (type === undefined) {
-                return;
-            }
-            this.registerJsonPointer(jsonPtr, (path) => {
-                const result = this.traversePath(path, type);
-                if (result === undefined) {
-                    return this.getDefaultValueFromType(type);
-                }
-                return result;
-            }, (path, value) => {
-                this.traversePath(path, type, value);
-            }, type, false);
+                },
+                (path, value) => {
+                    this.traversePath(path, type, value);
+                },
+                type,
+                false
+            );
         };
         this.recurseAllAnimatedProperties(this.world.gltf, registerFunction);
 
-        this.registerJsonPointer(`/extensions/KHR_lights_punctual/lights.length`, (path) => {
-            const lights = this.world.gltf.extensions?.KHR_lights_punctual?.lights;
-            if (lights === undefined) {
-                return 0;
-            }
-            return lights.length;
-        }, (path, value) => {}, "int", true);
+        this.registerJsonPointer(
+            `/extensions/KHR_lights_punctual/lights.length`,
+            (_path) => {
+                const lights = this.world.gltf.extensions?.KHR_lights_punctual?.lights;
+                if (lights === undefined) {
+                    return 0;
+                }
+                return lights.length;
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
 
         const nodeCount = this.world.gltf.nodes.length;
-        this.registerJsonPointer(`/nodes/${nodeCount}/children/${nodeCount}`, (path) => {
-            return this.traversePath(path, "int");
-        }, (path, value) => {}, "int", true);
-        this.registerJsonPointer(`/nodes/${nodeCount}/globalMatrix`, (path) => {
-            const pathParts = path.split('/');
-            const nodeIndex = parseInt(pathParts[2]);
-            const node = this.world.gltf.nodes[nodeIndex];   
-            node.scene.applyTransformHierarchy(this.world.gltf);
-            return this.convertArrayToMatrix(node.worldTransform, 4); // gl-matrix uses column-major order
-        }, (path, value) => {}, "float4x4", true);
-        this.registerJsonPointer(`/nodes/${nodeCount}/matrix`, (path) => {
-            const pathParts = path.split('/');
-            const nodeIndex = parseInt(pathParts[2]);
-            const node = this.world.gltf.nodes[nodeIndex];
-            return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
-        }, (path, value) => {}, "float4x4", true);
-        this.registerJsonPointer(`/nodes/${nodeCount}/parent`, (path) => {
-            const pathParts = path.split('/');
-            const nodeIndex = parseInt(pathParts[2]);
-            const node = this.world.gltf.nodes[nodeIndex];
-            return node.parentNode?.gltfObjectIndex;
-        }, (path, value) => {}, "int", true);
-        this.registerJsonPointer(`/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`, (path) => {
-            return this.traversePath(path, "int");
-        }, (path, value) => {}, "int", true);
+        this.registerJsonPointer(
+            `/nodes/${nodeCount}/children/${nodeCount}`,
+            (path) => {
+                return this.traversePath(path, "int");
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
+        this.registerJsonPointer(
+            `/nodes/${nodeCount}/globalMatrix`,
+            (path) => {
+                const pathParts = path.split("/");
+                const nodeIndex = parseInt(pathParts[2]);
+                const node = this.world.gltf.nodes[nodeIndex];
+                node.scene.applyTransformHierarchy(this.world.gltf);
+                return this.convertArrayToMatrix(node.worldTransform, 4); // gl-matrix uses column-major order
+            },
+            (_path, _value) => {},
+            "float4x4",
+            true
+        );
+        this.registerJsonPointer(
+            `/nodes/${nodeCount}/matrix`,
+            (path) => {
+                const pathParts = path.split("/");
+                const nodeIndex = parseInt(pathParts[2]);
+                const node = this.world.gltf.nodes[nodeIndex];
+                return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
+            },
+            (_path, _value) => {},
+            "float4x4",
+            true
+        );
+        this.registerJsonPointer(
+            `/nodes/${nodeCount}/parent`,
+            (path) => {
+                const pathParts = path.split("/");
+                const nodeIndex = parseInt(pathParts[2]);
+                const node = this.world.gltf.nodes[nodeIndex];
+                return node.parentNode?.gltfObjectIndex;
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
+        this.registerJsonPointer(
+            `/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`,
+            (path) => {
+                return this.traversePath(path, "int");
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
 
         const sceneCount = this.world.gltf.scenes.length;
-        this.registerJsonPointer(`/scenes/${sceneCount}/nodes/${nodeCount}`, (path) => {
-            return this.traversePath(path, "int");
-        }, (path, value) => {}, "int", true);
+        this.registerJsonPointer(
+            `/scenes/${sceneCount}/nodes/${nodeCount}`,
+            (path) => {
+                return this.traversePath(path, "int");
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
 
         const skinCount = this.world.gltf.skins.length;
-        this.registerJsonPointer(`/skins/${skinCount}/joints/${nodeCount}`, (path) => {
-            return this.traversePath(path, "int");
-        }, (path, value) => {}, "int", true);
+        this.registerJsonPointer(
+            `/skins/${skinCount}/joints/${nodeCount}`,
+            (path) => {
+                return this.traversePath(path, "int");
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
 
         const animationCount = this.world.gltf.animations.length;
-        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/isPlaying`, (path) => {
-            const pathParts = path.split('/');
-            const animationIndex = parseInt(pathParts[2]);
-            const animation = this.world.gltf.animations[animationIndex];
-            return animation.createdTimestamp !== undefined;
-        }, (path, value) => {}, "bool", true);
-        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/minTime`, (path) => {
-            const pathParts = path.split('/');
-            const animationIndex = parseInt(pathParts[2]);
-            const animation = this.world.gltf.animations[animationIndex];
-            animation.computeMinMaxTime();
-            return animation.minTime;
-        }, (path, value) => {}, "float", true);
-        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/maxTime`, (path) => {
-            const pathParts = path.split('/');
-            const animationIndex = parseInt(pathParts[2]);
-            const animation = this.world.gltf.animations[animationIndex];
-            animation.computeMinMaxTime();
-            return animation.maxTime;
-        }, (path, value) => {}, "float", true);
-        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/playhead`, (path) => {
-            const pathParts = path.split('/');
-            const animationIndex = parseInt(pathParts[2]);
-            const animation = this.world.gltf.animations[animationIndex];
-            if (animation.interpolators.length === 0) {
-                return NaN;
-            }
-            return animation.interpolators[0].prevT;
-        }, (path, value) => {}, "float", true);
-        this.registerJsonPointer(`/animations/${animationCount}/extensions/KHR_interactivity/virtualPlayhead`, (path) => {
-            const pathParts = path.split('/');
-            const animationIndex = parseInt(pathParts[2]);
-            const animation = this.world.gltf.animations[animationIndex];
-            if (animation.interpolators.length === 0) {
-                return NaN;
-            }
-            return animation.interpolators[0].prevRequestedT;
-        }, (path, value) => {}, "float", true);
+        this.registerJsonPointer(
+            `/animations/${animationCount}/extensions/KHR_interactivity/isPlaying`,
+            (path) => {
+                const pathParts = path.split("/");
+                const animationIndex = parseInt(pathParts[2]);
+                const animation = this.world.gltf.animations[animationIndex];
+                return animation.createdTimestamp !== undefined;
+            },
+            (_path, _value) => {},
+            "bool",
+            true
+        );
+        this.registerJsonPointer(
+            `/animations/${animationCount}/extensions/KHR_interactivity/minTime`,
+            (path) => {
+                const pathParts = path.split("/");
+                const animationIndex = parseInt(pathParts[2]);
+                const animation = this.world.gltf.animations[animationIndex];
+                animation.computeMinMaxTime();
+                return animation.minTime;
+            },
+            (_path, _value) => {},
+            "float",
+            true
+        );
+        this.registerJsonPointer(
+            `/animations/${animationCount}/extensions/KHR_interactivity/maxTime`,
+            (path) => {
+                const pathParts = path.split("/");
+                const animationIndex = parseInt(pathParts[2]);
+                const animation = this.world.gltf.animations[animationIndex];
+                animation.computeMinMaxTime();
+                return animation.maxTime;
+            },
+            (_path, _value) => {},
+            "float",
+            true
+        );
+        this.registerJsonPointer(
+            `/animations/${animationCount}/extensions/KHR_interactivity/playhead`,
+            (path) => {
+                const pathParts = path.split("/");
+                const animationIndex = parseInt(pathParts[2]);
+                const animation = this.world.gltf.animations[animationIndex];
+                if (animation.interpolators.length === 0) {
+                    return NaN;
+                }
+                return animation.interpolators[0].prevT;
+            },
+            (_path, _value) => {},
+            "float",
+            true
+        );
+        this.registerJsonPointer(
+            `/animations/${animationCount}/extensions/KHR_interactivity/virtualPlayhead`,
+            (path) => {
+                const pathParts = path.split("/");
+                const animationIndex = parseInt(pathParts[2]);
+                const animation = this.world.gltf.animations[animationIndex];
+                if (animation.interpolators.length === 0) {
+                    return NaN;
+                }
+                return animation.interpolators[0].prevRequestedT;
+            },
+            (_path, _value) => {},
+            "float",
+            true
+        );
 
-        this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/rotation`, (path) => {
-            let activeCamera = this.world.userCamera;
-            if (this.world.cameraNodeIndex !== undefined) {
-                if (this.world.cameraNodeIndex < 0 || this.world.cameraNodeIndex >= this.world.gltf.nodes.length) {
-                    return [NaN, NaN, NaN, NaN];
+        this.registerJsonPointer(
+            `/extensions/KHR_interactivity/activeCamera/rotation`,
+            (_path) => {
+                let activeCamera = this.world.userCamera;
+                if (this.world.cameraNodeIndex !== undefined) {
+                    if (
+                        this.world.cameraNodeIndex < 0 ||
+                        this.world.cameraNodeIndex >= this.world.gltf.nodes.length
+                    ) {
+                        return [NaN, NaN, NaN, NaN];
+                    }
+                    const cameraIndex = this.world.gltf.nodes[this.world.cameraNodeIndex].camera;
+                    if (cameraIndex === undefined) {
+                        return [NaN, NaN, NaN, NaN];
+                    }
+                    activeCamera = this.world.gltf.cameras[cameraIndex];
                 }
-                const cameraIndex = this.world.gltf.nodes[this.world.cameraNodeIndex].camera;
-                if (cameraIndex === undefined) {
-                    return [NaN, NaN, NaN, NaN];
-                }
-                activeCamera = this.world.gltf.cameras[cameraIndex];
-            }
-            return activeCamera.getRotation().slice(0);
-        }, (path, value) => {
-            //no-op
-        }, "float4", true);
+                return activeCamera.getRotation().slice(0);
+            },
+            (_path, _value) => {
+                //no-op
+            },
+            "float4",
+            true
+        );
 
-        this.registerJsonPointer(`/extensions/KHR_interactivity/activeCamera/position`, (path) => {
-            let activeCamera = this.world.userCamera;
-            if (this.world.cameraNodeIndex !== undefined) {
-                if (this.world.cameraNodeIndex < 0 || this.world.cameraNodeIndex >= this.world.gltf.nodes.length) {
-                    return [NaN, NaN, NaN];
+        this.registerJsonPointer(
+            `/extensions/KHR_interactivity/activeCamera/position`,
+            (_path) => {
+                let activeCamera = this.world.userCamera;
+                if (this.world.cameraNodeIndex !== undefined) {
+                    if (
+                        this.world.cameraNodeIndex < 0 ||
+                        this.world.cameraNodeIndex >= this.world.gltf.nodes.length
+                    ) {
+                        return [NaN, NaN, NaN];
+                    }
+                    const cameraIndex = this.world.gltf.nodes[this.world.cameraNodeIndex].camera;
+                    if (cameraIndex === undefined) {
+                        return [NaN, NaN, NaN];
+                    }
+                    activeCamera = this.world.gltf.cameras[cameraIndex];
                 }
-                const cameraIndex = this.world.gltf.nodes[this.world.cameraNodeIndex].camera;
-                if (cameraIndex === undefined) {
-                    return [NaN, NaN, NaN];
-                }
-                activeCamera = this.world.gltf.cameras[cameraIndex];
-            }
-            return activeCamera.getPosition().slice(0);
-        }, (path, value) => {
-            //no-op
-        }, "float3", true);
+                return activeCamera.getPosition().slice(0);
+            },
+            (_path, _value) => {
+                //no-op
+            },
+            "float3",
+            true
+        );
     }
 
     registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly) {
-        this.behaveEngine.registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly);
+        this.behaveEngine.registerJsonPointer(
+            jsonPtr,
+            getterCallback,
+            setterCallback,
+            typeName,
+            readOnly
+        );
     }
 
     getWorld() {

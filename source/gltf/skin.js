@@ -11,8 +11,7 @@ import { gltfSampler } from "./sampler.js";
 class gltfSkin extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["joints", "skeleton"];
-    constructor()
-    {
+    constructor() {
         super();
 
         this.name = "";
@@ -69,15 +68,16 @@ class gltfSkin extends GltfObject {
         this.jointTextureInfo.generateMips = false;
     }
 
-    computeJoints(gltf, webGlContext)
-    {
+    computeJoints(gltf, webGlContext) {
         let ibmAccessorData = null;
         if (this.inverseBindMatrices !== undefined) {
             const ibmAccessor = gltf.accessors[this.inverseBindMatrices];
             if (ibmAccessor.componentType === GL.FLOAT) {
                 ibmAccessorData = ibmAccessor.getDeinterlacedView(gltf);
             } else {
-                console.warn("EXT_mesh_gpu_instancing inverseBindMatrices accessor must be a float");
+                console.warn(
+                    "EXT_mesh_gpu_instancing inverseBindMatrices accessor must be a float"
+                );
             }
         }
 

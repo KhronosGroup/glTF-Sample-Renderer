@@ -169,8 +169,7 @@ class gltfWebGl {
             return false;
         }
 
-        if (gltfAccessor.glBuffer === undefined)
-        {
+        if (gltfAccessor.glBuffer === undefined) {
             if (gltfAccessor.componentType === 5130) {
                 throw new Error("64-bit float attributes are not supported in WebGL2");
             }

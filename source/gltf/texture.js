@@ -1,9 +1,9 @@
 /* globals WebGl */
 
-import { fromKeys, initGlForMembers } from './utils.js';
-import { GL } from '../Renderer/webgl.js';
-import { GltfObject } from './gltf_object.js';
-import { vec2 } from 'gl-matrix';
+import { fromKeys, initGlForMembers } from "./utils.js";
+import { GL } from "../Renderer/webgl.js";
+import { GltfObject } from "./gltf_object.js";
+import { vec2 } from "gl-matrix";
 
 class gltfTexture extends GltfObject {
     static animatedProperties = [];

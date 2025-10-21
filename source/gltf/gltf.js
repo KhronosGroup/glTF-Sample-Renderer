@@ -1,22 +1,22 @@
-import { gltfAccessor } from './accessor.js';
-import { gltfBuffer } from './buffer.js';
-import { gltfBufferView } from './buffer_view.js';
-import { gltfCamera } from './camera.js';
-import { gltfImage } from './image.js';
-import { gltfLight } from './light.js';
-import { gltfMaterial } from './material.js';
-import { gltfMesh } from './mesh.js';
-import { gltfNode } from './node.js';
-import { gltfSampler } from './sampler.js';
-import { gltfScene } from './scene.js';
-import { gltfTexture } from './texture.js';
-import { initGlForMembers, objectsFromJsons, objectFromJson } from './utils';
-import { gltfAsset } from './asset.js';
-import { GltfObject } from './gltf_object.js';
-import { gltfAnimation } from './animation.js';
-import { gltfSkin } from './skin.js';
-import { gltfVariant } from './variant.js';
-import { gltfGraph } from './interactivity.js';
+import { gltfAccessor } from "./accessor.js";
+import { gltfBuffer } from "./buffer.js";
+import { gltfBufferView } from "./buffer_view.js";
+import { gltfCamera } from "./camera.js";
+import { gltfImage } from "./image.js";
+import { gltfLight } from "./light.js";
+import { gltfMaterial } from "./material.js";
+import { gltfMesh } from "./mesh.js";
+import { gltfNode } from "./node.js";
+import { gltfSampler } from "./sampler.js";
+import { gltfScene } from "./scene.js";
+import { gltfTexture } from "./texture.js";
+import { initGlForMembers, objectsFromJsons, objectFromJson } from "./utils";
+import { gltfAsset } from "./asset.js";
+import { GltfObject } from "./gltf_object.js";
+import { gltfAnimation } from "./animation.js";
+import { gltfSkin } from "./skin.js";
+import { gltfVariant } from "./variant.js";
+import { gltfGraph } from "./interactivity.js";
 
 const allowedExtensions = [
     "KHR_accessor_float64",
@@ -51,9 +51,17 @@ const allowedExtensions = [
 
 class glTF extends GltfObject {
     static animatedProperties = [];
-    static readOnlyAnimatedProperties = ["animations", "cameras", "materials", "meshes", "nodes", "scene", "scenes", "skins"];
-    constructor(file)
-    {
+    static readOnlyAnimatedProperties = [
+        "animations",
+        "cameras",
+        "materials",
+        "meshes",
+        "nodes",
+        "scene",
+        "scenes",
+        "skins"
+    ];
+    constructor(file) {
         super();
         this.asset = undefined;
         this.accessors = [];
@@ -106,14 +114,25 @@ class glTF extends GltfObject {
         this.skins = objectsFromJsons(json.skins, gltfSkin);
 
         if (json.extensions?.KHR_lights_punctual !== undefined) {
-            this.extensions.KHR_lights_punctual.lights = objectsFromJsons(json.extensions.KHR_lights_punctual.lights, gltfLight);
+            this.extensions.KHR_lights_punctual.lights = objectsFromJsons(
+                json.extensions.KHR_lights_punctual.lights,
+                gltfLight
+            );
         }
         if (json.extensions?.KHR_materials_variants !== undefined) {
-            this.extensions.KHR_materials_variants.variants = objectsFromJsons(json.extensions.KHR_materials_variants?.variants, gltfVariant);
-            this.extensions.KHR_materials_variants.variants = enforceVariantsUniqueness(this.extensions.KHR_materials_variants.variants);
+            this.extensions.KHR_materials_variants.variants = objectsFromJsons(
+                json.extensions.KHR_materials_variants?.variants,
+                gltfVariant
+            );
+            this.extensions.KHR_materials_variants.variants = enforceVariantsUniqueness(
+                this.extensions.KHR_materials_variants.variants
+            );
         }
         if (json.extensions?.KHR_interactivity !== undefined) {
-            this.extensions.KHR_interactivity.graphs = objectsFromJsons(json.extensions.KHR_interactivity?.graphs, gltfGraph);
+            this.extensions.KHR_interactivity.graphs = objectsFromJsons(
+                json.extensions.KHR_interactivity?.graphs,
+                gltfGraph
+            );
             this.extensions.KHR_interactivity.graph = json.extensions.KHR_interactivity?.graph ?? 0;
         }
 
@@ -133,17 +152,14 @@ class glTF extends GltfObject {
     }
 
     // Adds parent and scene information to each node
-    addNodeMetaInformation()
-    {
-        function recurseNodes(gltf, nodeIndex, scene, parent)
-        {
+    addNodeMetaInformation() {
+        function recurseNodes(gltf, nodeIndex, scene, parent) {
             const node = gltf.nodes[nodeIndex];
             node.scene = scene;
             node.parentNode = parent;
 
             // recurse into children
-            for(const child of node.children)
-            {
+            for (const child of node.children) {
                 recurseNodes(gltf, child, scene, node);
             }
         }
@@ -233,10 +249,8 @@ class glTF extends GltfObject {
     }
 }
 
-function enforceVariantsUniqueness(variants)
-{
-    for(let i=0;i<variants.length;i++)
-    {
+function enforceVariantsUniqueness(variants) {
+    for (let i = 0; i < variants.length; i++) {
         const name = variants[i].name;
         for (let j = i + 1; j < variants.length; j++) {
             if (variants[j].name == name) {

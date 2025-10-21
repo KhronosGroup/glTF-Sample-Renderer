@@ -1,29 +1,29 @@
-import { mat4, mat3, vec3, quat, vec4 } from 'gl-matrix';
-import { ShaderCache } from './shader_cache.js';
-import { GltfState } from '../GltfState/gltf_state.js';
-import { gltfWebGl, GL } from './webgl.js';
-import { EnvironmentRenderer } from './environment_renderer.js';
+import { mat4, mat3, vec3, quat, vec4 } from "gl-matrix";
+import { ShaderCache } from "./shader_cache.js";
+import { GltfState } from "../GltfState/gltf_state.js";
+import { gltfWebGl, GL } from "./webgl.js";
+import { EnvironmentRenderer } from "./environment_renderer.js";
 
-import pbrShader from './shaders/pbr.frag';
-import pickingShader from './shaders/picking.frag';
-import pickingVertShader from './shaders/picking.vert';
-import brdfShader from './shaders/brdf.glsl';
-import iridescenceShader from './shaders/iridescence.glsl';
-import materialInfoShader from './shaders/material_info.glsl';
-import iblShader from './shaders/ibl.glsl';
-import punctualShader from './shaders/punctual.glsl';
-import primitiveShader from './shaders/primitive.vert';
-import texturesShader from './shaders/textures.glsl';
-import tonemappingShader from './shaders/tonemapping.glsl';
-import shaderFunctions from './shaders/functions.glsl';
-import animationShader from './shaders/animation.glsl';
-import cubemapVertShader from './shaders/cubemap.vert';
-import cubemapFragShader from './shaders/cubemap.frag';
-import scatterShader from './shaders/scatter.frag';
-import specularGlossinesShader from './shaders/specular_glossiness.frag';
-import { gltfLight } from '../gltf/light.js';
-import { jsToGl } from '../gltf/utils.js';
-import { gltfMaterial } from '../gltf/material.js';
+import pbrShader from "./shaders/pbr.frag";
+import pickingShader from "./shaders/picking.frag";
+import pickingVertShader from "./shaders/picking.vert";
+import brdfShader from "./shaders/brdf.glsl";
+import iridescenceShader from "./shaders/iridescence.glsl";
+import materialInfoShader from "./shaders/material_info.glsl";
+import iblShader from "./shaders/ibl.glsl";
+import punctualShader from "./shaders/punctual.glsl";
+import primitiveShader from "./shaders/primitive.vert";
+import texturesShader from "./shaders/textures.glsl";
+import tonemappingShader from "./shaders/tonemapping.glsl";
+import shaderFunctions from "./shaders/functions.glsl";
+import animationShader from "./shaders/animation.glsl";
+import cubemapVertShader from "./shaders/cubemap.vert";
+import cubemapFragShader from "./shaders/cubemap.frag";
+import scatterShader from "./shaders/scatter.frag";
+import specularGlossinesShader from "./shaders/specular_glossiness.frag";
+import { gltfLight } from "../gltf/light.js";
+import { jsToGl } from "../gltf/utils.js";
+import { gltfMaterial } from "../gltf/material.js";
 
 class gltfRenderer {
     constructor(context) {
@@ -348,20 +348,34 @@ class gltfRenderer {
     }
 
     prepareScene(state, scene) {
-
         const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions);
         this.selectionDrawables = newNodes.selectableNodes
-            .filter(node => node.mesh !== undefined)
-            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( (primitive, index) => {
-                return  {node: node, primitive: primitive, primitiveIndex: index};
-            })), []);
+            .filter((node) => node.mesh !== undefined)
+            .reduce(
+                (acc, node) =>
+                    acc.concat(
+                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
+                            return { node: node, primitive: primitive, primitiveIndex: index };
+                        })
+                    ),
+                []
+            );
         this.hoverDrawables = newNodes.hoverableNodes
-            .filter(node => node.mesh !== undefined)
-            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( (primitive, index) => {
-                return  {node: node, primitive: primitive, primitiveIndex: index};
-            })), []);
+            .filter((node) => node.mesh !== undefined)
+            .reduce(
+                (acc, node) =>
+                    acc.concat(
+                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
+                            return { node: node, primitive: primitive, primitiveIndex: index };
+                        })
+                    ),
+                []
+            );
 
-        if (newNodes.nodes.length === this.nodes?.length && newNodes.nodes.every((element, i) => element === this.nodes[i])) {
+        if (
+            newNodes.nodes.length === this.nodes?.length &&
+            newNodes.nodes.every((element, i) => element === this.nodes[i])
+        ) {
             return;
         }
         this.nodes = newNodes.nodes;
@@ -369,11 +383,17 @@ class gltfRenderer {
         // collect drawables by essentially zipping primitives (for geometry and material)
         // and nodes for the transform
         const drawables = this.nodes
-            .filter(node => node.mesh !== undefined)
-            .reduce((acc, node) => acc.concat(state.gltf.meshes[node.mesh].primitives.map( (primitive, index) => {
-                return  {node: node, primitive: primitive, primitiveIndex: index};
-            })), [])
-            .filter(({primitive}) => primitive.material !== undefined);
+            .filter((node) => node.mesh !== undefined)
+            .reduce(
+                (acc, node) =>
+                    acc.concat(
+                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
+                            return { node: node, primitive: primitive, primitiveIndex: index };
+                        })
+                    ),
+                []
+            )
+            .filter(({ primitive }) => primitive.material !== undefined);
         this.drawables = drawables;
 
         // opaque drawables don't need sorting
@@ -438,8 +458,7 @@ class gltfRenderer {
     }
 
     // render complete gltf scene with given camera
-    drawScene(state, scene)
-    {
+    drawScene(state, scene) {
         this.prepareScene(state, scene);
 
         let currentCamera = undefined;
@@ -572,36 +591,62 @@ class gltfRenderer {
         const pickingY = state.pickingY;
 
         if (state.triggerSelection && pickingX !== undefined && pickingY !== undefined) {
-            pickingProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+            pickingProjection = currentCamera.getProjectionMatrixForPixel(
+                pickingX - aspectOffsetX,
+                this.currentHeight - pickingY - aspectOffsetY,
+                aspectWidth,
+                aspectHeight
+            );
             mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
-            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.pickingFramebuffer
+            );
             this.webGl.context.viewport(0, 0, 1, 1);
 
             const fragDefines = [];
             this.pushFragParameterDefines(fragDefines, state);
-            for (const drawable of this.selectionDrawables)
-            {
+            for (const drawable of this.selectionDrawables) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, pickingViewProjection);
+                this.drawPrimitive(
+                    state,
+                    renderpassConfiguration,
+                    drawable.primitive,
+                    drawable.node,
+                    pickingViewProjection
+                );
             }
         }
 
         if (state.enableHover && pickingX !== undefined && pickingY !== undefined) {
             if (pickingProjection === undefined) {
-                pickingProjection = currentCamera.getProjectionMatrixForPixel(pickingX - aspectOffsetX, this.currentHeight - pickingY - aspectOffsetY, aspectWidth, aspectHeight);
+                pickingProjection = currentCamera.getProjectionMatrixForPixel(
+                    pickingX - aspectOffsetX,
+                    this.currentHeight - pickingY - aspectOffsetY,
+                    aspectWidth,
+                    aspectHeight
+                );
                 mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
             }
-            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.hoverFramebuffer
+            );
             this.webGl.context.viewport(0, 0, 1, 1);
 
             const fragDefines = [];
             this.pushFragParameterDefines(fragDefines, state);
-            for (const drawable of this.hoverDrawables)
-            {
+            for (const drawable of this.hoverDrawables) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
-                this.drawPrimitive(state, renderpassConfiguration, drawable.primitive, drawable.node, pickingViewProjection);
+                this.drawPrimitive(
+                    state,
+                    renderpassConfiguration,
+                    drawable.primitive,
+                    drawable.node,
+                    pickingViewProjection
+                );
             }
         }
 
@@ -787,36 +832,53 @@ class gltfRenderer {
 
         // Handle selection
         if (state.triggerSelection) {
-            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.pickingFramebuffer
+            );
             this.webGl.context.viewport(0, 0, 1, 1);
             state.triggerSelection = false;
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
             const pixels = new Uint32Array(1);
-            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RED_INTEGER, this.webGl.context.UNSIGNED_INT, pixels);
+            this.webGl.context.readPixels(
+                0,
+                0,
+                1,
+                1,
+                this.webGl.context.RED_INTEGER,
+                this.webGl.context.UNSIGNED_INT,
+                pixels
+            );
 
             let rayOrigin = undefined;
             if (currentCamera.type === "orthographic") {
                 const x = pickingX - aspectOffsetX;
                 const y = this.currentHeight - pickingY - aspectOffsetY;
-                const orthoX = -currentCamera.orthographic.xmag + (2 * currentCamera.orthographic.xmag / aspectWidth) * (x + 0.5);
-                const orthoY = -currentCamera.orthographic.ymag + (2 * currentCamera.orthographic.ymag / aspectHeight) * (y + 0.5);
+                const orthoX =
+                    -currentCamera.orthographic.xmag +
+                    ((2 * currentCamera.orthographic.xmag) / aspectWidth) * (x + 0.5);
+                const orthoY =
+                    -currentCamera.orthographic.ymag +
+                    ((2 * currentCamera.orthographic.ymag) / aspectHeight) * (y + 0.5);
                 rayOrigin = vec3.fromValues(orthoX, orthoY, -currentCamera.orthographic.znear);
-                vec3.transformMat4(rayOrigin, rayOrigin, currentCamera.getTransformMatrix(state.gltf));
+                vec3.transformMat4(
+                    rayOrigin,
+                    rayOrigin,
+                    currentCamera.getTransformMatrix(state.gltf)
+                );
             } else {
                 rayOrigin = currentCamera.getPosition(state.gltf);
             }
-            
+
             let pickingResult = {
                 node: undefined,
                 position: undefined,
-                rayOrigin: rayOrigin,
+                rayOrigin: rayOrigin
             };
 
             let found = false;
-            for (const node of state.gltf.nodes)
-            {
-                if (node.pickingColor === pixels[0])
-                {
+            for (const node of state.gltf.nodes) {
+                if (node.pickingColor === pixels[0]) {
                     found = true;
                     pickingResult.node = node;
                     break;
@@ -827,42 +889,76 @@ class gltfRenderer {
                 // WebGL does not allow reading from depth buffer
                 this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT1);
                 const position = new Uint32Array(1);
-                this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RED_INTEGER, this.webGl.context.UNSIGNED_INT, position);
-                const z = position[0] / 4294967295 * 2.0 - 1.0;
+                this.webGl.context.readPixels(
+                    0,
+                    0,
+                    1,
+                    1,
+                    this.webGl.context.RED_INTEGER,
+                    this.webGl.context.UNSIGNED_INT,
+                    position
+                );
+                const z = (position[0] / 4294967295) * 2.0 - 1.0;
                 const clipSpacePosition = vec4.fromValues(0, 0, z, 1);
-                vec4.transformMat4(clipSpacePosition, clipSpacePosition, mat4.invert(mat4.create(), pickingProjection));
-                vec4.divide(clipSpacePosition, clipSpacePosition, vec4.fromValues(clipSpacePosition[3], clipSpacePosition[3], clipSpacePosition[3], clipSpacePosition[3]));
-                const worldPos = vec4.transformMat4(vec4.create(), clipSpacePosition, mat4.invert(mat4.create(), this.viewMatrix));
+                vec4.transformMat4(
+                    clipSpacePosition,
+                    clipSpacePosition,
+                    mat4.invert(mat4.create(), pickingProjection)
+                );
+                vec4.divide(
+                    clipSpacePosition,
+                    clipSpacePosition,
+                    vec4.fromValues(
+                        clipSpacePosition[3],
+                        clipSpacePosition[3],
+                        clipSpacePosition[3],
+                        clipSpacePosition[3]
+                    )
+                );
+                const worldPos = vec4.transformMat4(
+                    vec4.create(),
+                    clipSpacePosition,
+                    mat4.invert(mat4.create(), this.viewMatrix)
+                );
                 pickingResult.position = vec3.fromValues(worldPos[0], worldPos[1], worldPos[2]);
             }
 
             state.graphController.receiveSelection(pickingResult);
-            
-            if (state.selectionCallback){
+
+            if (state.selectionCallback) {
                 state.selectionCallback(pickingResult);
             }
         }
 
-        if (state.enableHover) { 
-            this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
+        if (state.enableHover) {
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.hoverFramebuffer
+            );
             this.webGl.context.viewport(0, 0, 1, 1);
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
             const pixels = new Uint32Array(1);
-            this.webGl.context.readPixels(0, 0, 1, 1, this.webGl.context.RED_INTEGER, this.webGl.context.UNSIGNED_INT, pixels);
+            this.webGl.context.readPixels(
+                0,
+                0,
+                1,
+                1,
+                this.webGl.context.RED_INTEGER,
+                this.webGl.context.UNSIGNED_INT,
+                pixels
+            );
 
             let pickingResult = {
-                node: undefined,
+                node: undefined
             };
-            for (const node of state.gltf.nodes)
-            {
-                if (node.pickingColor === pixels[0])
-                {
+            for (const node of state.gltf.nodes) {
+                if (node.pickingColor === pixels[0]) {
                     pickingResult.node = node;
                     break;
                 }
             }
             state.graphController.receiveHover(pickingResult);
-            if (state.hoverCallback){
+            if (state.hoverCallback) {
                 state.hoverCallback(pickingResult);
             }
         }
@@ -1349,21 +1445,21 @@ class gltfRenderer {
         }
 
         switch (state.renderingParameters.toneMap) {
-            case GltfState.ToneMaps.KHR_PBR_NEUTRAL:
-                fragDefines.push("TONEMAP_KHR_PBR_NEUTRAL 1");
-                break;
-            case GltfState.ToneMaps.ACES_NARKOWICZ:
-                fragDefines.push("TONEMAP_ACES_NARKOWICZ 1");
-                break;
-            case GltfState.ToneMaps.ACES_HILL:
-                fragDefines.push("TONEMAP_ACES_HILL 1");
-                break;
-            case GltfState.ToneMaps.ACES_HILL_EXPOSURE_BOOST:
-                fragDefines.push("TONEMAP_ACES_HILL_EXPOSURE_BOOST 1");
-                break;
-            case GltfState.ToneMaps.NONE:
-            default:
-                break;
+        case GltfState.ToneMaps.KHR_PBR_NEUTRAL:
+            fragDefines.push("TONEMAP_KHR_PBR_NEUTRAL 1");
+            break;
+        case GltfState.ToneMaps.ACES_NARKOWICZ:
+            fragDefines.push("TONEMAP_ACES_NARKOWICZ 1");
+            break;
+        case GltfState.ToneMaps.ACES_HILL:
+            fragDefines.push("TONEMAP_ACES_HILL 1");
+            break;
+        case GltfState.ToneMaps.ACES_HILL_EXPOSURE_BOOST:
+            fragDefines.push("TONEMAP_ACES_HILL_EXPOSURE_BOOST 1");
+            break;
+        case GltfState.ToneMaps.NONE:
+        default:
+            break;
         }
 
         let debugOutputMapping = [

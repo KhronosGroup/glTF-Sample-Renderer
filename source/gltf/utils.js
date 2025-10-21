@@ -175,8 +175,7 @@ class AnimationTimer {
     elapsedSec() {
         if (this.paused) {
             return this.pausedTime / 1000;
-        }
-        else {
+        } else {
             return this.fixedTime || (performance.now() - this.startTime) / 1000;
         }
     }
@@ -208,8 +207,7 @@ class AnimationTimer {
         if (!this.paused) {
             // Animation is running.
             this.startTime = performance.now();
-        }
-        else {
+        } else {
             this.startTime = 0;
         }
         this.pausedTime = 0;

@@ -167,7 +167,7 @@ class gltfAccessor extends GltfObject {
                 break;
             case 5130: // KHR_accessor_float64
                 this.filteredView = new Float64Array(arrayLength);
-                func = 'getFloat64';
+                func = "getFloat64";
                 break;
             }
 
@@ -325,7 +325,11 @@ class gltfAccessor extends GltfObject {
             );
             break;
         case 5130: // KHR_accessor_float64
-            valuesTypedView = new Float64Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength);
+            valuesTypedView = new Float64Array(
+                valuesBuffer.buffer,
+                valuesByteOffset,
+                valuesArrayLength
+            );
             break;
         }
 
