@@ -140,25 +140,25 @@ class glTF extends GltfObject {
                     const getAnimationProperty = function (channel, nodes) {
                         let property = null;
                         switch (channel.target.path) {
-                        case "translation":
-                            property = `/nodes/${channel.target.node}/translation`;
-                            break;
-                        case "rotation":
-                            property = `/nodes/${channel.target.node}/rotation`;
-                            break;
-                        case "scale":
-                            property = `/nodes/${channel.target.node}/scale`;
-                            break;
-                        case "weights":
-                            if (nodes[channel.target.node].weights !== undefined) {
-                                property = `/nodes/${channel.target.node}/weights`;
-                            } else {
-                                property = `/meshes/${nodes[channel.target.node].mesh}/weights`;
-                            }
-                            break;
-                        case "pointer":
-                            property = channel.target.extensions.KHR_animation_pointer.pointer;
-                            break;
+                            case "translation":
+                                property = `/nodes/${channel.target.node}/translation`;
+                                break;
+                            case "rotation":
+                                property = `/nodes/${channel.target.node}/rotation`;
+                                break;
+                            case "scale":
+                                property = `/nodes/${channel.target.node}/scale`;
+                                break;
+                            case "weights":
+                                if (nodes[channel.target.node].weights !== undefined) {
+                                    property = `/nodes/${channel.target.node}/weights`;
+                                } else {
+                                    property = `/meshes/${nodes[channel.target.node].mesh}/weights`;
+                                }
+                                break;
+                            case "pointer":
+                                property = channel.target.extensions.KHR_animation_pointer.pointer;
+                                break;
                         }
                         return property;
                     };

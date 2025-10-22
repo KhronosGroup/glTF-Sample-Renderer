@@ -125,21 +125,21 @@ class gltfImage extends GltfObject {
         const parts = this.uri.split(",");
         if (this.mimeType === undefined) {
             switch (parts[0]) {
-            case "data:image/jpeg;base64":
-                this.mimeType = ImageMimeType.JPEG;
-                break;
-            case "data:image/png;base64":
-                this.mimeType = ImageMimeType.PNG;
-                break;
-            case "data:image/webp;base64":
-                this.mimeType = ImageMimeType.WEBP;
-                break;
-            case "data:image/ktx2;base64":
-                this.mimeType = ImageMimeType.KTX2;
-                break;
-            default:
-                console.warn(`Data URI ${parts[0]} not supported`);
-                return false;
+                case "data:image/jpeg;base64":
+                    this.mimeType = ImageMimeType.JPEG;
+                    break;
+                case "data:image/png;base64":
+                    this.mimeType = ImageMimeType.PNG;
+                    break;
+                case "data:image/webp;base64":
+                    this.mimeType = ImageMimeType.WEBP;
+                    break;
+                case "data:image/ktx2;base64":
+                    this.mimeType = ImageMimeType.KTX2;
+                    break;
+                default:
+                    console.warn(`Data URI ${parts[0]} not supported`);
+                    return false;
             }
         }
         const res = await fetch(this.uri);

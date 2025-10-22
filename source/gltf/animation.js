@@ -64,25 +64,25 @@ class gltfAnimation extends GltfObject {
 
             let property = null;
             switch (channel.target.path) {
-            case InterpolationPath.TRANSLATION:
-                property = `/nodes/${channel.target.node}/translation`;
-                break;
-            case InterpolationPath.ROTATION:
-                property = `/nodes/${channel.target.node}/rotation`;
-                break;
-            case InterpolationPath.SCALE:
-                property = `/nodes/${channel.target.node}/scale`;
-                break;
-            case InterpolationPath.WEIGHTS:
-                if (gltf.nodes[channel.target.node].weights !== undefined) {
-                    property = `/nodes/${channel.target.node}/weights`;
-                } else {
-                    property = `/meshes/${gltf.nodes[channel.target.node].mesh}/weights`;
-                }
-                break;
-            case InterpolationPath.POINTER:
-                property = channel.target.extensions.KHR_animation_pointer.pointer;
-                break;
+                case InterpolationPath.TRANSLATION:
+                    property = `/nodes/${channel.target.node}/translation`;
+                    break;
+                case InterpolationPath.ROTATION:
+                    property = `/nodes/${channel.target.node}/rotation`;
+                    break;
+                case InterpolationPath.SCALE:
+                    property = `/nodes/${channel.target.node}/scale`;
+                    break;
+                case InterpolationPath.WEIGHTS:
+                    if (gltf.nodes[channel.target.node].weights !== undefined) {
+                        property = `/nodes/${channel.target.node}/weights`;
+                    } else {
+                        property = `/meshes/${gltf.nodes[channel.target.node].mesh}/weights`;
+                    }
+                    break;
+                case InterpolationPath.POINTER:
+                    property = channel.target.extensions.KHR_animation_pointer.pointer;
+                    break;
             }
 
             if (property != null) {
