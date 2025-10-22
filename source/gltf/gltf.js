@@ -54,7 +54,7 @@ class glTF extends GltfObject {
     static readOnlyAnimatedProperties = [
         "animations",
         "cameras",
-        "materials",
+        // "materials", materials.length need to be handled manually due to the default material 
         "meshes",
         "nodes",
         "scene",

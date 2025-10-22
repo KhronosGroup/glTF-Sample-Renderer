@@ -416,7 +416,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             }
             callable(currentPath, property, gltfObject, false);
         }
-        for (const property in gltfObject.constructor.readOnlyAnimatedProperties) {
+        for (const property of gltfObject.constructor.readOnlyAnimatedProperties) {
             if (gltfObject[property] === undefined) {
                 continue;
             }
@@ -464,6 +464,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             let jsonPtr = currentPath + "/" + propertyName;
             let type = this.getTypeFromValue(parent[propertyName]);
             if (readOnly) {
+                if (type === "float") {
+                    // All read-only number properties are currently integers
+                    type = "int";
+                }
                 if (Array.isArray(parent[propertyName])) {
                     jsonPtr += ".length";
                     type = "int";
@@ -473,9 +477,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                             const fixedPath = path.slice(0, -7); // Remove ".length"
                             const result = this.traversePath(fixedPath, type);
                             if (result === undefined) {
-                                return 0;
+                                return [0];
                             }
-                            return result.length;
+                            return [result.length];
                         },
                         (_path, _value) => {},
                         type,
@@ -486,9 +490,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 this.registerJsonPointer(
                     jsonPtr,
                     (path) => {
-                        const result = this.traversePath(path, type);
+                        let result = this.traversePath(path, type);
                         if (result === undefined) {
-                            return this.getDefaultValueFromType(type);
+                            result = this.getDefaultValueFromType(type);
+                        }
+                        if (type === "bool" || type === "int" || type === "float") {
+                            result = [result];
                         }
                         return result;
                     },
@@ -496,6 +503,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     type,
                     true
                 );
+                return;
             }
             if (type === undefined) {
                 return;
@@ -503,9 +511,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             this.registerJsonPointer(
                 jsonPtr,
                 (path) => {
-                    const result = this.traversePath(path, type);
+                    let result = this.traversePath(path, type);
                     if (result === undefined) {
-                        return this.getDefaultValueFromType(type);
+                        result = this.getDefaultValueFromType(type);
+                    }
+                    if (type === "bool" || type === "int" || type === "float") {
+                        result = [result];
                     }
                     return result;
                 },
@@ -523,9 +534,20 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             (_path) => {
                 const lights = this.world.gltf.extensions?.KHR_lights_punctual?.lights;
                 if (lights === undefined) {
-                    return 0;
+                    return [0];
                 }
-                return lights.length;
+                return [lights.length];
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
+
+        this.registerJsonPointer(
+            `/materials.length`,
+            (_path) => {
+                // Return the number of materials excluding the default material
+                return [this.world.gltf.materials.length - 1];
             },
             (_path, _value) => {},
             "int",
@@ -536,7 +558,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(
             `/nodes/${nodeCount}/children/${nodeCount}`,
             (path) => {
-                return this.traversePath(path, "int");
+                return [this.traversePath(path, "int")];
             },
             (_path, _value) => {},
             "int",
@@ -573,7 +595,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const pathParts = path.split("/");
                 const nodeIndex = parseInt(pathParts[2]);
                 const node = this.world.gltf.nodes[nodeIndex];
-                return node.parentNode?.gltfObjectIndex;
+                return [node.parentNode?.gltfObjectIndex];
             },
             (_path, _value) => {},
             "int",
@@ -582,7 +604,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(
             `/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`,
             (path) => {
-                return this.traversePath(path, "int");
+                return [this.traversePath(path, "int")];
             },
             (_path, _value) => {},
             "int",
@@ -593,7 +615,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(
             `/scenes/${sceneCount}/nodes/${nodeCount}`,
             (path) => {
-                return this.traversePath(path, "int");
+                return [this.traversePath(path, "int")];
             },
             (_path, _value) => {},
             "int",
@@ -604,7 +626,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerJsonPointer(
             `/skins/${skinCount}/joints/${nodeCount}`,
             (path) => {
-                return this.traversePath(path, "int");
+                return [this.traversePath(path, "int")];
             },
             (_path, _value) => {},
             "int",
@@ -618,7 +640,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const pathParts = path.split("/");
                 const animationIndex = parseInt(pathParts[2]);
                 const animation = this.world.gltf.animations[animationIndex];
-                return animation.createdTimestamp !== undefined;
+                return [animation.createdTimestamp !== undefined];
             },
             (_path, _value) => {},
             "bool",
@@ -631,7 +653,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const animationIndex = parseInt(pathParts[2]);
                 const animation = this.world.gltf.animations[animationIndex];
                 animation.computeMinMaxTime();
-                return animation.minTime;
+                return [animation.minTime];
             },
             (_path, _value) => {},
             "float",
@@ -644,7 +666,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const animationIndex = parseInt(pathParts[2]);
                 const animation = this.world.gltf.animations[animationIndex];
                 animation.computeMinMaxTime();
-                return animation.maxTime;
+                return [animation.maxTime];
             },
             (_path, _value) => {},
             "float",
@@ -657,9 +679,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const animationIndex = parseInt(pathParts[2]);
                 const animation = this.world.gltf.animations[animationIndex];
                 if (animation.interpolators.length === 0) {
-                    return NaN;
+                    return [NaN];
                 }
-                return animation.interpolators[0].prevT;
+                return [animation.interpolators[0].prevT];
             },
             (_path, _value) => {},
             "float",
@@ -672,9 +694,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const animationIndex = parseInt(pathParts[2]);
                 const animation = this.world.gltf.animations[animationIndex];
                 if (animation.interpolators.length === 0) {
-                    return NaN;
+                    return [NaN];
                 }
-                return animation.interpolators[0].prevRequestedT;
+                return [animation.interpolators[0].prevRequestedT];
             },
             (_path, _value) => {},
             "float",
