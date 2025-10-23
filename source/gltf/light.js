@@ -62,16 +62,16 @@ class gltfLight extends GltfObject {
         uLight.outerConeCos = Math.cos(this.spot.outerConeAngle);
 
         switch (this.type) {
-        case "spot":
-            uLight.type = Type_Spot;
-            break;
-        case "point":
-            uLight.type = Type_Point;
-            break;
-        case "directional":
-        default:
-            uLight.type = Type_Directional;
-            break;
+            case "spot":
+                uLight.type = Type_Spot;
+                break;
+            case "point":
+                uLight.type = Type_Point;
+                break;
+            case "directional":
+            default:
+                uLight.type = Type_Directional;
+                break;
         }
 
         return uLight;

@@ -124,55 +124,55 @@ class gltfShader {
 
         if (uniform !== undefined) {
             switch (uniform.type) {
-            case GL.FLOAT: {
-                if (Array.isArray(value) || value instanceof Float32Array) {
-                    this.gl.context.uniform1fv(uniform.loc, value);
-                } else {
-                    this.gl.context.uniform1f(uniform.loc, value);
+                case GL.FLOAT: {
+                    if (Array.isArray(value) || value instanceof Float32Array) {
+                        this.gl.context.uniform1fv(uniform.loc, value);
+                    } else {
+                        this.gl.context.uniform1f(uniform.loc, value);
+                    }
+                    break;
                 }
-                break;
-            }
-            case GL.FLOAT_VEC2:
-                this.gl.context.uniform2fv(uniform.loc, value);
-                break;
-            case GL.FLOAT_VEC3:
-                this.gl.context.uniform3fv(uniform.loc, value);
-                break;
-            case GL.FLOAT_VEC4:
-                this.gl.context.uniform4fv(uniform.loc, value);
-                break;
+                case GL.FLOAT_VEC2:
+                    this.gl.context.uniform2fv(uniform.loc, value);
+                    break;
+                case GL.FLOAT_VEC3:
+                    this.gl.context.uniform3fv(uniform.loc, value);
+                    break;
+                case GL.FLOAT_VEC4:
+                    this.gl.context.uniform4fv(uniform.loc, value);
+                    break;
 
-            case GL.INT: {
-                if (
-                    Array.isArray(value) ||
+                case GL.INT: {
+                    if (
+                        Array.isArray(value) ||
                         value instanceof Uint32Array ||
                         value instanceof Int32Array
-                ) {
-                    this.gl.context.uniform1iv(uniform.loc, value);
-                } else {
-                    this.gl.context.uniform1i(uniform.loc, value);
+                    ) {
+                        this.gl.context.uniform1iv(uniform.loc, value);
+                    } else {
+                        this.gl.context.uniform1i(uniform.loc, value);
+                    }
+                    break;
                 }
-                break;
-            }
-            case GL.INT_VEC2:
-                this.gl.context.uniform2iv(uniform.loc, value);
-                break;
-            case GL.INT_VEC3:
-                this.gl.context.uniform3iv(uniform.loc, value);
-                break;
-            case GL.INT_VEC4:
-                this.gl.context.uniform4iv(uniform.loc, value);
-                break;
+                case GL.INT_VEC2:
+                    this.gl.context.uniform2iv(uniform.loc, value);
+                    break;
+                case GL.INT_VEC3:
+                    this.gl.context.uniform3iv(uniform.loc, value);
+                    break;
+                case GL.INT_VEC4:
+                    this.gl.context.uniform4iv(uniform.loc, value);
+                    break;
 
-            case GL.FLOAT_MAT2:
-                this.gl.context.uniformMatrix2fv(uniform.loc, false, value);
-                break;
-            case GL.FLOAT_MAT3:
-                this.gl.context.uniformMatrix3fv(uniform.loc, false, value);
-                break;
-            case GL.FLOAT_MAT4:
-                this.gl.context.uniformMatrix4fv(uniform.loc, false, value);
-                break;
+                case GL.FLOAT_MAT2:
+                    this.gl.context.uniformMatrix2fv(uniform.loc, false, value);
+                    break;
+                case GL.FLOAT_MAT3:
+                    this.gl.context.uniformMatrix3fv(uniform.loc, false, value);
+                    break;
+                case GL.FLOAT_MAT4:
+                    this.gl.context.uniformMatrix4fv(uniform.loc, false, value);
+                    break;
             }
         } else if (log) {
             console.warn("Unkown uniform: " + uniformName);

@@ -119,14 +119,14 @@ class gltfWebGl {
 
             if (textureInfo.generateMips) {
                 switch (gltfSampler.minFilter) {
-                case GL.NEAREST_MIPMAP_NEAREST:
-                case GL.NEAREST_MIPMAP_LINEAR:
-                case GL.LINEAR_MIPMAP_NEAREST:
-                case GL.LINEAR_MIPMAP_LINEAR:
-                    this.context.generateMipmap(gltfTex.type);
-                    break;
-                default:
-                    break;
+                    case GL.NEAREST_MIPMAP_NEAREST:
+                    case GL.NEAREST_MIPMAP_LINEAR:
+                    case GL.LINEAR_MIPMAP_NEAREST:
+                    case GL.LINEAR_MIPMAP_LINEAR:
+                        this.context.generateMipmap(gltfTex.type);
+                        break;
+                    default:
+                        break;
                 }
             }
 
