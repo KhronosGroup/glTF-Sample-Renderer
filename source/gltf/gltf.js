@@ -114,12 +114,14 @@ class glTF extends GltfObject {
         this.skins = objectsFromJsons(json.skins, gltfSkin);
 
         if (json.extensions?.KHR_lights_punctual !== undefined) {
+            this.extensions.KHR_lights_punctual = new GltfObject([]);
             this.extensions.KHR_lights_punctual.lights = objectsFromJsons(
                 json.extensions.KHR_lights_punctual.lights,
                 gltfLight
             );
         }
         if (json.extensions?.KHR_materials_variants !== undefined) {
+            this.extensions.KHR_materials_variants = new GltfObject([]);
             this.extensions.KHR_materials_variants.variants = objectsFromJsons(
                 json.extensions.KHR_materials_variants?.variants,
                 gltfVariant
@@ -129,6 +131,7 @@ class glTF extends GltfObject {
             );
         }
         if (json.extensions?.KHR_interactivity !== undefined) {
+            this.extensions.KHR_interactivity = new GltfObject([]);
             this.extensions.KHR_interactivity.graphs = objectsFromJsons(
                 json.extensions.KHR_interactivity?.graphs,
                 gltfGraph

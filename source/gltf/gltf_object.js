@@ -3,11 +3,14 @@ import { initGlForMembers, fromKeys } from "./utils";
 
 // base class for all gltf objects
 class GltfObject {
-    constructor() {
+    constructor(animatedProperties = undefined) {
         this.extensions = undefined;
         this.extras = undefined;
         this.gltfObjectIndex = undefined;
         this.animatedPropertyObjects = {};
+        if (animatedProperties !== undefined) {
+            this.constructor.animatedProperties = animatedProperties;
+        }
         if (this.constructor.animatedProperties === undefined) {
             throw new Error("animatedProperties is not defined for " + this.constructor.name);
         }
