@@ -135,19 +135,19 @@ class GltfView {
 
                 // convert vertex count to point, line or triangle count
                 switch (primitive.mode) {
-                case GL.POINTS:
-                    return vertexCount;
-                case GL.LINES:
-                    return vertexCount / 2;
-                case GL.LINE_LOOP:
-                    return vertexCount;
-                case GL.LINE_STRIP:
-                    return vertexCount - 1;
-                case GL.TRIANGLES:
-                    return vertexCount / 3;
-                case GL.TRIANGLE_STRIP:
-                case GL.TRIANGLE_FAN:
-                    return vertexCount - 2;
+                    case GL.POINTS:
+                        return vertexCount;
+                    case GL.LINES:
+                        return vertexCount / 2;
+                    case GL.LINE_LOOP:
+                        return vertexCount;
+                    case GL.LINE_STRIP:
+                        return vertexCount - 1;
+                    case GL.TRIANGLES:
+                        return vertexCount / 3;
+                    case GL.TRIANGLE_STRIP:
+                    case GL.TRIANGLE_FAN:
+                        return vertexCount - 2;
                 }
             })
             .reduce((acc, faceCount) => acc + faceCount);

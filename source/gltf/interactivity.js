@@ -326,36 +326,36 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
     getDefaultValueFromType(type) {
         switch (type) {
-        case "int":
-            return 0;
-        case "float":
-            return NaN;
-        case "bool":
-            return false;
-        case "float2":
-            return [NaN, NaN];
-        case "float3":
-            return [NaN, NaN, NaN];
-        case "float4":
-            return [NaN, NaN, NaN, NaN];
-        case "float2x2":
-            return [
-                [NaN, NaN],
-                [NaN, NaN]
-            ];
-        case "float3x3":
-            return [
-                [NaN, NaN, NaN],
-                [NaN, NaN, NaN],
-                [NaN, NaN, NaN]
-            ];
-        case "float4x4":
-            return [
-                [NaN, NaN, NaN, NaN],
-                [NaN, NaN, NaN, NaN],
-                [NaN, NaN, NaN, NaN],
-                [NaN, NaN, NaN, NaN]
-            ];
+            case "int":
+                return 0;
+            case "float":
+                return NaN;
+            case "bool":
+                return false;
+            case "float2":
+                return [NaN, NaN];
+            case "float3":
+                return [NaN, NaN, NaN];
+            case "float4":
+                return [NaN, NaN, NaN, NaN];
+            case "float2x2":
+                return [
+                    [NaN, NaN],
+                    [NaN, NaN]
+                ];
+            case "float3x3":
+                return [
+                    [NaN, NaN, NaN],
+                    [NaN, NaN, NaN],
+                    [NaN, NaN, NaN]
+                ];
+            case "float4x4":
+                return [
+                    [NaN, NaN, NaN, NaN],
+                    [NaN, NaN, NaN, NaN],
+                    [NaN, NaN, NaN, NaN],
+                    [NaN, NaN, NaN, NaN]
+                ];
         }
         return undefined;
     }

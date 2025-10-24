@@ -63,27 +63,27 @@ class gltfAccessor extends GltfObject {
             }
 
             switch (this.componentType) {
-            case GL.BYTE:
-                this.typedView = new Int8Array(buffer.buffer, byteOffset, arrayLength);
-                break;
-            case GL.UNSIGNED_BYTE:
-                this.typedView = new Uint8Array(buffer.buffer, byteOffset, arrayLength);
-                break;
-            case GL.SHORT:
-                this.typedView = new Int16Array(buffer.buffer, byteOffset, arrayLength);
-                break;
-            case GL.UNSIGNED_SHORT:
-                this.typedView = new Uint16Array(buffer.buffer, byteOffset, arrayLength);
-                break;
-            case GL.UNSIGNED_INT:
-                this.typedView = new Uint32Array(buffer.buffer, byteOffset, arrayLength);
-                break;
-            case GL.FLOAT:
-                this.typedView = new Float32Array(buffer.buffer, byteOffset, arrayLength);
-                break;
-            case 5130: // KHR_accessor_float64
-                this.typedView = new Float64Array(buffer.buffer, byteOffset, arrayLength);
-                break;
+                case GL.BYTE:
+                    this.typedView = new Int8Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case GL.UNSIGNED_BYTE:
+                    this.typedView = new Uint8Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case GL.SHORT:
+                    this.typedView = new Int16Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case GL.UNSIGNED_SHORT:
+                    this.typedView = new Uint16Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case GL.UNSIGNED_INT:
+                    this.typedView = new Uint32Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case GL.FLOAT:
+                    this.typedView = new Float32Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case 5130: // KHR_accessor_float64
+                    this.typedView = new Float64Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
             }
         } else {
             this.typedView = this.createView();
@@ -141,34 +141,34 @@ class gltfAccessor extends GltfObject {
 
             let func = "getFloat32";
             switch (this.componentType) {
-            case GL.BYTE:
-                this.filteredView = new Int8Array(arrayLength);
-                func = "getInt8";
-                break;
-            case GL.UNSIGNED_BYTE:
-                this.filteredView = new Uint8Array(arrayLength);
-                func = "getUint8";
-                break;
-            case GL.SHORT:
-                this.filteredView = new Int16Array(arrayLength);
-                func = "getInt16";
-                break;
-            case GL.UNSIGNED_SHORT:
-                this.filteredView = new Uint16Array(arrayLength);
-                func = "getUint16";
-                break;
-            case GL.UNSIGNED_INT:
-                this.filteredView = new Uint32Array(arrayLength);
-                func = "getUint32";
-                break;
-            case GL.FLOAT:
-                this.filteredView = new Float32Array(arrayLength);
-                func = "getFloat32";
-                break;
-            case 5130: // KHR_accessor_float64
-                this.filteredView = new Float64Array(arrayLength);
-                func = "getFloat64";
-                break;
+                case GL.BYTE:
+                    this.filteredView = new Int8Array(arrayLength);
+                    func = "getInt8";
+                    break;
+                case GL.UNSIGNED_BYTE:
+                    this.filteredView = new Uint8Array(arrayLength);
+                    func = "getUint8";
+                    break;
+                case GL.SHORT:
+                    this.filteredView = new Int16Array(arrayLength);
+                    func = "getInt16";
+                    break;
+                case GL.UNSIGNED_SHORT:
+                    this.filteredView = new Uint16Array(arrayLength);
+                    func = "getUint16";
+                    break;
+                case GL.UNSIGNED_INT:
+                    this.filteredView = new Uint32Array(arrayLength);
+                    func = "getUint32";
+                    break;
+                case GL.FLOAT:
+                    this.filteredView = new Float32Array(arrayLength);
+                    func = "getFloat32";
+                    break;
+                case 5130: // KHR_accessor_float64
+                    this.filteredView = new Float64Array(arrayLength);
+                    func = "getFloat64";
+                    break;
             }
 
             for (let i = 0; i < arrayLength; ++i) {
@@ -241,27 +241,27 @@ class gltfAccessor extends GltfObject {
 
         let indicesTypedView;
         switch (this.sparse.indices.componentType) {
-        case GL.UNSIGNED_BYTE:
-            indicesTypedView = new Uint8Array(
-                indicesBuffer.buffer,
-                indicesByteOffset,
-                indicesArrayLength
-            );
-            break;
-        case GL.UNSIGNED_SHORT:
-            indicesTypedView = new Uint16Array(
-                indicesBuffer.buffer,
-                indicesByteOffset,
-                indicesArrayLength
-            );
-            break;
-        case GL.UNSIGNED_INT:
-            indicesTypedView = new Uint32Array(
-                indicesBuffer.buffer,
-                indicesByteOffset,
-                indicesArrayLength
-            );
-            break;
+            case GL.UNSIGNED_BYTE:
+                indicesTypedView = new Uint8Array(
+                    indicesBuffer.buffer,
+                    indicesByteOffset,
+                    indicesArrayLength
+                );
+                break;
+            case GL.UNSIGNED_SHORT:
+                indicesTypedView = new Uint16Array(
+                    indicesBuffer.buffer,
+                    indicesByteOffset,
+                    indicesArrayLength
+                );
+                break;
+            case GL.UNSIGNED_INT:
+                indicesTypedView = new Uint32Array(
+                    indicesBuffer.buffer,
+                    indicesByteOffset,
+                    indicesArrayLength
+                );
+                break;
         }
 
         // Gather values.
@@ -282,55 +282,55 @@ class gltfAccessor extends GltfObject {
 
         let valuesTypedView;
         switch (this.componentType) {
-        case GL.BYTE:
-            valuesTypedView = new Int8Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
-        case GL.UNSIGNED_BYTE:
-            valuesTypedView = new Uint8Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
-        case GL.SHORT:
-            valuesTypedView = new Int16Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
-        case GL.UNSIGNED_SHORT:
-            valuesTypedView = new Uint16Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
-        case GL.UNSIGNED_INT:
-            valuesTypedView = new Uint32Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
-        case GL.FLOAT:
-            valuesTypedView = new Float32Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
-        case 5130: // KHR_accessor_float64
-            valuesTypedView = new Float64Array(
-                valuesBuffer.buffer,
-                valuesByteOffset,
-                valuesArrayLength
-            );
-            break;
+            case GL.BYTE:
+                valuesTypedView = new Int8Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case GL.UNSIGNED_BYTE:
+                valuesTypedView = new Uint8Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case GL.SHORT:
+                valuesTypedView = new Int16Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case GL.UNSIGNED_SHORT:
+                valuesTypedView = new Uint16Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case GL.UNSIGNED_INT:
+                valuesTypedView = new Uint32Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case GL.FLOAT:
+                valuesTypedView = new Float32Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case 5130: // KHR_accessor_float64
+                valuesTypedView = new Float64Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
         }
 
         // Overwrite values.
@@ -347,16 +347,16 @@ class gltfAccessor extends GltfObject {
     // https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#encoding-quantized-data
     static dequantize(typedArray, componentType) {
         switch (componentType) {
-        case GL.BYTE:
-            return new Float32Array(typedArray).map((c) => Math.max(c / 127.0, -1.0));
-        case GL.UNSIGNED_BYTE:
-            return new Float32Array(typedArray).map((c) => c / 255.0);
-        case GL.SHORT:
-            return new Float32Array(typedArray).map((c) => Math.max(c / 32767.0, -1.0));
-        case GL.UNSIGNED_SHORT:
-            return new Float32Array(typedArray).map((c) => c / 65535.0);
-        default:
-            return typedArray;
+            case GL.BYTE:
+                return new Float32Array(typedArray).map((c) => Math.max(c / 127.0, -1.0));
+            case GL.UNSIGNED_BYTE:
+                return new Float32Array(typedArray).map((c) => c / 255.0);
+            case GL.SHORT:
+                return new Float32Array(typedArray).map((c) => Math.max(c / 32767.0, -1.0));
+            case GL.UNSIGNED_SHORT:
+                return new Float32Array(typedArray).map((c) => c / 65535.0);
+            default:
+                return typedArray;
         }
     }
 
@@ -366,19 +366,19 @@ class gltfAccessor extends GltfObject {
 
     getComponentSize(componentType) {
         switch (componentType) {
-        case GL.BYTE:
-        case GL.UNSIGNED_BYTE:
-            return 1;
-        case GL.SHORT:
-        case GL.UNSIGNED_SHORT:
-            return 2;
-        case GL.UNSIGNED_INT:
-        case GL.FLOAT:
-            return 4;
-        case 5130: // KHR_accessor_float64
-            return 8;
-        default:
-            return 0;
+            case GL.BYTE:
+            case GL.UNSIGNED_BYTE:
+                return 1;
+            case GL.SHORT:
+            case GL.UNSIGNED_SHORT:
+                return 2;
+            case GL.UNSIGNED_INT:
+            case GL.FLOAT:
+                return 4;
+            case 5130: // KHR_accessor_float64
+                return 8;
+            default:
+                return 0;
         }
     }
 

@@ -94,39 +94,39 @@ class gltfPrimitive extends GltfObject {
             }
             let knownAttribute = true;
             switch (attribute) {
-            case "POSITION":
-                this.skip = false;
-                break;
-            case "NORMAL":
-                this.hasNormals = true;
-                break;
-            case "TANGENT":
-                this.hasTangents = true;
-                break;
-            case "TEXCOORD_0":
-                this.hasTexcoord = true;
-                break;
-            case "TEXCOORD_1":
-                this.hasTexcoord = true;
-                break;
-            case "COLOR_0":
-                this.hasColor = true;
-                break;
-            case "JOINTS_0":
-                this.hasJoints = true;
-                break;
-            case "WEIGHTS_0":
-                this.hasWeights = true;
-                break;
-            case "JOINTS_1":
-                this.hasJoints = true;
-                break;
-            case "WEIGHTS_1":
-                this.hasWeights = true;
-                break;
-            default:
-                knownAttribute = false;
-                console.log("Unknown attribute: " + attribute);
+                case "POSITION":
+                    this.skip = false;
+                    break;
+                case "NORMAL":
+                    this.hasNormals = true;
+                    break;
+                case "TANGENT":
+                    this.hasTangents = true;
+                    break;
+                case "TEXCOORD_0":
+                    this.hasTexcoord = true;
+                    break;
+                case "TEXCOORD_1":
+                    this.hasTexcoord = true;
+                    break;
+                case "COLOR_0":
+                    this.hasColor = true;
+                    break;
+                case "JOINTS_0":
+                    this.hasJoints = true;
+                    break;
+                case "WEIGHTS_0":
+                    this.hasWeights = true;
+                    break;
+                case "JOINTS_1":
+                    this.hasJoints = true;
+                    break;
+                case "WEIGHTS_1":
+                    this.hasWeights = true;
+                    break;
+                default:
+                    knownAttribute = false;
+                    console.log("Unknown attribute: " + attribute);
             }
             if (knownAttribute) {
                 const idx = this.attributes[attribute];
@@ -204,33 +204,33 @@ class gltfPrimitive extends GltfObject {
                             }
                             const data = accessor.getNormalizedDeinterlacedView(gltf);
                             switch (accessor.type) {
-                            case "VEC2":
-                            case "VEC3": {
-                                // Add padding to fit vec2/vec3 into rgba
-                                let paddingOffset = 0;
-                                let accessorOffset = 0;
-                                const componentCount = accessor.getComponentCount(
-                                    accessor.type
-                                );
-                                for (let j = 0; j < accessor.count; ++j) {
-                                    morphTargetTextureArray.set(
-                                        data.subarray(
-                                            accessorOffset,
-                                            accessorOffset + componentCount
-                                        ),
-                                        offset + paddingOffset
+                                case "VEC2":
+                                case "VEC3": {
+                                    // Add padding to fit vec2/vec3 into rgba
+                                    let paddingOffset = 0;
+                                    let accessorOffset = 0;
+                                    const componentCount = accessor.getComponentCount(
+                                        accessor.type
                                     );
-                                    paddingOffset += 4;
-                                    accessorOffset += componentCount;
+                                    for (let j = 0; j < accessor.count; ++j) {
+                                        morphTargetTextureArray.set(
+                                            data.subarray(
+                                                accessorOffset,
+                                                accessorOffset + componentCount
+                                            ),
+                                            offset + paddingOffset
+                                        );
+                                        paddingOffset += 4;
+                                        accessorOffset += componentCount;
+                                    }
+                                    break;
                                 }
-                                break;
-                            }
-                            case "VEC4":
-                                morphTargetTextureArray.set(data, offset);
-                                break;
-                            default:
-                                console.warn("Unsupported attribute type for morph targets");
-                                break;
+                                case "VEC4":
+                                    morphTargetTextureArray.set(data, offset);
+                                    break;
+                                default:
+                                    console.warn("Unsupported attribute type for morph targets");
+                                    break;
                             }
                         }
                         attributeOffsets[attributeName] = offsetRef + 1;
@@ -577,35 +577,35 @@ class gltfPrimitive extends GltfObject {
     loadArrayIntoArrayBuffer(arrayData, componentType) {
         let arrayBuffer;
         switch (componentType) {
-        case "Int8Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length);
-            new Int8Array(arrayBuffer).set(arrayData);
-            break;
-        case "Uint8Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length);
-            new Uint8Array(arrayBuffer).set(arrayData);
-            break;
-        case "Int16Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length * 2);
-            new Int16Array(arrayBuffer).set(arrayData);
-            break;
-        case "Uint16Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length * 2);
-            new Uint16Array(arrayBuffer).set(arrayData);
-            break;
-        case "Int32Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length * 4);
-            new Int32Array(arrayBuffer).set(arrayData);
-            break;
-        case "Uint32Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length * 4);
-            new Uint32Array(arrayBuffer).set(arrayData);
-            break;
-        default:
-        case "Float32Array":
-            arrayBuffer = new ArrayBuffer(arrayData.length * 4);
-            new Float32Array(arrayBuffer).set(arrayData);
-            break;
+            case "Int8Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length);
+                new Int8Array(arrayBuffer).set(arrayData);
+                break;
+            case "Uint8Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length);
+                new Uint8Array(arrayBuffer).set(arrayData);
+                break;
+            case "Int16Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length * 2);
+                new Int16Array(arrayBuffer).set(arrayData);
+                break;
+            case "Uint16Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length * 2);
+                new Uint16Array(arrayBuffer).set(arrayData);
+                break;
+            case "Int32Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length * 4);
+                new Int32Array(arrayBuffer).set(arrayData);
+                break;
+            case "Uint32Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length * 4);
+                new Uint32Array(arrayBuffer).set(arrayData);
+                break;
+            default:
+            case "Float32Array":
+                arrayBuffer = new ArrayBuffer(arrayData.length * 4);
+                new Float32Array(arrayBuffer).set(arrayData);
+                break;
         }
 
         return arrayBuffer;
@@ -644,22 +644,22 @@ class gltfPrimitive extends GltfObject {
 
     getDracoArrayTypeFromComponentType(componentType) {
         switch (componentType) {
-        case GL.BYTE:
-            return "Int8Array";
-        case GL.UNSIGNED_BYTE:
-            return "Uint8Array";
-        case GL.SHORT:
-            return "Int16Array";
-        case GL.UNSIGNED_SHORT:
-            return "Uint16Array";
-        case GL.INT:
-            return "Int32Array";
-        case GL.UNSIGNED_INT:
-            return "Uint32Array";
-        case GL.FLOAT:
-            return "Float32Array";
-        default:
-            return "Float32Array";
+            case GL.BYTE:
+                return "Int8Array";
+            case GL.UNSIGNED_BYTE:
+                return "Uint8Array";
+            case GL.SHORT:
+                return "Int16Array";
+            case GL.UNSIGNED_SHORT:
+                return "Uint16Array";
+            case GL.INT:
+                return "Int32Array";
+            case GL.UNSIGNED_INT:
+                return "Uint32Array";
+            case GL.FLOAT:
+                return "Float32Array";
+            default:
+                return "Float32Array";
         }
     }
 
@@ -747,104 +747,104 @@ class gltfPrimitive extends GltfObject {
 
         let dataSize;
         switch (attributeType) {
-        case "Float32Array":
-            dataSize = numValues * 4;
-            ptr = draco._malloc(dataSize);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_FLOAT32,
-                dataSize,
-                ptr
-            );
-            array = new Float32Array(draco.HEAPF32.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Float32Array":
+                dataSize = numValues * 4;
+                ptr = draco._malloc(dataSize);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_FLOAT32,
+                    dataSize,
+                    ptr
+                );
+                array = new Float32Array(draco.HEAPF32.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        case "Int8Array":
-            ptr = draco._malloc(numValues);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_INT8,
-                numValues,
-                ptr
-            );
-            array = new Int8Array(draco.HEAP8.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Int8Array":
+                ptr = draco._malloc(numValues);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_INT8,
+                    numValues,
+                    ptr
+                );
+                array = new Int8Array(draco.HEAP8.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        case "Int16Array":
-            dataSize = numValues * 2;
-            ptr = draco._malloc(dataSize);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_INT16,
-                dataSize,
-                ptr
-            );
-            array = new Int16Array(draco.HEAP16.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Int16Array":
+                dataSize = numValues * 2;
+                ptr = draco._malloc(dataSize);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_INT16,
+                    dataSize,
+                    ptr
+                );
+                array = new Int16Array(draco.HEAP16.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        case "Int32Array":
-            dataSize = numValues * 4;
-            ptr = draco._malloc(dataSize);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_INT32,
-                dataSize,
-                ptr
-            );
-            array = new Int32Array(draco.HEAP32.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Int32Array":
+                dataSize = numValues * 4;
+                ptr = draco._malloc(dataSize);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_INT32,
+                    dataSize,
+                    ptr
+                );
+                array = new Int32Array(draco.HEAP32.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        case "Uint8Array":
-            ptr = draco._malloc(numValues);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_UINT8,
-                numValues,
-                ptr
-            );
-            array = new Uint8Array(draco.HEAPU8.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Uint8Array":
+                ptr = draco._malloc(numValues);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_UINT8,
+                    numValues,
+                    ptr
+                );
+                array = new Uint8Array(draco.HEAPU8.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        case "Uint16Array":
-            dataSize = numValues * 2;
-            ptr = draco._malloc(dataSize);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_UINT16,
-                dataSize,
-                ptr
-            );
-            array = new Uint16Array(draco.HEAPU16.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Uint16Array":
+                dataSize = numValues * 2;
+                ptr = draco._malloc(dataSize);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_UINT16,
+                    dataSize,
+                    ptr
+                );
+                array = new Uint16Array(draco.HEAPU16.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        case "Uint32Array":
-            dataSize = numValues * 4;
-            ptr = draco._malloc(dataSize);
-            decoder.GetAttributeDataArrayForAllPoints(
-                dracoGeometry,
-                attribute,
-                draco.DT_UINT32,
-                dataSize,
-                ptr
-            );
-            array = new Uint32Array(draco.HEAPU32.buffer, ptr, numValues).slice();
-            draco._free(ptr);
-            break;
+            case "Uint32Array":
+                dataSize = numValues * 4;
+                ptr = draco._malloc(dataSize);
+                decoder.GetAttributeDataArrayForAllPoints(
+                    dracoGeometry,
+                    attribute,
+                    draco.DT_UINT32,
+                    dataSize,
+                    ptr
+                );
+                array = new Uint32Array(draco.HEAPU32.buffer, ptr, numValues).slice();
+                draco._free(ptr);
+                break;
 
-        default:
-            throw new Error("DRACOLoader: Unexpected attribute type.");
+            default:
+                throw new Error("DRACOLoader: Unexpected attribute type.");
         }
 
         return {
