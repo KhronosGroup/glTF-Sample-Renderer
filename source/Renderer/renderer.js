@@ -604,8 +604,6 @@ class gltfRenderer {
             );
             this.webGl.context.viewport(0, 0, 1, 1);
 
-            const fragDefines = [];
-            this.pushFragParameterDefines(fragDefines, state);
             for (const drawable of this.selectionDrawables) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
@@ -635,8 +633,6 @@ class gltfRenderer {
             );
             this.webGl.context.viewport(0, 0, 1, 1);
 
-            const fragDefines = [];
-            this.pushFragParameterDefines(fragDefines, state);
             for (const drawable of this.hoverDrawables) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
