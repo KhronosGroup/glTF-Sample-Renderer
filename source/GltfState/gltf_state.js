@@ -39,14 +39,16 @@ class GltfState {
         this.selectionCallback = undefined;
         this.hoverCallback = undefined;
 
-        /** If the renderer should compute selection/hover in the next frame */
+        /** If the renderer should compute selection in the next frame. Is automatically reset after the frame is rendered */
         this.triggerSelection = false;
-        /** enableHover is also set internally by KHR_interactivity */
+        /** If the renderer should compute hovering in the next frame. */
         this.enableHover = false;
 
-        /* screen position of the picking ray */
-        this.pickingX = 0;
-        this.pickingY = 0;
+        /* Array of screen positions for selection. Currently only one is supported. */
+        this.selectionPositions = [{ x: undefined, y: undefined }];
+
+        /* Array of screen positions for hovering. Currently only one is supported. */
+        this.hoverPositions = [{ x: undefined, y: undefined }];
 
         /** parameters used to configure the rendering */
         this.renderingParameters = {

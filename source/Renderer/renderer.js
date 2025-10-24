@@ -587,8 +587,8 @@ class gltfRenderer {
         let pickingProjection = undefined;
         let pickingViewProjection = mat4.create();
 
-        const pickingX = state.pickingX;
-        const pickingY = state.pickingY;
+        let pickingX = state.selectionPositions[0].x;
+        let pickingY = state.selectionPositions[0].y;
 
         if (state.triggerSelection && pickingX !== undefined && pickingY !== undefined) {
             pickingProjection = currentCamera.getProjectionMatrixForPixel(
@@ -616,6 +616,9 @@ class gltfRenderer {
                 );
             }
         }
+
+        pickingX = state.hoverPositions[0].x;
+        pickingY = state.hoverPositions[0].y;
 
         if (state.enableHover && pickingX !== undefined && pickingY !== undefined) {
             if (pickingProjection === undefined) {
@@ -846,6 +849,8 @@ class gltfRenderer {
                 pixels
             );
 
+            pickingX = state.selectionPositions[0].x;
+            pickingY = state.selectionPositions[0].y;
             const x = pickingX - aspectOffsetX;
             const y = this.currentHeight - pickingY - aspectOffsetY;
             const nearPlane = currentCamera.getNearPlaneForPixel(
@@ -863,7 +868,8 @@ class gltfRenderer {
             let pickingResult = {
                 node: undefined,
                 position: undefined,
-                rayOrigin: rayOrigin
+                rayOrigin: rayOrigin,
+                controller: 0
             };
 
             let found = false;
@@ -939,7 +945,8 @@ class gltfRenderer {
             );
 
             let pickingResult = {
-                node: undefined
+                node: undefined,
+                controller: 0
             };
             for (const node of state.gltf.nodes) {
                 if (node.pickingColor === pixels[0]) {

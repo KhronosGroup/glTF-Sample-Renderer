@@ -73,7 +73,7 @@ for (const dir of directories) {
                     if (state.gltf?.extensions?.KHR_interactivity?.graphs !== undefined) {
                         state.graphController.initializeGraphs(state);
                         const graphIndex = state.gltf.extensions.KHR_interactivity.graph ?? 0;
-                        state.graphController.startGraph(graphIndex);
+                        state.graphController.loadGraph(graphIndex);
                         state.graphController.resumeGraph();
                     } else {
                         state.graphController.stopGraphEngine();

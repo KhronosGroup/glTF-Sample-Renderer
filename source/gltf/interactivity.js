@@ -64,11 +64,11 @@ class GraphController {
     }
 
     /**
-     * Starts playing the specified graph. Resets the engine.
+     * Loads the specified graph. Resets the engine. Starts playing if this.playing is true.
      * @param {number} graphIndex
      * @return {Array} An array of custom events defined in the graph.
      */
-    startGraph(graphIndex) {
+    loadGraph(graphIndex) {
         this.decorator.resetGraph();
         try {
             this.customEvents = this.decorator.loadGraph(graphIndex);
@@ -134,7 +134,7 @@ class GraphController {
         if (this.graphIndex === undefined) {
             return;
         }
-        this.startGraph(this.graphIndex);
+        this.loadGraph(this.graphIndex);
     }
 
     /**
@@ -222,7 +222,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         if (pickingResult.node) {
             this.select(
                 pickingResult.node?.gltfObjectIndex,
-                0,
+                pickingResult.controller,
                 pickingResult.position,
                 pickingResult.rayOrigin
             );
@@ -230,7 +230,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     receiveHover(pickingResult) {
-        this.hoverOn(pickingResult.node?.gltfObjectIndex, 0);
+        this.hoverOn(pickingResult.node?.gltfObjectIndex, pickingResult.controller);
     }
 
     getParentNodeIndex(nodeIndex) {
