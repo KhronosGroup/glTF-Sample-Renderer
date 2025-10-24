@@ -1,8 +1,7 @@
-import {GltfView} from "./gltf-viewer.module.js";
-
+import { GltfView } from "./gltf-viewer.module.js";
 
 const canvas = document.getElementById("canvas");
-const context = canvas.getContext("webgl2", {antialias: true});
+const context = canvas.getContext("webgl2", { antialias: true });
 const view = new GltfView(context);
 const resourceLoader = view.createResourceLoader();
 const state = view.createState();

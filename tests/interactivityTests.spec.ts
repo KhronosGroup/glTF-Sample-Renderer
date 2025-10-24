@@ -37,15 +37,15 @@ for (const dir of directories) {
         const testName = path.substring(path.lastIndexOf("/testAssetDownloads/") + 19);
         test(`Testing asset ${testName}`, async ({ page }) => {
             await page.goto("");
-            let testDuration : number | undefined = undefined;
-            let testResult : boolean | undefined = undefined;
+            let testDuration: number | undefined = undefined;
+            let testResult: boolean | undefined = undefined;
             const fun = (input: number | boolean) => {
                 if (typeof input === "number") {
                     testDuration = input;
                 } else if (typeof input === "boolean") {
                     testResult = input;
                 }
-            }
+            };
             await page.exposeFunction("passTestData", fun);
             let success = false;
             try {
@@ -85,20 +85,25 @@ for (const dir of directories) {
                 throw error;
             }
             expect(success).toBeTruthy();
-            await page.waitForFunction(() => {
-                return window.TEST_TIME !== undefined;
-            }, {timeout: 2000});
+            await page.waitForFunction(
+                () => {
+                    return window.TEST_TIME !== undefined;
+                },
+                { timeout: 2000 }
+            );
             if (testDuration! > 0) {
                 console.log("Test duration (s): ", testDuration);
             }
-            await page.waitForFunction(() => {
-                return window.TEST_RESULT !== undefined;
-            }, {timeout: testDuration! * 1000 + 1000});
+            await page.waitForFunction(
+                () => {
+                    return window.TEST_RESULT !== undefined;
+                },
+                { timeout: testDuration! * 1000 + 1000 }
+            );
             if (testResult === false) {
                 console.log(await page.consoleMessages());
             }
             expect(testResult).toBe(true);
         });
-        
     }
 }
