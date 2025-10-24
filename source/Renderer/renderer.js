@@ -850,25 +850,19 @@ class gltfRenderer {
                 pixels
             );
 
-            let rayOrigin = undefined;
-            if (currentCamera.type === "orthographic") {
-                const x = pickingX - aspectOffsetX;
-                const y = this.currentHeight - pickingY - aspectOffsetY;
-                const orthoX =
-                    -currentCamera.orthographic.xmag +
-                    ((2 * currentCamera.orthographic.xmag) / aspectWidth) * (x + 0.5);
-                const orthoY =
-                    -currentCamera.orthographic.ymag +
-                    ((2 * currentCamera.orthographic.ymag) / aspectHeight) * (y + 0.5);
-                rayOrigin = vec3.fromValues(orthoX, orthoY, -currentCamera.orthographic.znear);
-                vec3.transformMat4(
-                    rayOrigin,
-                    rayOrigin,
-                    currentCamera.getTransformMatrix(state.gltf)
-                );
-            } else {
-                rayOrigin = currentCamera.getPosition(state.gltf);
-            }
+            const x = pickingX - aspectOffsetX;
+            const y = this.currentHeight - pickingY - aspectOffsetY;
+            const nearPlane = currentCamera.getNearPlaneForPixel(
+                x + 0.5,
+                y + 0.5,
+                aspectWidth,
+                aspectHeight
+            );
+            const zNear = currentCamera.perspective?.znear
+                ? currentCamera.perspective.znear
+                : currentCamera.orthographic.znear;
+            let rayOrigin = vec3.fromValues(nearPlane.left, nearPlane.bottom, -zNear);
+            vec3.transformMat4(rayOrigin, rayOrigin, currentCamera.getTransformMatrix(state.gltf));
 
             let pickingResult = {
                 node: undefined,

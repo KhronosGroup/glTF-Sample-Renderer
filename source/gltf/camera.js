@@ -75,9 +75,8 @@ class gltfCamera extends GltfObject {
         return projection;
     }
 
-    getProjectionMatrixForPixel(x, y, width, height) {
-        const projection = mat4.create();
-
+    getNearPlaneForPixel(x, y, width, height) {
+        let subRight, subTop, subLeft, subBottom;
         if (this.type === "perspective") {
             const aspectRatio = this.perspective.aspectRatio ?? width / height;
             const top = Math.tan(this.perspective.yfov / 2) * this.perspective.znear;
@@ -89,30 +88,41 @@ class gltfCamera extends GltfObject {
 
             const subWidth = computedWidth / width;
             const subHeight = computedHeight / height;
-            const subLeft = left + x * subWidth;
-            const subBottom = bottom + y * subHeight;
+            subLeft = left + x * subWidth;
+            subBottom = bottom + y * subHeight;
+            subRight = subLeft + subWidth;
+            subTop = subBottom + subHeight;
+        } else if (this.type === "orthographic") {
+            subLeft = -this.orthographic.xmag + ((2 * this.orthographic.xmag) / width) * x;
+            subRight = subLeft + (2 * this.orthographic.xmag) / width;
+            subBottom = -this.orthographic.ymag + ((2 * this.orthographic.ymag) / height) * y;
+            subTop = subBottom + (2 * this.orthographic.ymag) / height;
+        }
+        return { left: subLeft, bottom: subBottom, right: subRight, top: subTop };
+    }
 
+    getProjectionMatrixForPixel(x, y, width, height) {
+        const projection = mat4.create();
+
+        const nearPlane = this.getNearPlaneForPixel(x, y, width, height);
+
+        if (this.type === "perspective") {
             mat4.frustum(
                 projection,
-                subLeft,
-                subLeft + subWidth,
-                subBottom,
-                subBottom + subHeight,
+                nearPlane.left,
+                nearPlane.right,
+                nearPlane.bottom,
+                nearPlane.top,
                 this.perspective.znear,
                 this.perspective.zfar
             );
         } else if (this.type === "orthographic") {
-            const subLeft = -this.orthographic.xmag + ((2 * this.orthographic.xmag) / width) * x;
-            const subRight = subLeft + (2 * this.orthographic.xmag) / width;
-            const subBottom = -this.orthographic.ymag + ((2 * this.orthographic.ymag) / height) * y;
-            const subTop = subBottom + (2 * this.orthographic.ymag) / height;
-
             mat4.ortho(
                 projection,
-                subLeft,
-                subRight,
-                subBottom,
-                subTop,
+                nearPlane.left,
+                nearPlane.right,
+                nearPlane.bottom,
+                nearPlane.top,
                 this.orthographic.znear,
                 this.orthographic.zfar
             );
