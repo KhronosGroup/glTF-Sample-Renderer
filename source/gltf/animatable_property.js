@@ -2,18 +2,28 @@ class AnimatableProperty {
     constructor(value) {
         this.restValue = value;
         this.animatedValue = null;
+        this.dirty = true;
     }
 
     restAt(value) {
+        if (!this.dirty && !this._equals(value, this.restValue)) {
+            this.dirty = true;
+        }
         this.restValue = value;
     }
 
     animate(value) {
+        if (!this.dirty && !this._equals(value, this.animatedValue)) {
+            this.dirty = true;
+        }
         this.animatedValue = value;
     }
 
     rest() {
-        this.animatedValue = null;
+        if (this.animatedValue !== null) {
+            this.dirty = true;
+            this.animatedValue = null;
+        }
     }
 
     value() {
@@ -22,6 +32,23 @@ class AnimatableProperty {
 
     isDefined() {
         return this.restValue !== undefined;
+    }
+
+    _equals(first, second) {
+        if (typeof first !== typeof second) {
+            return false;
+        }
+        // We do not have animatable objects and arrays always have the same length
+        if (Array.isArray(first) && Array.isArray(second)) {
+            for (let i = 0; i < first.length; i++) {
+                if (!this._equals(first[i], second[i])) {
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            return first === second;
+        }
     }
 }
 
