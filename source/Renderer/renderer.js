@@ -620,7 +620,11 @@ class gltfRenderer {
         pickingX = state.hoverPositions[0].x;
         pickingY = state.hoverPositions[0].y;
 
-        if (state.enableHover && pickingX !== undefined && pickingY !== undefined) {
+        const needsHover = state.graphController.needsHover();
+        const doHover =
+            (state.enableHover || needsHover) && pickingX !== undefined && pickingY !== undefined;
+
+        if (doHover) {
             if (pickingProjection === undefined) {
                 pickingProjection = currentCamera.getProjectionMatrixForPixel(
                     pickingX - aspectOffsetX,
@@ -926,7 +930,7 @@ class gltfRenderer {
             }
         }
 
-        if (state.enableHover) {
+        if (doHover) {
             this.webGl.context.bindFramebuffer(
                 this.webGl.context.FRAMEBUFFER,
                 this.hoverFramebuffer

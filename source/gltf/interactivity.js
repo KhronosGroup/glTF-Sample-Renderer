@@ -34,6 +34,22 @@ class GraphController {
         this.decorator = new SampleViewerDecorator(this.engine, debug);
     }
 
+    needsHover() {
+        if (this.graphIndex === undefined || !this.playing) {
+            return false;
+        }
+        if (
+            this.state?.renderingParameters?.enabledExtensions?.KHR_interactivity !== true ||
+            this.state?.renderingParameters?.enabledExtensions?.KHR_node_hoverability !== true
+        ) {
+            return false;
+        }
+        return (
+            this.state?.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]
+                ?.hasHoverEvent === true
+        );
+    }
+
     receiveSelection(pickingResult) {
         if (this.graphIndex !== undefined) {
             this.decorator.receiveSelection(pickingResult);
@@ -74,12 +90,7 @@ class GraphController {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
             if (this.playing) {
-                this.state.enableHover =
-                    this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]
-                        ?.hasHoverEvent ?? false;
                 this.decorator.playEventQueue();
-            } else {
-                this.state.enableHover = false;
             }
         } catch (error) {
             console.error("Error loading graph:", error);
@@ -98,7 +109,6 @@ class GraphController {
         this.playing = false;
         this.decorator.pauseEventQueue();
         this.decorator.resetGraph();
-        this.state.enableHover = false;
     }
 
     /**
@@ -110,7 +120,6 @@ class GraphController {
         }
         this.decorator.pauseEventQueue();
         this.playing = false;
-        this.state.enableHover = false;
     }
 
     /**
@@ -120,9 +129,6 @@ class GraphController {
         if (this.graphIndex === undefined || this.playing) {
             return;
         }
-        this.state.enableHover =
-            this.state.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]
-                ?.hasHoverEvent ?? false;
         this.decorator.playEventQueue();
         this.playing = true;
     }
