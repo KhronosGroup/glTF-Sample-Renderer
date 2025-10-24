@@ -29,12 +29,13 @@ Formerly hosted together with the example frontend at the [glTF Sample Viewer](h
 
 - [x] glTF 2.0
 - [KHR_accessor_float64](https://github.com/KhronosGroup/glTF/pull/2397)
-  - [x] Animations
-  - [x] KHR_animation_pointer
-  - [ ] Mesh Attributes not supported since WebGL2 only supports 32 bit
-  - [ ] Skins not supported since WebGL2 only supports 32 bit
+    - [x] Animations
+    - [x] KHR_animation_pointer
+    - [ ] Mesh Attributes not supported since WebGL2 only supports 32 bit
+    - [ ] Skins not supported since WebGL2 only supports 32 bit
 - [x] [KHR_animation_pointer](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_animation_pointer)
 - [x] [KHR_draco_mesh_compression](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_draco_mesh_compression)
+- [x] [KHR_interactivity](https://github.com/KhronosGroup/glTF/pull/2293)
 - [x] [KHR_lights_punctual](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_lights_punctual)
 - [x] [KHR_materials_anisotropy](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_anisotropy)
 - [x] [KHR_materials_clearcoat](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_clearcoat)
@@ -54,6 +55,8 @@ Formerly hosted together with the example frontend at the [glTF Sample Viewer](h
     - [x] For dense volumes using KHR_materials_diffuse_transmission
     - [ ] For sparse volumes using KHR_materials_transmission
 - [x] [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_mesh_quantization)
+- [x] [KHR_node_hoverability](https://github.com/KhronosGroup/glTF/pull/2426)
+- [x] [KHR_node_selectability](https://github.com/KhronosGroup/glTF/pull/2422)
 - [x] [KHR_node_visibility](https://github.com/KhronosGroup/glTF/pull/2410)
 - [x] [KHR_texture_basisu](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_texture_basisu)
 - [x] [KHR_texture_transform](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_texture_transform)
