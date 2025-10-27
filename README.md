@@ -15,6 +15,7 @@ Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-R
     - [API](#api)
         - [GltfView](#gltfview)
         - [GltfState](#gltfstate)
+            - [GraphController](#graphcontroller)
         - [ResourceLoader](#resourceloader)
     - [Render Fidelity Tools](#render-fidelity-tools)
     - [Formatting](#formatting)
@@ -24,6 +25,7 @@ Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-R
 
 Developed and refactored by [UX3D](https://www.ux3d.io/). Supported by the [Khronos Group](https://www.khronos.org/) and by [Google](https://www.google.com/) for the glTF Draco mesh compression import.
 Formerly hosted together with the example frontend at the [glTF Sample Viewer](https://github.com/KhronosGroup/glTF-Sample-Viewer) repository. Original code based on the concluded [glTF-WebGL-PBR](https://github.com/KhronosGroup/glTF-Sample-Viewer/tree/glTF-WebGL-PBR) project. Previously supported by [Facebook](https://www.facebook.com/) for animations, skinning and morphing.
+For KHR_interactivity, the behavior engine of the [glTF-InteractivityGraph-AuthoringTool](https://github.com/KhronosGroup/glTF-InteractivityGraph-AuthoringTool) is used.
 
 ## Features
 
@@ -92,7 +94,7 @@ window.requestAnimationFrame(update);
 
 ### GltfState
 
-The GltfState encapsulates the state of the content of a GltfView. *As currently some WebGL resources are stored directly in the Gltf objects, the state cannot be shared between views.*
+The GltfState encapsulates the state of the content of a GltfView. _As currently some WebGL resources are stored directly in the Gltf objects, the state cannot be shared between views._
 
 ```js
 const state = view.createState();
@@ -102,6 +104,16 @@ state.animationTimer.start();
 ```
 
 The state is passed to the `view.renderFrame` function to specify the content that should be rendered.
+
+#### GraphController
+
+The GltfState contains an instance of the GraphController which can be used to load and execute `KHR_interactivity` graphs. One can also send custom events to the graph or subscribe to custom event via callbacks.
+
+In the GltfState you can define an array of selection and hover points. Each element of the array represents one controller. If `triggerSelection` is set to `true`, the render will return the picking result of the clicked position via `selectionCallback`. The interactivity engine will be notified as well, if `KHR_node_selectability` is used in the current glTF.
+
+If `enableHover` is set to `true`, the render will return the picking result of the hovered position via `hoverCallback`. The interactivity engine receives hover results independent of `enableHover` based on the `hoverPositions` array. `enableHover` enables the use of custom hover handling independent of `KHR_interactivity` and is set to `false` by default.
+
+To make sure that `KHR_interactivity` always behaves correctly together with `KHR_node_selectability` and `KHR_node_hoverability`, update the values in the `hoverPositions` and `selectionPositions` arrays and trigger selections via `triggerSelection`. Currently, only one controller is supported. All entries except the first one of each array are ignored. Arrays are used to enable multiple controllers in the future without breaking the API.
 
 ### ResourceLoader
 

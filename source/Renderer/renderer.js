@@ -959,7 +959,7 @@ class gltfRenderer {
                 }
             }
             state.graphController.receiveHover(pickingResult);
-            if (state.hoverCallback) {
+            if (state.enableHover && state.hoverCallback) {
                 state.hoverCallback(pickingResult);
             }
         }
