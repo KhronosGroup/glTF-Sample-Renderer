@@ -16,6 +16,7 @@ Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-R
         - [GltfView](#gltfview)
         - [GltfState](#gltfstate)
             - [GraphController](#graphcontroller)
+            - [AnimationTimer](#animationtimer)
         - [ResourceLoader](#resourceloader)
     - [Render Fidelity Tools](#render-fidelity-tools)
     - [Development](#development)
@@ -116,6 +117,11 @@ In the GltfState you can define an array of selection and hover points. Each ele
 If `enableHover` is set to `true`, the render will return the picking result of the hovered position via `hoverCallback`. The interactivity engine receives hover results independent of `enableHover` based on the `hoverPositions` array. `enableHover` enables the use of custom hover handling independent of `KHR_interactivity` and is set to `false` by default.
 
 To make sure that `KHR_interactivity` always behaves correctly together with `KHR_node_selectability` and `KHR_node_hoverability`, update the values in the `hoverPositions` and `selectionPositions` arrays and trigger selections via `triggerSelection`. Currently, only one controller is supported. All entries except the first one of each array are ignored. Arrays are used to enable multiple controllers in the future without breaking the API.
+
+#### AnimationTimer
+
+The GltfState contains an instance of the AnimationTimer, which is used to play, pause and reset animations. It needs to be started to enable animations.
+The `KHR_interactivity` extension controls animations if present. Therefore, the GraphController uses the time of the AnimationTimer to control animations. The GraphController is paused and resumed independently from the AnimationTimer, thus if an interactivity graph is paused, currently playing animations will continue playing if the AnimationTimer is not paused as well.
 
 ### ResourceLoader
 

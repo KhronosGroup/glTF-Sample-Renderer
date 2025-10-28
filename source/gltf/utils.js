@@ -164,61 +164,6 @@ class Timer {
     }
 }
 
-class AnimationTimer {
-    constructor() {
-        this.startTime = 0;
-        this.paused = true;
-        this.fixedTime = null;
-        this.pausedTime = 0;
-    }
-
-    elapsedSec() {
-        if (this.paused) {
-            return this.pausedTime / 1000;
-        } else {
-            return this.fixedTime || (performance.now() - this.startTime) / 1000;
-        }
-    }
-
-    toggle() {
-        if (this.paused) {
-            this.unpause();
-        } else {
-            this.pause();
-        }
-    }
-
-    start() {
-        this.startTime = performance.now();
-        this.paused = false;
-    }
-
-    pause() {
-        this.pausedTime = performance.now() - this.startTime;
-        this.paused = true;
-    }
-
-    unpause() {
-        this.startTime += performance.now() - this.startTime - this.pausedTime;
-        this.paused = false;
-    }
-
-    reset() {
-        if (!this.paused) {
-            // Animation is running.
-            this.startTime = performance.now();
-        } else {
-            this.startTime = 0;
-        }
-        this.pausedTime = 0;
-    }
-
-    setFixedTime(timeInSec) {
-        this.paused = false;
-        this.fixedTime = timeInSec;
-    }
-}
-
 export {
     jsToGl,
     jsToGlSlice,

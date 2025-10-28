@@ -15,7 +15,7 @@
     "testApp": "npm run build & npx serve ./dist",
     "test": "npx playwright test",
     "prepublishOnly": "npm run build && npm run build_docs",
-    "build_docs": "jsdoc2md source/gltf-sample-renderer.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js source/gltf/interactivity.js > API.md",
+    "build_docs": "jsdoc2md source/gltf-sample-renderer.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/GltfState/animation_timer.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js source/gltf/interactivity.js > API.md",
     "lint": "eslint source/**/*.js",
     "lint:fix": "eslint --fix source/**/*.js",
     "prettier": "npx prettier source/**/*.js tests/**/*.js tests/**/*.ts --check",

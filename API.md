@@ -7,6 +7,9 @@
 <dt><a href="#GltfState">GltfState</a></dt>
 <dd><p>GltfState containing a state for visualization in GltfView</p>
 </dd>
+<dt><a href="#AnimationTimer">AnimationTimer</a></dt>
+<dd><p>AnimationTimer class to control animation playback.</p>
+</dd>
 <dt><a href="#ResourceLoader">ResourceLoader</a></dt>
 <dd><p>ResourceLoader can be used to load resources for the GltfState
 that are then used to display the loaded data with GltfView</p>
@@ -928,6 +931,69 @@ output the anisotropic strength
 output final direction as defined by the anisotropyTexture and rotation
 
 **Kind**: static property of [<code>anisotropy</code>](#GltfState.DebugOutput.anisotropy)  
+<a name="AnimationTimer"></a>
+
+## AnimationTimer
+AnimationTimer class to control animation playback.
+
+**Kind**: global class  
+
+* [AnimationTimer](#AnimationTimer)
+    * [.start()](#AnimationTimer+start)
+    * [.pause()](#AnimationTimer+pause)
+    * [.unpause()](#AnimationTimer+unpause)
+    * [.toggle()](#AnimationTimer+toggle)
+    * [.reset()](#AnimationTimer+reset)
+    * [.setFixedTime(timeInSec)](#AnimationTimer+setFixedTime)
+    * [.elapsedSec()](#AnimationTimer+elapsedSec)
+
+<a name="AnimationTimer+start"></a>
+
+### animationTimer.start()
+Start the animation timer and all animations
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+pause"></a>
+
+### animationTimer.pause()
+Pause all animations
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+unpause"></a>
+
+### animationTimer.unpause()
+Unpause all animations
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+toggle"></a>
+
+### animationTimer.toggle()
+Toggle the animation playback state
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+reset"></a>
+
+### animationTimer.reset()
+Reset the animation timer. If animations were playing, they will be restarted.
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+setFixedTime"></a>
+
+### animationTimer.setFixedTime(timeInSec)
+Plays all animations starting from the specified time
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| timeInSec | <code>number</code> | The time in seconds to set the animation timer to |
+
+<a name="AnimationTimer+elapsedSec"></a>
+
+### animationTimer.elapsedSec()
+Get the elapsed time in seconds
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
 <a name="ResourceLoader"></a>
 
 ## ResourceLoader
