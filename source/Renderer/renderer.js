@@ -625,7 +625,11 @@ class gltfRenderer {
             (state.enableHover || needsHover) && pickingX !== undefined && pickingY !== undefined;
 
         if (doHover) {
-            if (pickingProjection === undefined) {
+            if (
+                pickingProjection === undefined ||
+                pickingX !== state.selectionPositions[0].x ||
+                pickingY !== state.selectionPositions[0].y
+            ) {
                 pickingProjection = currentCamera.getProjectionMatrixForPixel(
                     pickingX - aspectOffsetX,
                     this.currentHeight - pickingY - aspectOffsetY,
