@@ -172,6 +172,13 @@ class gltfAnimation extends GltfObject {
             if (property != null) {
                 let jsonPointer = JsonPointer.create(property);
                 let parentObject = jsonPointer.parent(gltf);
+                if (parentObject === undefined) {
+                    if (!this.errors.includes(property)) {
+                        console.warn(`Cannot find property ${property}`);
+                        this.errors.push(property);
+                    }
+                    continue;
+                }
                 let back = jsonPointer.path.at(-1);
                 let animatedArrayElement = undefined;
                 if (Array.isArray(parentObject)) {

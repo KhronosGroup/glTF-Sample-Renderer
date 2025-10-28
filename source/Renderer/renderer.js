@@ -506,7 +506,7 @@ class gltfRenderer {
         this.viewMatrix = currentCamera.getViewMatrix(state.gltf);
         this.currentCameraPosition = currentCamera.getPosition(state.gltf);
 
-        this.visibleLights = this.getVisibleLights(state.gltf, scene.nodes);
+        this.visibleLights = this.getVisibleLights(state.gltf, this.nodes);
         if (
             this.visibleLights.length === 0 &&
             !state.renderingParameters.useIBL &&
@@ -1368,13 +1368,7 @@ class gltfRenderer {
     getVisibleLights(gltf, nodes) {
         let nodeLights = [];
 
-        for (const nodeIndex of nodes) {
-            const node = gltf.nodes[nodeIndex];
-
-            if (node.children !== undefined) {
-                nodeLights = nodeLights.concat(this.getVisibleLights(gltf, node.children));
-            }
-
+        for (const node of nodes) {
             const lightIndex = node.extensions?.KHR_lights_punctual?.light;
             if (lightIndex === undefined) {
                 continue;

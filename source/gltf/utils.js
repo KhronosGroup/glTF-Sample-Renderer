@@ -183,6 +183,5 @@ export {
     combinePaths,
     UniformStruct,
     Timer,
-    AnimationTimer,
     initGlForMembers
 };
