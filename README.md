@@ -9,20 +9,20 @@ Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-R
 ## Table of Contents
 
 - [Khronos glTF Sample Renderer](#khronos-gltf-sample-renderer)
-    - [Table of Contents](#table-of-contents)
-    - [Credits](#credits)
-    - [Features](#features)
-    - [API](#api)
-        - [GltfView](#gltfview)
-        - [GltfState](#gltfstate)
-            - [GraphController](#graphcontroller)
-            - [AnimationTimer](#animationtimer)
-        - [ResourceLoader](#resourceloader)
-    - [Render Fidelity Tools](#render-fidelity-tools)
-    - [Development](#development)
-        - [Formatting](#formatting)
-            - [Visual Studio Code](#visual-studio-code)
-        - [Testing](#testing)
+  - [Table of Contents](#table-of-contents)
+  - [Credits](#credits)
+  - [Features](#features)
+  - [API](#api)
+    - [GltfView](#gltfview)
+    - [GltfState](#gltfstate)
+      - [GraphController](#graphcontroller)
+      - [AnimationTimer](#animationtimer)
+    - [ResourceLoader](#resourceloader)
+  - [Render Fidelity Tools](#render-fidelity-tools)
+  - [Development](#development)
+    - [Formatting](#formatting)
+      - [Visual Studio Code](#visual-studio-code)
+    - [Testing](#testing)
 
 ## Credits
 
@@ -97,7 +97,7 @@ window.requestAnimationFrame(update);
 
 ### GltfState
 
-The GltfState encapsulates the state of the content of a GltfView. _As currently some WebGL resources are stored directly in the Gltf objects, the state cannot be shared between views._
+The GltfState encapsulates the state of the content of a GltfView. *As currently some WebGL resources are stored directly in the Gltf objects, the state cannot be shared between views.*
 
 ```js
 const state = view.createState();
