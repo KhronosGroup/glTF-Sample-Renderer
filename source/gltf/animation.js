@@ -88,6 +88,11 @@ class gltfAnimation extends GltfObject {
                 }
             }
         }
+        if (this.minTime > this.maxTime || this.minTime < 0 || this.maxTime < 0) {
+            console.error("Invalid min/max time for animation with index:", this.gltfObjectIndex);
+            this.minTime = undefined;
+            this.maxTime = undefined;
+        }
     }
 
     // advance the animation, if totalTime is undefined, the animation is deactivated
@@ -107,6 +112,7 @@ class gltfAnimation extends GltfObject {
         let elapsedTime = totalTime;
         let reverse = false;
 
+        // createdTimestamp is only used for KHR_interactivity
         if (this.createdTimestamp !== undefined) {
             elapsedTime = totalTime - this.createdTimestamp;
             elapsedTime *= this.speed;
