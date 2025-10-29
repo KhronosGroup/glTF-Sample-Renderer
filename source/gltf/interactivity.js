@@ -26,12 +26,13 @@ class gltfGraph extends GltfObject {
 class GraphController {
     constructor(fps = 60, debug = false) {
         this.fps = fps;
+        this.debug = debug;
         this.graphIndex = undefined;
         this.playing = false;
         this.customEvents = [];
         this.eventBus = new interactivity.DOMEventBus();
         this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
-        this.decorator = new SampleViewerDecorator(this.engine, debug);
+        this.decorator = new SampleViewerDecorator(this.engine, this.debug);
     }
 
     needsHover() {
@@ -68,9 +69,13 @@ class GraphController {
      * @param {GltfState} state - The state of the application.
      */
     initializeGraphs(state) {
+        this.decorator.pauseEventQueue();
         this.state = state;
         this.graphIndex = undefined;
         this.playing = false;
+        this.eventBus = new interactivity.DOMEventBus();
+        this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
+        this.decorator = new SampleViewerDecorator(this.engine, this.debug);
         this.decorator.setState(state);
         this.engine.clearEventList();
         this.engine.clearPointerInterpolation();
@@ -269,6 +274,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     resetGraph() {
+        this.pauseEventQueue();
         this.behaveEngine.loadBehaveGraph({
             nodes: [],
             types: [],
@@ -288,12 +294,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             }
             parent.animatedPropertyObjects[propertyName].rest();
         };
-        this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
         this.behaveEngine.clearEventList();
         this.behaveEngine.clearPointerInterpolation();
         this.behaveEngine.clearVariableInterpolation();
         this.behaveEngine.clearScheduledDelays();
         this.behaveEngine.clearValueEvaluationCache();
+        this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
     }
 
     processNodeStarted(node) {
