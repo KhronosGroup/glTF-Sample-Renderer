@@ -57,21 +57,21 @@ for (const dir of directories) {
                     const defaultScene = state.gltf.scene;
                     state.sceneIndex = defaultScene === undefined ? 0 : defaultScene;
                     state.cameraNodeIndex = undefined;
-                    state.graphController.addCustomEventListener("test/onStart", (event) => {
-                        window.passTestData(event.detail.expectedDuration);
-                        window.TEST_TIME = event.detail.expectedDuration;
-                    });
-                    state.graphController.addCustomEventListener("test/onSuccess", () => {
-                        window.passTestData(true);
-                        window.TEST_RESULT = true;
-                    });
-                    state.graphController.addCustomEventListener("test/onFailed", () => {
-                        window.passTestData(false);
-                        window.TEST_RESULT = false;
-                    });
                     state.animationTimer.start();
                     if (state.gltf?.extensions?.KHR_interactivity?.graphs !== undefined) {
                         state.graphController.initializeGraphs(state);
+                        state.graphController.addCustomEventListener("test/onStart", (event) => {
+                            window.passTestData(event.detail.expectedDuration);
+                            window.TEST_TIME = event.detail.expectedDuration;
+                        });
+                        state.graphController.addCustomEventListener("test/onSuccess", () => {
+                            window.passTestData(true);
+                            window.TEST_RESULT = true;
+                        });
+                        state.graphController.addCustomEventListener("test/onFailed", () => {
+                            window.passTestData(false);
+                            window.TEST_RESULT = false;
+                        });
                         const graphIndex = state.gltf.extensions.KHR_interactivity.graph ?? 0;
                         state.graphController.loadGraph(graphIndex);
                         state.graphController.resumeGraph();

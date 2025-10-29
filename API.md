@@ -1287,6 +1287,7 @@ A controller for managing KHR_interactivity graphs in a glTF scene.
 ### graphController.initializeGraphs(state)
 Initialize the graph controller with the given state.
 This needs to be called every time a glTF assets is loaded.
+Event listeners are cleared.
 
 **Kind**: instance method of [<code>GraphController</code>](#GraphController)  
 
@@ -1347,6 +1348,7 @@ Dispatches an event to the behavior engine.
 ### graphController.addCustomEventListener(eventName, callback)
 Adds a custom event listener to the decorator.
 Khronos test assets use test/onStart, test/onFail and test/onSuccess.
+Needs to be called after initializeGraphs.
 
 **Kind**: instance method of [<code>GraphController</code>](#GraphController)  
 
