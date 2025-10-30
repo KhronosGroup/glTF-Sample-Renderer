@@ -33,6 +33,7 @@ class GraphController {
         this.eventBus = new interactivity.DOMEventBus();
         this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
         this.decorator = new SampleViewerDecorator(this.engine, this.debug);
+        this.eventSubscriptions = new Map();
     }
 
     needsHover() {
@@ -70,18 +71,20 @@ class GraphController {
      */
     initializeGraphs(state) {
         this.decorator.pauseEventQueue();
-        this.state = state;
-        this.graphIndex = undefined;
-        this.playing = false;
-        this.eventBus = new interactivity.DOMEventBus();
-        this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
-        this.decorator = new SampleViewerDecorator(this.engine, this.debug);
-        this.decorator.setState(state);
         this.engine.clearEventList();
         this.engine.clearPointerInterpolation();
         this.engine.clearVariableInterpolation();
         this.engine.clearScheduledDelays();
         this.engine.clearValueEvaluationCache();
+        this.state = state;
+        this.graphIndex = undefined;
+        this.eventBus = new interactivity.DOMEventBus();
+        this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
+        this.decorator = new SampleViewerDecorator(this.engine, this.debug);
+        this.decorator.setState(state);
+        for (const [eventName, callback] of this.eventSubscriptions) {
+            this.decorator.addCustomEventListener(eventName, callback);
+        }
     }
 
     /**
@@ -167,6 +170,7 @@ class GraphController {
      * @param {function(CustomEvent)} callback
      */
     addCustomEventListener(eventName, callback) {
+        this.eventSubscriptions.set(eventName, callback);
         this.decorator.addCustomEventListener(eventName, callback);
     }
 
@@ -174,6 +178,7 @@ class GraphController {
      * Clears all custom event listeners from the decorator.
      */
     clearCustomEventListeners() {
+        this.eventSubscriptions.clear();
         this.decorator.clearCustomEventListeners();
     }
 }
