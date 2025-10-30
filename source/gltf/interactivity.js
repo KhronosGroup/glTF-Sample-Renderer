@@ -77,6 +77,7 @@ class GraphController {
         this.engine.clearScheduledDelays();
         this.engine.clearValueEvaluationCache();
         this.state = state;
+        this.playing = false;
         this.graphIndex = undefined;
         this.eventBus = new interactivity.DOMEventBus();
         this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
