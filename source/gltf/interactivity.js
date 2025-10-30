@@ -213,10 +213,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     dispatchCustomEvent(eventName, data) {
+        // KHR_INTERACTIVITY prefix is used in the interactivity engine
         this.behaveEngine.dispatchCustomEvent(`KHR_INTERACTIVITY:${eventName}`, data);
     }
 
     addCustomEventListener(eventName, callback) {
+        // KHR_INTERACTIVITY prefix is used in the interactivity engine
         this.behaveEngine.addCustomEventListener(`KHR_INTERACTIVITY:${eventName}`, callback);
     }
 
@@ -294,17 +296,19 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         for (const animation of this.world.gltf.animations) {
             animation.reset();
         }
+
+        this.behaveEngine.clearEventList();
+        this.behaveEngine.clearPointerInterpolation();
+        this.behaveEngine.clearVariableInterpolation();
+        this.behaveEngine.clearScheduledDelays();
+        this.behaveEngine.clearValueEvaluationCache();
+
         const resetAnimatedProperty = (path, propertyName, parent, readOnly) => {
             if (readOnly) {
                 return;
             }
             parent.animatedPropertyObjects[propertyName].rest();
         };
-        this.behaveEngine.clearEventList();
-        this.behaveEngine.clearPointerInterpolation();
-        this.behaveEngine.clearVariableInterpolation();
-        this.behaveEngine.clearScheduledDelays();
-        this.behaveEngine.clearValueEvaluationCache();
         this.recurseAllAnimatedProperties(this.world.gltf, resetAnimatedProperty);
     }
 
@@ -408,6 +412,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 value = value.flat();
             } else {
                 const width = parseInt(type.charAt(5));
+                // The engine currently uses 2D Arrays for matrices
                 currentNode = this.convertArrayToMatrix(currentNode, width);
             }
         } else if (type === "float2" || type === "float3" || type === "float4") {
@@ -428,18 +433,24 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         if (gltfObject === undefined || !(gltfObject instanceof GltfObject)) {
             return;
         }
+
+        // Call for all animated properties of this gltfObject
         for (const property of gltfObject.constructor.animatedProperties) {
             if (gltfObject[property] === undefined) {
                 continue;
             }
             callable(currentPath, property, gltfObject, false);
         }
+
+        // Call for all read-only animated properties of this gltfObject
         for (const property of gltfObject.constructor.readOnlyAnimatedProperties) {
             if (gltfObject[property] === undefined) {
                 continue;
             }
             callable(currentPath, property, gltfObject, true);
         }
+
+        // Recurse into all GltfObject
         for (const key in gltfObject) {
             if (gltfObject[key] instanceof GltfObject) {
                 this.recurseAllAnimatedProperties(
@@ -460,6 +471,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 }
             }
         }
+
+        // Recurse into all extensions
         for (const extensionName in gltfObject.extensions) {
             const extension = gltfObject.extensions[extensionName];
             if (extension instanceof GltfObject) {
@@ -474,7 +487,6 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
     registerKnownPointers() {
         // The engine is checking if a path is valid so we do not need to handle this here
-
         if (this.world === undefined) {
             return;
         }
@@ -486,6 +498,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     // All read-only number properties are currently integers
                     type = "int";
                 }
+
+                // If the property is an array, read-only pointers return the length of the array
                 if (Array.isArray(parent[propertyName])) {
                     jsonPtr += ".length";
                     type = "int";
@@ -505,6 +519,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                     );
                     return;
                 }
+
                 this.registerJsonPointer(
                     jsonPtr,
                     (path) => {
@@ -523,9 +538,12 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 );
                 return;
             }
+
             if (type === undefined) {
                 return;
             }
+
+            // Register getter and setter for the property
             this.registerJsonPointer(
                 jsonPtr,
                 (path) => {
@@ -546,6 +564,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             );
         };
         this.recurseAllAnimatedProperties(this.world.gltf, registerFunction);
+
+        // Special pointers that need to be handled manually
 
         this.registerJsonPointer(
             `/extensions/KHR_lights_punctual/lights.length`,
@@ -582,6 +602,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "int",
             true
         );
+
+        // Returns the currently computed global matrix of the node
         this.registerJsonPointer(
             `/nodes/${nodeCount}/globalMatrix`,
             (path) => {
@@ -595,6 +617,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "float4x4",
             true
         );
+
+        // Returns the currently computed local matrix of the node
         this.registerJsonPointer(
             `/nodes/${nodeCount}/matrix`,
             (path) => {
@@ -607,6 +631,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "float4x4",
             true
         );
+
+        // Returns the parent node index of the node
         this.registerJsonPointer(
             `/nodes/${nodeCount}/parent`,
             (path) => {
@@ -619,6 +645,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "int",
             true
         );
+
+        // Pointer to indices
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/extensions/KHR_lights_punctual/light`,
             (path) => {
@@ -650,6 +679,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "int",
             true
         );
+
+        // Pointer for animation control
 
         const animationCount = this.world.gltf.animations.length;
         this.registerJsonPointer(
@@ -690,6 +721,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "float",
             true
         );
+
+        // The playhead returns a number between 0 and maxTime
         this.registerJsonPointer(
             `/animations/${animationCount}/extensions/KHR_interactivity/playhead`,
             (path) => {
@@ -705,6 +738,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "float",
             true
         );
+
+        // The virtual playhead return the current time on the infinite timeline. Can be negative or larger than maxTime
         this.registerJsonPointer(
             `/animations/${animationCount}/extensions/KHR_interactivity/virtualPlayhead`,
             (path) => {
@@ -720,6 +755,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "float",
             true
         );
+
+        // Pointer for the active camera
 
         this.registerJsonPointer(
             `/extensions/KHR_interactivity/activeCamera/rotation`,

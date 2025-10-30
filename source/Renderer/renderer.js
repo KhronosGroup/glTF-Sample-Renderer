@@ -352,8 +352,8 @@ class gltfRenderer {
         this.selectionDrawables = newNodes.selectableNodes
             .filter((node) => node.mesh !== undefined)
             .reduce(
-                (acc, node) =>
-                    acc.concat(
+                (accumulator, node) =>
+                    accumulator.concat(
                         state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
                             return { node: node, primitive: primitive, primitiveIndex: index };
                         })
@@ -363,8 +363,8 @@ class gltfRenderer {
         this.hoverDrawables = newNodes.hoverableNodes
             .filter((node) => node.mesh !== undefined)
             .reduce(
-                (acc, node) =>
-                    acc.concat(
+                (accumulator, node) =>
+                    accumulator.concat(
                         state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
                             return { node: node, primitive: primitive, primitiveIndex: index };
                         })
@@ -372,6 +372,7 @@ class gltfRenderer {
                 []
             );
 
+        // check if nodes have changed since previous frame to avoid unnecessary updates
         if (
             newNodes.nodes.length === this.nodes?.length &&
             newNodes.nodes.every((element, i) => element === this.nodes[i])
@@ -385,8 +386,8 @@ class gltfRenderer {
         const drawables = this.nodes
             .filter((node) => node.mesh !== undefined)
             .reduce(
-                (acc, node) =>
-                    acc.concat(
+                (accumulator, node) =>
+                    accumulator.concat(
                         state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
                             return { node: node, primitive: primitive, primitiveIndex: index };
                         })
@@ -590,6 +591,7 @@ class gltfRenderer {
         let pickingX = state.selectionPositions[0].x;
         let pickingY = state.selectionPositions[0].y;
 
+        // Draw a 1x1 texture for picking
         if (state.triggerSelection && pickingX !== undefined && pickingY !== undefined) {
             pickingProjection = currentCamera.getProjectionMatrixForPixel(
                 pickingX - aspectOffsetX,
@@ -621,10 +623,12 @@ class gltfRenderer {
         pickingY = state.hoverPositions[0].y;
 
         const needsHover = state.graphController.needsHover();
-        const doHover =
+        const calcHoverInfo =
             (state.enableHover || needsHover) && pickingX !== undefined && pickingY !== undefined;
 
-        if (doHover) {
+        // Draw a 1x1 texture for hover
+        if (calcHoverInfo) {
+            // We do not need to recalculate the picking projection matrix if selection and hover use the same position
             if (
                 pickingProjection === undefined ||
                 pickingX !== state.selectionPositions[0].x ||
@@ -846,6 +850,8 @@ class gltfRenderer {
             this.webGl.context.viewport(0, 0, 1, 1);
             state.triggerSelection = false;
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
+
+            // Read pixel under controller (e.g. mouse cursor), which contains the picking ID
             const pixels = new Uint32Array(1);
             this.webGl.context.readPixels(
                 0,
@@ -857,6 +863,7 @@ class gltfRenderer {
                 pixels
             );
 
+            // Compute ray origin in world space. This is the near plane position of the current pixel.
             pickingX = state.selectionPositions[0].x;
             pickingY = state.selectionPositions[0].y;
             const x = pickingX - aspectOffsetX;
@@ -880,6 +887,7 @@ class gltfRenderer {
                 controller: 0
             };
 
+            // Search for node with matching picking ID
             let found = false;
             for (const node of state.gltf.nodes) {
                 if (node.pickingColor === pixels[0]) {
@@ -889,6 +897,7 @@ class gltfRenderer {
                 }
             }
 
+            // If a node was found, we need to calculate the ray intersection position
             if (found) {
                 // WebGL does not allow reading from depth buffer
                 this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT1);
@@ -902,13 +911,19 @@ class gltfRenderer {
                     this.webGl.context.UNSIGNED_INT,
                     position
                 );
+
+                // Transform uint to float [-1, 1] in clip space
                 const z = (position[0] / 4294967295) * 2.0 - 1.0;
+
+                // Get view space position
                 const clipSpacePosition = vec4.fromValues(0, 0, z, 1);
                 vec4.transformMat4(
                     clipSpacePosition,
                     clipSpacePosition,
                     mat4.invert(mat4.create(), pickingProjection)
                 );
+
+                // Divide by w to get normalized device coordinates
                 vec4.divide(
                     clipSpacePosition,
                     clipSpacePosition,
@@ -927,6 +942,7 @@ class gltfRenderer {
                 pickingResult.position = vec3.fromValues(worldPos[0], worldPos[1], worldPos[2]);
             }
 
+            // Send picking result to Interactivity engine
             state.graphController.receiveSelection(pickingResult);
 
             if (state.selectionCallback) {
@@ -934,13 +950,15 @@ class gltfRenderer {
             }
         }
 
-        if (doHover) {
+        if (calcHoverInfo) {
             this.webGl.context.bindFramebuffer(
                 this.webGl.context.FRAMEBUFFER,
                 this.hoverFramebuffer
             );
             this.webGl.context.viewport(0, 0, 1, 1);
             this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
+
+            // Read pixel under controller (e.g. mouse cursor), which contains the picking ID
             const pixels = new Uint32Array(1);
             this.webGl.context.readPixels(
                 0,
@@ -956,13 +974,18 @@ class gltfRenderer {
                 node: undefined,
                 controller: 0
             };
+
+            // Search for node with matching picking ID
             for (const node of state.gltf.nodes) {
                 if (node.pickingColor === pixels[0]) {
                     pickingResult.node = node;
                     break;
                 }
             }
+
+            // Send picking result to Interactivity engine
             state.graphController.receiveHover(pickingResult);
+
             if (state.enableHover && state.hoverCallback) {
                 state.hoverCallback(pickingResult);
             }

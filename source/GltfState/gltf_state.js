@@ -45,9 +45,9 @@ class GltfState {
         /** callback for hovering: (hoverInfo : { node, controller }) => {} */
         this.hoverCallback = undefined;
 
-        /** If the renderer should compute selection in the next frame. Is automatically reset after the frame is rendered */
+        /** If the renderer should compute selection information in the next frame. Is automatically reset after the frame is rendered */
         this.triggerSelection = false;
-        /** If the renderer should compute hovering in the next frame. */
+        /** If the renderer should compute hover information in the next frame. */
         this.enableHover = false;
 
         /* Array of screen positions for selection. Currently only one is supported. */

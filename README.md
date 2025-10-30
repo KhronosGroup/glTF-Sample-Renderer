@@ -112,9 +112,9 @@ The state is passed to the `view.renderFrame` function to specify the content th
 
 The GltfState contains an instance of the GraphController which can be used to load and execute `KHR_interactivity` graphs. One can also send custom events to the graph or subscribe to custom event via callbacks.
 
-In the GltfState you can define an array of selection and hover points. Each element of the array represents one controller. If `triggerSelection` is set to `true`, the render will return the picking result of the clicked position via `selectionCallback`. The interactivity engine will be notified as well, if `KHR_node_selectability` is used in the current glTF.
+In the GltfState you can define an array of selection and hover points. Each element of the array represents one controller. If `triggerSelection` is set to `true`, the renderer will return the picking result of the clicked position via `selectionCallback`. The interactivity engine will be notified as well, if `KHR_node_selectability` is used in the current glTF.
 
-If `enableHover` is set to `true`, the render will return the picking result of the hovered position via `hoverCallback`. The interactivity engine receives hover results independent of `enableHover` based on the `hoverPositions` array. `enableHover` enables the use of custom hover handling independent of `KHR_interactivity` and is set to `false` by default.
+If `enableHover` is set to `true`, the renderer will return the picking result of the hovered position via `hoverCallback`. The interactivity engine receives hover results independent of `enableHover` based on the `hoverPositions` array. `enableHover` enables the use of custom hover handling independent of `KHR_interactivity` and is set to `false` by default.
 
 To make sure that `KHR_interactivity` always behaves correctly together with `KHR_node_selectability` and `KHR_node_hoverability`, update the values in the `hoverPositions` and `selectionPositions` arrays and trigger selections via `triggerSelection`. Currently, only one controller is supported. All entries except the first one of each array are ignored. Arrays are used to enable multiple controllers in the future without breaking the API.
 

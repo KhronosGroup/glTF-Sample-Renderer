@@ -125,6 +125,7 @@ class gltfAnimation extends GltfObject {
                 elapsedTime = this.startTime;
                 endAnimation = true;
             } else if (this.stopTime !== undefined) {
+                // Check if stopTime is reached
                 if (
                     (this.startTime < this.endTime &&
                         elapsedTime >= this.stopTime &&
@@ -139,6 +140,7 @@ class gltfAnimation extends GltfObject {
                     stopAnimation = true;
                 }
             } else if (
+                // Check if endTime is reached
                 (this.startTime < this.endTime && elapsedTime >= this.endTime) ||
                 (this.startTime > this.endTime && elapsedTime <= this.endTime)
             ) {
@@ -175,6 +177,7 @@ class gltfAnimation extends GltfObject {
                     break;
             }
 
+            // Search for the animated property
             if (property != null) {
                 let jsonPointer = JsonPointer.create(property);
                 let parentObject = jsonPointer.parent(gltf);
@@ -187,12 +190,15 @@ class gltfAnimation extends GltfObject {
                 }
                 let back = jsonPointer.path.at(-1);
                 let animatedArrayElement = undefined;
+
+                // Check if we are animating an array element e.g. weights
                 if (Array.isArray(parentObject)) {
                     animatedArrayElement = Number(back);
                     jsonPointer = JsonPointer.create(jsonPointer.path.slice(0, -1));
                     parentObject = jsonPointer.parent(gltf);
                     back = jsonPointer.path.at(-1);
                 }
+
                 let animatedProperty = undefined;
                 if (
                     parentObject.animatedPropertyObjects &&
@@ -210,6 +216,8 @@ class gltfAnimation extends GltfObject {
                     }
                     continue;
                 }
+
+                // glTF value is not defined and does not have a default value
                 if (animatedProperty.restValue === undefined) {
                     continue;
                 }
@@ -257,6 +265,7 @@ class gltfAnimation extends GltfObject {
             }
         }
 
+        // Handle end/stop of animation in interactivity
         if (stopAnimation) {
             this.createdTimestamp = undefined;
             this.stopCallback?.();

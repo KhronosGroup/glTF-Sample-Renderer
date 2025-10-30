@@ -288,13 +288,13 @@ callback for hovering: (hoverInfo : { node, controller }) => {}
 <a name="GltfState+triggerSelection"></a>
 
 ### gltfState.triggerSelection
-If the renderer should compute selection in the next frame. Is automatically reset after the frame is rendered
+If the renderer should compute selection information in the next frame. Is automatically reset after the frame is rendered
 
 **Kind**: instance property of [<code>GltfState</code>](#GltfState)  
 <a name="GltfState+enableHover"></a>
 
 ### gltfState.enableHover
-If the renderer should compute hovering in the next frame.
+If the renderer should compute hover information in the next frame.
 
 **Kind**: instance property of [<code>GltfState</code>](#GltfState)  
 <a name="GltfState+renderingParameters"></a>

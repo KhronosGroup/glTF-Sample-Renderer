@@ -137,6 +137,7 @@ class gltfInterpolator {
 
         // Find next keyframe: min{ t of input | t > prevKey }
         let nextKey = null;
+        // We need to search backwards for reversed animations
         if (reverse) {
             for (let i = this.prevKey; i >= 0; --i) {
                 if (t >= input[i]) {
