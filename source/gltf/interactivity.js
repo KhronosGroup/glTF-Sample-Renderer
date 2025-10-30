@@ -66,7 +66,6 @@ class GraphController {
     /**
      * Initialize the graph controller with the given state.
      * This needs to be called every time a glTF assets is loaded.
-     * Event listeners are cleared.
      * @param {GltfState} state - The state of the application.
      */
     initializeGraphs(state) {
@@ -164,7 +163,6 @@ class GraphController {
     /**
      * Adds a custom event listener to the decorator.
      * Khronos test assets use test/onStart, test/onFail and test/onSuccess.
-     * Needs to be called after initializeGraphs.
      * @param {string} eventName
      * @param {function(CustomEvent)} callback
      */
