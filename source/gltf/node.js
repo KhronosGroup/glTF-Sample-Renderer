@@ -121,6 +121,12 @@ class gltfNode extends GltfObject {
                 jsonNode.extensions.KHR_node_hoverability
             );
         }
+        if (jsonNode.extensions?.KHR_physics_rigid_bodies !== undefined) {
+            this.extensions.KHR_physics_rigid_bodies = new KHR_physics_rigid_bodies_node();
+            this.extensions.KHR_physics_rigid_bodies.fromJson(
+                jsonNode.extensions.KHR_physics_rigid_bodies
+            );
+        }
     }
 
     getWeights(gltf) {
@@ -180,6 +186,108 @@ class KHR_node_hoverability extends GltfObject {
     constructor() {
         super();
         this.hoverable = true;
+    }
+}
+
+class KHR_physics_rigid_bodies_node extends GltfObject {
+    static animatedProperties = [];
+    constructor() {
+        super();
+        this.motion = undefined;
+        this.collider = undefined;
+        this.trigger = undefined;
+        this.joint = undefined;
+    }
+    fromJson(json) {
+        super.fromJson(json);
+
+        if (json.motion !== undefined) {
+            this.motion = new KHR_physics_rigid_bodies_motion();
+            this.motion.fromJson(json.motion);
+        }
+        if (json.collider !== undefined) {
+            this.collider = new KHR_physics_rigid_bodies_collider();
+            this.collider.fromJson(json.collider);
+        }
+        if (json.trigger !== undefined) {
+            this.trigger = new KHR_physics_rigid_bodies_trigger();
+            this.trigger.fromJson(json.trigger);
+        }
+        if (json.joint !== undefined) {
+            this.joint = new KHR_physics_rigid_bodies_joint();
+            this.joint.fromJson(json.joint);
+        }
+    }
+}
+
+class KHR_physics_rigid_bodies_trigger extends GltfObject {
+    static animatedProperties = [];
+    constructor() {
+        super();
+        this.geometry = undefined;
+        this.nodes = [];
+        this.collisionFilter = undefined;
+    }
+}
+
+class KHR_physics_rigid_bodies_collider extends GltfObject {
+    static animatedProperties = [];
+    constructor() {
+        super();
+        this.geometry = undefined;
+        this.physicsMaterial = undefined;
+        this.collisionFilter = undefined;
+    }
+    fromJson(json) {
+        super.fromJson(json);
+        if (json.geometry !== undefined) {
+            this.geometry = new KHR_physics_rigid_bodies_geometry();
+            this.geometry.fromJson(json.geometry);
+        }
+    }
+}
+
+class KHR_physics_rigid_bodies_geometry extends GltfObject {
+    static animatedProperties = [];
+    constructor() {
+        super();
+        this.convexHull = false;
+        this.shape = undefined;
+        this.node = undefined;
+    }
+}
+
+class KHR_physics_rigid_bodies_motion extends GltfObject {
+    static animatedProperties = [
+        "isKinematic",
+        "mass",
+        "centerOfMass",
+        "inertialDiagonal",
+        "inertialOrientation",
+        "linearVelocity",
+        "angularVelocity",
+        "gravityFactor"
+    ];
+    constructor() {
+        super();
+        this.isKinematic = false;
+        this.mass = undefined;
+        this.centerOfMass = undefined;
+        this.inertialDiagonal = undefined;
+        this.inertialOrientation = undefined;
+        this.linearVelocity = [0, 0, 0];
+        this.angularVelocity = [0, 0, 0];
+        this.gravityFactor = 1;
+    }
+}
+
+class KHR_physics_rigid_bodies_joint extends GltfObject {
+    static animatedProperties = ["enableCollision"];
+    constructor() {
+        super();
+        this.connectedNode = undefined;
+        this.joint = undefined;
+        this.enableCollision = false;
     }
 }
 

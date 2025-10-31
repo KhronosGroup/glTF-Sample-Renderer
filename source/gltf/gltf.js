@@ -18,6 +18,7 @@ import { gltfAnimation } from "./animation.js";
 import { gltfSkin } from "./skin.js";
 import { gltfVariant } from "./variant.js";
 import { gltfGraph } from "./interactivity.js";
+import { KHR_physics_rigid_bodies } from "./rigid_bodies.js";
 
 const allowedExtensions = [
     "KHR_accessor_float64",
@@ -148,6 +149,13 @@ class glTF extends GltfObject {
             this.extensions.KHR_implicit_shapes.shapes = objectsFromJsons(
                 json.extensions.KHR_implicit_shapes.shapes,
                 gltfImplicitShape
+            );
+        }
+
+        if (json.extensions?.KHR_physics_rigid_bodies !== undefined) {
+            this.extensions.KHR_physics_rigid_bodies = new KHR_physics_rigid_bodies();
+            this.extensions.KHR_physics_rigid_bodies.fromJson(
+                json.extensions.KHR_physics_rigid_bodies
             );
         }
 
