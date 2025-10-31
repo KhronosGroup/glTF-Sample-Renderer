@@ -4,6 +4,7 @@ import { gltfBufferView } from "./buffer_view.js";
 import { gltfCamera } from "./camera.js";
 import { gltfImage } from "./image.js";
 import { gltfLight } from "./light.js";
+import { gltfImplicitShape } from "./implicit_shape.js";
 import { gltfMaterial } from "./material.js";
 import { gltfMesh } from "./mesh.js";
 import { gltfNode } from "./node.js";
@@ -22,6 +23,7 @@ const allowedExtensions = [
     "KHR_accessor_float64",
     "KHR_animation_pointer",
     "KHR_draco_mesh_compression",
+    "KHR_implicit_shapes",
     "KHR_interactivity",
     "KHR_lights_image_based",
     "KHR_lights_punctual",
@@ -139,6 +141,14 @@ class glTF extends GltfObject {
                 gltfGraph
             );
             this.extensions.KHR_interactivity.graph = json.extensions.KHR_interactivity?.graph ?? 0;
+        }
+
+        if (json.extensions?.KHR_implicit_shapes !== undefined) {
+            this.extensions.KHR_implicit_shapes = new GltfObject([]);
+            this.extensions.KHR_implicit_shapes.shapes = objectsFromJsons(
+                json.extensions.KHR_implicit_shapes.shapes,
+                gltfImplicitShape
+            );
         }
 
         this.materials.push(gltfMaterial.createDefault());

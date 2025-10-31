@@ -582,6 +582,20 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         );
 
         this.registerJsonPointer(
+            `/extensions/KHR_implicit_shapes/shapes.length`,
+            (_path) => {
+                const shapes = this.world.gltf.extensions?.KHR_implicit_shapes?.shapes;
+                if (shapes === undefined) {
+                    return [0];
+                }
+                return [shapes.length];
+            },
+            (_path, _value) => {},
+            "int",
+            true
+        );
+
+        this.registerJsonPointer(
             `/materials.length`,
             (_path) => {
                 // Return the number of materials excluding the default material

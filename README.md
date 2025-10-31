@@ -40,6 +40,7 @@ For KHR_interactivity, the behavior engine of the [glTF-InteractivityGraph-Autho
     - [ ] Skins not supported since WebGL2 only supports 32 bit
 - [x] [KHR_animation_pointer](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_animation_pointer)
 - [x] [KHR_draco_mesh_compression](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_draco_mesh_compression)
+- [x] [KHR_implicit_shapes](https://github.com/eoineoineoin/glTF_Physics/blob/master/extensions/2.0/Khronos/KHR_implicit_shapes/README.md)
 - [x] [KHR_interactivity](https://github.com/KhronosGroup/glTF/pull/2293)
 - [x] [KHR_lights_punctual](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_lights_punctual)
 - [x] [KHR_materials_anisotropy](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_anisotropy)
