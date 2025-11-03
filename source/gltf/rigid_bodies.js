@@ -3,6 +3,7 @@ import { objectsFromJsons } from "./utils";
 
 class KHR_physics_rigid_bodies extends GltfObject {
     static animatedProperties = [];
+    static readonlyAnimatedProperties = ["physicsMaterials", "collisionFilters", "physicsJoints"];
     constructor() {
         super();
         this.physicsMaterials = [];
