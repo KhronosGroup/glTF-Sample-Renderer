@@ -359,24 +359,21 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             case "float3":
                 return [NaN, NaN, NaN];
             case "float4":
-                return [NaN, NaN, NaN, NaN];
             case "float2x2":
-                return [
-                    [NaN, NaN],
-                    [NaN, NaN]
-                ];
+                return [NaN, NaN, NaN, NaN];
             case "float3x3":
+                // prettier-ignore
                 return [
-                    [NaN, NaN, NaN],
-                    [NaN, NaN, NaN],
-                    [NaN, NaN, NaN]
-                ];
+                    NaN, NaN, NaN, 
+                    NaN, NaN, NaN, 
+                    NaN, NaN, NaN];
             case "float4x4":
+                // prettier-ignore
                 return [
-                    [NaN, NaN, NaN, NaN],
-                    [NaN, NaN, NaN, NaN],
-                    [NaN, NaN, NaN, NaN],
-                    [NaN, NaN, NaN, NaN]
+                    NaN, NaN, NaN, NaN,
+                    NaN, NaN, NaN, NaN,
+                    NaN, NaN, NaN, NaN,
+                    NaN, NaN, NaN, NaN
                 ];
         }
         return undefined;
@@ -407,15 +404,14 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 return undefined;
             }
         }
-        if (type === "float2x2" || type === "float3x3" || type === "float4x4") {
-            if (value !== undefined) {
-                value = value.flat();
-            } else {
-                const width = parseInt(type.charAt(5));
-                // The engine currently uses 2D Arrays for matrices
-                currentNode = this.convertArrayToMatrix(currentNode, width);
-            }
-        } else if (type === "float2" || type === "float3" || type === "float4") {
+        if (
+            type === "float2" ||
+            type === "float3" ||
+            type === "float4" ||
+            type === "float2x2" ||
+            type === "float3x3" ||
+            type === "float4x4"
+        ) {
             if (value !== undefined) {
                 value = value.slice(0); //clone array
             } else {
@@ -611,7 +607,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const nodeIndex = parseInt(pathParts[2]);
                 const node = this.world.gltf.nodes[nodeIndex];
                 node.scene.applyTransformHierarchy(this.world.gltf);
-                return this.convertArrayToMatrix(node.worldTransform, 4); // gl-matrix uses column-major order
+                return node.worldTransform.slice(0);
             },
             (_path, _value) => {},
             "float4x4",
@@ -625,7 +621,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const pathParts = path.split("/");
                 const nodeIndex = parseInt(pathParts[2]);
                 const node = this.world.gltf.nodes[nodeIndex];
-                return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
+                return node.getLocalTransform();
             },
             (_path, _value) => {},
             "float4x4",
