@@ -35,7 +35,8 @@
     "gl-matrix": "^3.2.1",
     "globals": "^15.5.0",
     "jpeg-js": "^0.4.3",
-    "json-ptr": "^3.1.0"
+    "json-ptr": "^3.1.0",
+    "physx-js-webidl": "^2.7.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

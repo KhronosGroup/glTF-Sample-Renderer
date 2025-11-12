@@ -96,4 +96,120 @@ function getExtentsFromAccessor(accessor, worldTransform, outMin, outMax) {
     }
 }
 
-export { getSceneExtents };
+function getAnimatedIndices(gltf, prefix, properties) {
+    const checkNodePointer = (pointer, prefix, properties, graphNode = undefined) => {
+        if (!pointer.startsWith(prefix)) {
+            return undefined;
+        }
+        let match = undefined;
+        for (const property of properties) {
+            if (pointer.endsWith("/" + property)) {
+                match = property;
+                break;
+            }
+        }
+        if (!match) {
+            return undefined;
+        }
+        const indexPart = pointer.substring(prefix.length, pointer.length - ("/" + match).length);
+        if (indexPart.startsWith("{") && indexPart.endsWith("}")) {
+            // Check in interactivity graph
+            if (graphNode === undefined) {
+                return undefined;
+            }
+            const nodeId = indexPart.substring(1, indexPart.length - 1);
+            if (graphNode.values[nodeId] !== undefined) {
+                return parseInt(graphNode.values[nodeId]);
+            }
+            // Every node can be animated since it is determined at runtime
+            return Infinity;
+        }
+        return parseInt(indexPart);
+    };
+
+    const animatedIndices = new Set();
+    let runtimeChanges = false;
+
+    // Check animation channels
+    for (const animation of gltf.animations) {
+        for (const channel of animation.channels) {
+            const target = channel.target;
+            if (
+                prefix === "/nodes/" &&
+                target.node !== undefined &&
+                properties.includes(target.path)
+            ) {
+                animatedIndices.add(target.node);
+            }
+            const pointer = target.extensions?.KHR_animation_pointer?.pointer;
+            if (pointer) {
+                const result = checkNodePointer(pointer, prefix, properties);
+                if (result !== undefined) {
+                    animatedIndices.add(result);
+                }
+            }
+        }
+    }
+
+    // Check interactivity graphs
+    if (gltf.extensions?.KHR_interactivity?.graphs !== undefined) {
+        for (const graph of gltf.extensions.KHR_interactivity.graphs) {
+            let pointerSetID = undefined;
+            for (const [index, declaration] of graph.declarations.entries()) {
+                if (declaration.op === "pointer/set") {
+                    pointerSetID = index;
+                    break;
+                }
+            }
+            if (pointerSetID === undefined) {
+                continue;
+            }
+            for (const node of graph.nodes) {
+                if (node.declaration !== pointerSetID) {
+                    continue;
+                }
+                const pointer = node.configuration.pointer.value[0];
+                const result = checkNodePointer(pointer, prefix, properties, node);
+                if (result === Infinity) {
+                    runtimeChanges = true;
+                } else if (result !== undefined) {
+                    animatedIndices.add(result);
+                }
+            }
+        }
+    }
+    return { animatedIndices: animatedIndices, runtimeChanges: runtimeChanges };
+}
+
+function getMorphedNodeIndices(gltf) {
+    const morphedNodes = new Set();
+    const morphedMeshes = new Set();
+    for (const mesh of gltf.meshes) {
+        if (mesh.primitives === undefined) {
+            continue;
+        }
+        for (const primitive of mesh.primitives) {
+            let isMorphed = false;
+            if (primitive.targets !== undefined && primitive.targets.length > 0) {
+                for (const target of primitive.targets) {
+                    if (target.POSITION !== undefined) {
+                        isMorphed = true;
+                        break;
+                    }
+                }
+            }
+            if (isMorphed) {
+                morphedMeshes.add(mesh.gltfObjectIndex);
+                break;
+            }
+        }
+    }
+    for (const node of gltf.nodes) {
+        if (node.mesh !== undefined && morphedMeshes.has(node.mesh)) {
+            morphedNodes.add(node.gltfObjectIndex);
+        }
+    }
+    return morphedNodes;
+}
+
+export { getSceneExtents, getAnimatedIndices, getMorphedNodeIndices };
