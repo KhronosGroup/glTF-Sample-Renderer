@@ -141,7 +141,7 @@ export function createCapsuleVertexData(
 
     indices = indices.reverse();
 
-    return { positions: new Float32Array(vertices), indices: new Uint8Array(indices) };
+    return { vertices: new Float32Array(vertices), indices: new Uint8Array(indices) };
 }
 
 export function createCylinderVertexData(radiusTop, radiusBottom, height, numDivisions = 30) {
@@ -158,5 +158,5 @@ export function createCylinderVertexData(radiusTop, radiusBottom, height, numDiv
         positions.push(s * radiusBottom);
     }
     const indices = Array.from(positions.keys());
-    return { positions: new Float32Array(positions), indices: new Uint8Array(indices) };
+    return { vertices: new Float32Array(positions), indices: new Uint8Array(indices) };
 }

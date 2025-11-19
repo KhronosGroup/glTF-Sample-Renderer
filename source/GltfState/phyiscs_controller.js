@@ -1,6 +1,8 @@
-import { filter } from "rxjs/operators";
 import { getAnimatedIndices, getMorphedNodeIndices } from "../gltf/gltf_utils";
 import PhysX from "physx-js-webidl";
+// The import is needed for rollup to include the wasm file in the build output
+// eslint-disable-next-line no-unused-vars
+import PhysXBinaryFile from "physx-js-webidl/physx-js-webidl.wasm";
 import { gltfPhysicsMaterial } from "../gltf/rigid_bodies";
 import { createCapsuleVertexData, createCylinderVertexData } from "../geometry_generator";
 import { vec3, mat4, quat } from "gl-matrix";
@@ -8,7 +10,6 @@ import { vec3, mat4, quat } from "gl-matrix";
 class PhysicsController {
     constructor() {
         this.engine = undefined;
-        this.state = undefined;
         this.staticActors = [];
         this.kinematicActors = [];
         this.dynamicActors = [];
@@ -16,6 +17,10 @@ class PhysicsController {
         this.skinnedColliders = [];
         this.hasRuntimeAnimationTargets = false;
         this.morphWeights = new Map();
+        this.playing = false;
+        this.enabled = false;
+        this.simulationStepTime = 1 / 60;
+        this.timeAccumulator = 0;
 
         //TODO different scaled primitive colliders might need to be uniquely created
         //TODO PxShape needs to be recreated if collisionFilter differs
@@ -86,6 +91,7 @@ class PhysicsController {
             const inverseBindMatrices =
                 inverseBindMatricesAccessor.getNormalizedDeinterlacedView(gltf);
             const jointNodes = skin.joints.map((jointIndex) => gltf.nodes[jointIndex]);
+            //TODO: Implement skinned collider calculation
         }
     }
 
@@ -97,6 +103,17 @@ class PhysicsController {
     }
 
     loadScene(state, sceneIndex) {
+        //TODO reset previous scene
+        if (
+            state.gltf.extensionsUsed === undefined ||
+            state.gltf.extensionsUsed.includes("KHR_physics_rigid_bodies") === false
+        ) {
+            return;
+        }
+        const scene = state.gltf.scenes[sceneIndex];
+        if (!scene.nodes) {
+            return;
+        }
         const morphedNodeIndices = getMorphedNodeIndices(state.gltf);
         const result = getAnimatedIndices(state.gltf, "/nodes/", [
             "translation",
@@ -105,9 +122,10 @@ class PhysicsController {
         ]);
         const animatedNodeIndices = result.animatedIndices;
         this.hasRuntimeAnimationTargets = result.runtimeChanges;
-        const gatherRigidBodies = (nodes, currentRigidBody) => {
-            for (const node of nodes) {
-                const rigidBody = node.extensions?.KHR_physics?.rigidBody;
+        const gatherRigidBodies = (nodeIndices, currentRigidBody) => {
+            for (const nodeIndex of nodeIndices) {
+                const node = state.gltf.nodes[nodeIndex];
+                const rigidBody = node.extensions?.KHR_physics_rigid_bodies;
                 if (rigidBody) {
                     if (rigidBody.motion) {
                         if (rigidBody.motion.isKinematic) {
@@ -137,12 +155,17 @@ class PhysicsController {
                 gatherRigidBodies(node.children, currentRigidBody);
             }
         };
-        gatherRigidBodies(state.gltf.scenes[sceneIndex].nodes, undefined);
-        if (!this.engine) {
+        gatherRigidBodies(scene.nodes, undefined);
+        if (
+            !this.engine ||
+            (this.staticActors.length === 0 &&
+                this.kinematicActors.length === 0 &&
+                this.dynamicActors.length === 0)
+        ) {
             return;
         }
         this.engine.initializeSimulation(
-            state.gltf,
+            state,
             this.staticActors,
             this.kinematicActors,
             this.dynamicActors,
@@ -157,6 +180,8 @@ class PhysicsController {
     }
 
     stopSimulation() {
+        this.playing = false;
+        this.enabled = false;
         if (this.engine) {
             this.engine.stopSimulation();
         }
@@ -164,13 +189,44 @@ class PhysicsController {
 
     resumeSimulation() {
         if (this.engine) {
-            this.engine.resumeSimulation();
+            this.enabled = true;
+            this.playing = true;
         }
     }
 
     pauseSimulation() {
-        if (this.engine) {
-            this.engine.pauseSimulation();
+        this.enabled = true;
+        this.playing = false;
+    }
+
+    simulateStep(state, deltaTime) {
+        if (state === undefined) {
+            return;
+        }
+        this.applyAnimations(state);
+        this.timeAccumulator += deltaTime;
+        if (
+            this.playing &&
+            this.engine &&
+            state &&
+            this.timeAccumulator >= this.simulationStepTime
+        ) {
+            this.engine.simulateStep(state, this.timeAccumulator);
+            this.timeAccumulator = 0;
+        }
+    }
+
+    applyAnimations(state) {
+        for (const node of state.gltf.nodes) {
+            // TODO set worldTransformUpdated in node when transform changes from animations/interactivity
+            if (node.worldTransformUpdated) {
+                node.physicsTransform = node.worldTransform;
+                if (this.engine) {
+                    this.engine.updateRigidBodyTransform(node);
+                }
+            }
+            // TODO check if morph target weights and skinning have changed
+            // TODO check if collider/physics properties have changed
         }
     }
 }
@@ -248,6 +304,9 @@ class PhysicsInterface {
 
     generateSimpleShapes(gltf) {
         this.simpleShapes = [];
+        if (gltf?.extensions?.KHR_implicit_shapes === undefined) {
+            return;
+        }
         for (const shape of gltf.extensions.KHR_implicit_shapes.shapes) {
             this.generateSimpleShape(shape);
         }
@@ -260,16 +319,14 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX = undefined;
         this.physics = undefined;
         this.scene = undefined;
-        this.staticActors = new Map();
-        this.kinematicActors = new Map();
-        this.dynamicActors = new Map();
+        this.nodeToActor = new Map();
         this.defaultMaterial = new gltfPhysicsMaterial();
         this.tolerances = undefined;
         this.filterData = [];
     }
 
     async initializeEngine() {
-        this.PhysX = await PhysX();
+        this.PhysX = await PhysX({ locateFile: () => "./libs/physx-js-webidl.wasm" });
         const version = this.PhysX.PHYSICS_VERSION;
         console.log(
             "PhysX loaded! Version: " +
@@ -764,7 +821,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(pose);
 
         this.scene.addActor(actor);
-        this.staticActors.set(node.gltfObjectIndex, actor);
+        this.nodeToActor.set(node.gltfObjectIndex, actor);
     }
 
     initializeSimulation(
@@ -810,15 +867,51 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(sceneDesc);
         this.PhysX.destroy(shapeFlags);
     }
-    pauseSimulation() {
-        // Implementation specific to Nvidia physics engine
+
+    applyTransformRecursively(gltf, node, parentTransform) {
+        if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
+            return;
+        }
+        const localTransform = node.getLocalTransform();
+        const globalTransform = mat4.create();
+        mat4.multiply(globalTransform, parentTransform, localTransform);
+        node.physicsTransform = globalTransform;
+        for (const childIndex of node.children) {
+            const childNode = gltf.nodes[childIndex];
+            this.applyTransformRecursively(gltf, childNode, globalTransform);
+        }
     }
-    resumeSimulation() {
+
+    simulateStep(state, deltaTime) {
         if (!this.scene) {
             return;
         }
-        this.scene.simulate(1 / 60);
+        this.scene.simulate(deltaTime);
         this.scene.fetchResults(true);
+
+        for (const [nodeIndex, actor] of this.nodeToActor.entries()) {
+            const node = state.gltf.nodes[nodeIndex];
+            if (node.extensions?.KHR_physics_rigid_bodies?.motion?.isKinematic) {
+                const transform = actor.getGlobalPose();
+                const position = vec3.fromValues(transform.p.x, transform.p.y, transform.p.z);
+                const rotation = quat.fromValues(
+                    transform.q.x,
+                    transform.q.y,
+                    transform.q.z,
+                    transform.q.w
+                );
+                node.physicsTransform = mat4.fromRotationTranslation(
+                    mat4.create(),
+                    rotation,
+                    position
+                );
+
+                for (const childIndex of node.children) {
+                    const childNode = state.gltf.nodes[childIndex];
+                    this.applyTransformRecursively(state.gltf, childNode, node.physicsTransform);
+                }
+            }
+        }
     }
     resetSimulation() {
         // Implementation specific to Nvidia physics engine
