@@ -33,7 +33,11 @@ class gltfCamera extends GltfObject {
         // Precompute the distances to avoid their computation during sorting.
         for (const drawable of drawables) {
             const modelView = mat4.create();
-            mat4.multiply(modelView, this.getViewMatrix(gltf), drawable.node.worldTransform);
+            mat4.multiply(
+                modelView,
+                this.getViewMatrix(gltf),
+                drawable.node.getRenderedWorldTransform()
+            );
 
             // Transform primitive centroid to find the primitive's depth.
             const pos = vec3.transformMat4(
@@ -148,7 +152,7 @@ class gltfCamera extends GltfObject {
     getPosition(gltf) {
         const position = vec3.create();
         const node = this.getNode(gltf);
-        mat4.getTranslation(position, node.worldTransform);
+        mat4.getTranslation(position, node.getRenderedWorldTransform());
         return position;
     }
 
@@ -195,7 +199,7 @@ class gltfCamera extends GltfObject {
 
     getTransformMatrix(gltf) {
         const node = this.getNode(gltf);
-        if (node === undefined || node.worldTransform === undefined) {
+        if (node === undefined || node.getRenderedWorldTransform() === undefined) {
             return mat4.create();
         }
 

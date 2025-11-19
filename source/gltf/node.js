@@ -35,6 +35,7 @@ class gltfNode extends GltfObject {
         this.pickingColor = undefined;
         this.parentNode = undefined;
         this.scene = undefined;
+        this.physicsTransform = undefined;
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -162,6 +163,10 @@ class gltfNode extends GltfObject {
             this.translation,
             this.scale
         );
+    }
+
+    getRenderedWorldTransform() {
+        return this.physicsTransform ?? this.worldTransform;
     }
 }
 

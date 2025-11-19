@@ -408,7 +408,7 @@ class gltfRenderer {
 
         let counter = 0;
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
-            const winding = Math.sign(mat4.determinant(a.node.worldTransform));
+            const winding = Math.sign(mat4.determinant(a.node.getRenderedWorldTransform()));
             const id = `${a.node.mesh}_${winding}_${a.primitiveIndex}`;
             // Disable instancing for skins, morph targets and if the GPU attributes limit is reached.
             // Additionally we define a new id for each instance of the EXT_mesh_gpu_instancing extension.
@@ -532,7 +532,7 @@ class gltfRenderer {
             if (instance.length > 1) {
                 instanceOffset = [];
                 for (const iDrawable of instance) {
-                    instanceOffset.push(iDrawable.node.worldTransform);
+                    instanceOffset.push(iDrawable.node.getRenderedWorldTransform());
                 }
             } else if (instance[0].node.instanceMatrices !== undefined) {
                 // Set instance matrices for EXT_mesh_gpu_instancing extension
@@ -1092,9 +1092,11 @@ class gltfRenderer {
             this.webGl.context.uniform1i(this.shader.getUniformLocation("u_MaterialID"), renderpassConfiguration.drawID);
         }
 
+        const worldTransform = node.getRenderedWorldTransform();
+
         // update model dependant matrices once per node
         this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
-        this.shader.updateUniform("u_ModelMatrix", node.worldTransform);
+        this.shader.updateUniform("u_ModelMatrix", worldTransform);
         this.shader.updateUniform("u_NormalMatrix", node.normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
@@ -1104,7 +1106,7 @@ class gltfRenderer {
 
         this.updateAnimationUniforms(state, node, primitive);
 
-        if (mat4.determinant(node.worldTransform) < 0.0)
+        if (mat4.determinant(worldTransform) < 0.0)
         {
             this.webGl.context.frontFace(GL.CW);
         }
@@ -1342,7 +1344,7 @@ class gltfRenderer {
 	
 	            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_TransmissionFramebufferSize"), this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
 	
-	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
+	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, worldTransform);
 	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
 	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 	        }

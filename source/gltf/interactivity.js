@@ -1,5 +1,6 @@
 import { GltfObject } from "./gltf_object";
 import * as interactivity from "@khronosgroup/gltf-interactivity-sample-engine";
+import { mat4 } from "gl-matrix";
 
 class gltfGraph extends GltfObject {
     static animatedProperties = [];
@@ -625,7 +626,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const nodeIndex = parseInt(pathParts[2]);
                 const node = this.world.gltf.nodes[nodeIndex];
                 node.scene.applyTransformHierarchy(this.world.gltf);
-                return this.convertArrayToMatrix(node.worldTransform, 4); // gl-matrix uses column-major order
+                return this.convertArrayToMatrix(node.getRenderedWorldTransform(), 4); // gl-matrix uses column-major order
             },
             (_path, _value) => {},
             "float4x4",
@@ -639,7 +640,18 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const pathParts = path.split("/");
                 const nodeIndex = parseInt(pathParts[2]);
                 const node = this.world.gltf.nodes[nodeIndex];
-                return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
+                if (!node.physicsTransform) {
+                    return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
+                }
+                node.scene.applyTransformHierarchy(this.world.gltf);
+                const parentTransform = node.parentNode
+                    ? node.parentNode.getRenderedWorldTransform()
+                    : mat4.create();
+                const parentInverse = mat4.create();
+                mat4.invert(parentInverse, parentTransform);
+                const localTransform = mat4.create();
+                mat4.multiply(localTransform, parentInverse, node.getRenderedWorldTransform());
+                return this.convertArrayToMatrix(localTransform, 4); // gl-matrix uses column-major order
             },
             (_path, _value) => {},
             "float4x4",

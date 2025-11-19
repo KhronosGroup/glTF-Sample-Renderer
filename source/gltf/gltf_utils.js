@@ -33,7 +33,7 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
             const accessor = gltf.accessors[attribute.accessor];
             const assetMin = vec3.create();
             const assetMax = vec3.create();
-            getExtentsFromAccessor(accessor, node.worldTransform, assetMin, assetMax);
+            getExtentsFromAccessor(accessor, node.getRenderedWorldTransform(), assetMin, assetMax);
 
             for (const i of [0, 1, 2]) {
                 outMin[i] = Math.min(outMin[i], assetMin[i]);

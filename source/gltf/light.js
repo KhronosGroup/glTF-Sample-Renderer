@@ -26,7 +26,7 @@ class gltfLight extends GltfObject {
     }
 
     toUniform(node) {
-        const matrix = node?.worldTransform ?? mat4.identity;
+        const matrix = node?.getRenderedWorldTransform() ?? mat4.identity;
 
         // To extract a correct rotation, the scaling component must be eliminated.
         var scale = vec3.fromValues(1, 1, 1);
