@@ -21,6 +21,7 @@ class PhysicsController {
         this.enabled = false;
         this.simulationStepTime = 1 / 60;
         this.timeAccumulator = 0;
+        this.skipFrames = 2; // Skip the first two simulation frames to allow engine to initialize
 
         //TODO different scaled primitive colliders might need to be uniquely created
         //TODO PxShape needs to be recreated if collisionFilter differs
@@ -114,6 +115,7 @@ class PhysicsController {
         if (!scene.nodes) {
             return;
         }
+        this.skipFrames = 2;
         const morphedNodeIndices = getMorphedNodeIndices(state.gltf);
         const result = getAnimatedIndices(state.gltf, "/nodes/", [
             "translation",
@@ -123,6 +125,7 @@ class PhysicsController {
         const animatedNodeIndices = result.animatedIndices;
         this.hasRuntimeAnimationTargets = result.runtimeChanges;
         const gatherRigidBodies = (nodeIndices, currentRigidBody) => {
+            let parentRigidBody = currentRigidBody;
             for (const nodeIndex of nodeIndices) {
                 const node = state.gltf.nodes[nodeIndex];
                 const rigidBody = node.extensions?.KHR_physics_rigid_bodies;
@@ -133,7 +136,7 @@ class PhysicsController {
                         } else {
                             this.dynamicActors.push(node);
                         }
-                        currentRigidBody = node;
+                        parentRigidBody = node;
                     } else if (currentRigidBody === undefined) {
                         if (animatedNodeIndices.has(node.gltfObjectIndex)) {
                             this.kinematicActors.push(node);
@@ -152,7 +155,7 @@ class PhysicsController {
                         }
                     }
                 }
-                gatherRigidBodies(node.children, currentRigidBody);
+                gatherRigidBodies(node.children, parentRigidBody);
             }
         };
         gatherRigidBodies(scene.nodes, undefined);
@@ -201,6 +204,10 @@ class PhysicsController {
 
     simulateStep(state, deltaTime) {
         if (state === undefined) {
+            return;
+        }
+        if (this.skipFrames > 0) {
+            this.skipFrames -= 1;
             return;
         }
         this.applyAnimations(state);
@@ -511,7 +518,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             indexData.set(indexChunk, offset);
             offset += indexChunk.length;
         }
-        return { positionData, indexData };
+        return { vertices: positionData, indices: indexData };
     }
 
     createConvexMeshFromNode(
@@ -520,8 +527,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         scale = vec3.fromValues(1, 1, 1),
         scaleAxis = quat.create()
     ) {
-        const { positionData, indexData } = this.collectVerticesAndIndicesFromNode(gltf, node);
-        return this.createConvexMesh(positionData, indexData, scale, scaleAxis);
+        const { vertices, indices } = this.collectVerticesAndIndicesFromNode(gltf, node);
+        return this.createConvexMesh(vertices, indices, scale, scaleAxis);
     }
 
     createMeshFromNode(gltf, node, scale = vec3.fromValues(1, 1, 1), scaleAxis = quat.create()) {
@@ -623,15 +630,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 geometry = this.simpleShapes[collider.geometry.shape];
             }
         } else if (collider?.geometry?.node !== undefined) {
+            const node = gltf.nodes[collider.geometry.node];
             if (collider.geometry.convexHull === true) {
-                geometry = this.createConvexMeshFromNode(
-                    gltf,
-                    collider.geometry.node,
-                    scale,
-                    scaleAxis
-                );
+                geometry = this.createConvexMeshFromNode(gltf, node, scale, scaleAxis);
             } else {
-                geometry = this.createMeshFromNode(gltf, collider.geometry.node, scale, scaleAxis);
+                geometry = this.createMeshFromNode(gltf, node, scale, scaleAxis);
             }
         }
 
@@ -648,7 +651,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             physxMaterial.setFrictionCombine(this.mapCombineMode(gltfMaterial.frictionCombine));
         }
         if (gltfMaterial.restitutionCombine !== undefined) {
-            physxMaterial.setRestitutionCombine(
+            physxMaterial.setRestitutionCombineMode(
                 this.mapCombineMode(gltfMaterial.restitutionCombine)
             );
         }
@@ -681,8 +684,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const worldTransform = node.worldTransform;
         const translation = vec3.create();
         mat4.getTranslation(translation, worldTransform);
-        const pos = new this.PhysX.PxVec3(translation.x, translation.y, translation.z);
-        const rotation = new this.PhysX.PxQuat(...node.worldRotation);
+        const pos = new this.PhysX.PxVec3(...translation);
+        const rotation = new this.PhysX.PxQuat(...node.worldQuaternion);
         const pose = new this.PhysX.PxTransform(pos, rotation);
         let actor = null;
         if (type === "static") {
@@ -736,9 +739,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         ? new this.PhysX.PxVec3(...motion.centerOfMass)
                         : new this.PhysX.PxVec3(0, 0, 0);
                     if (motion.mass === undefined) {
-                        this.PhysX.PxRigidBodyExt.updateMassAndInertia(actor, 1.0, pose);
+                        this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, pose);
                     } else {
-                        this.PhysX.PxRigidBodyExt.setMassAndUpdateInertia(actor, motion.mass, pose);
+                        this.PhysX.PxRigidBodyExt.prototype.setMassAndUpdateInertia(
+                            actor,
+                            motion.mass,
+                            pose
+                        );
                     }
                     this.PhysX.destroy(pose);
                 }
@@ -782,7 +789,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 mat4.getTranslation(translation, offsetTransform);
                 mat4.getRotation(rotation, offsetTransform);
 
-                const PxPos = new this.PhysX.PxVec3(translation.x, translation.y, translation.z);
+
+                const PxPos = new this.PhysX.PxVec3(...translation);
                 const PxRotation = new this.PhysX.PxQuat(...rotation);
                 const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
                 shape.setLocalPose(pose);
@@ -807,14 +815,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             }
         };
 
-        recurseShapes(
-            gltf,
-            node.extensions.KHR_physics_rigid_bodies.collider,
-            shapeFlags,
-            worldTransform,
-            mat4.create(),
-            true
-        );
+        recurseShapes(gltf, node, shapeFlags, worldTransform, mat4.create(), true);
 
         this.PhysX.destroy(pos);
         this.PhysX.destroy(rotation);
@@ -891,7 +892,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         for (const [nodeIndex, actor] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];
-            if (node.extensions?.KHR_physics_rigid_bodies?.motion?.isKinematic) {
+            const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
+            if (motion && !motion.isKinematic) {
                 const transform = actor.getGlobalPose();
                 const position = vec3.fromValues(transform.p.x, transform.p.y, transform.p.z);
                 const rotation = quat.fromValues(

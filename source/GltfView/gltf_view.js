@@ -81,7 +81,7 @@ class GltfView {
 
         scene.applyTransformHierarchy(state.gltf);
         if (state.physicsController.playing && state.physicsController.enabled) {
-            state.physicsController.simulateStep(state, currentFrameTime - lastFrameTime);
+            state.physicsController.simulateStep(state, (currentFrameTime - lastFrameTime) / 1000);
         }
 
         this.renderer.drawScene(state, scene);
