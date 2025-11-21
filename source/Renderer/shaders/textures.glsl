@@ -275,7 +275,6 @@ uniform mat3 u_TransmissionUVTransform;
 uniform sampler2D u_TransmissionFramebufferSampler;
 uniform ivec2 u_TransmissionFramebufferSize;
 uniform sampler2D u_TransmissionBackfacesSampler;
-uniform ivec2 u_TransmissionBackfacesSize;
 
 vec2 getTransmissionUV()
 {

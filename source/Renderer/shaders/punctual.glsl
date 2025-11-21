@@ -32,6 +32,10 @@ uniform float u_MinRadius;
 uniform ivec2 u_FramebufferSize;
 #endif
 
+#if defined(MATERIAL_VOLUME_SCATTER) || defined(MATERIAL_TRANSMISSION)
+uniform ivec2 u_FramebufferSize;
+#endif
+
 // https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_lights_punctual/README.md#range-property
 float getRangeAttenuation(float range, float distance)
 {
@@ -93,6 +97,11 @@ vec3 getPunctualRadianceTransmission(vec3 normal, vec3 view, vec3 pointToLight, 
     float D = D_GGX(clamp(dot(n, h), 0.0, 1.0), transmissionRougness);
     float Vis = V_GGX(clamp(dot(n, l_mirror), 0.0, 1.0), clamp(dot(n, v), 0.0, 1.0), transmissionRougness);
 
+#ifdef MATERIAL_VOLUME
+    vec2 uvCoords = gl_FragCoord.xy * (1.0 / vec2(u_FramebufferSize));
+    vec3 transmissionBackface = texture(u_TransmissionBackfacesSampler, uvCoords).rgb;
+    baseColor *= transmissionBackface;
+#endif
     // Transmission BTDF
     return baseColor * D * Vis;
 }

@@ -492,7 +492,10 @@ vec3 specularTexture = vec3(1.0);
     // Transmission, Volume:
 #ifdef MATERIAL_TRANSMISSION
 #if DEBUG == DEBUG_TRANSMISSION_FACTOR
-    g_finalColor.rgb = vec3(materialInfo.transmissionFactor);
+    vec2 uvCoords = gl_FragCoord.xy * (1.0 / vec2(u_FramebufferSize));
+    vec4 transmisisonColor = texture(u_TransmissionBackfacesSampler, uvCoords);
+    g_finalColor.rgb = transmisisonColor.rgb;
+    // g_finalColor.rgb = vec3(materialInfo.transmissionFactor);
 #endif
 #endif
 #ifdef MATERIAL_VOLUME
