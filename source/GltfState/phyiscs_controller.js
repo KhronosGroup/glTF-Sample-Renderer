@@ -236,6 +236,13 @@ class PhysicsController {
             // TODO check if collider/physics properties have changed
         }
     }
+
+    getDebugLineData() {
+        if (this.engine) {
+            return this.engine.getDebugLineData();
+        }
+        return [];
+    }
 }
 
 class PhysicsInterface {
@@ -789,7 +796,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 mat4.getTranslation(translation, offsetTransform);
                 mat4.getRotation(rotation, offsetTransform);
 
-
                 const PxPos = new this.PhysX.PxVec3(...translation);
                 const PxRotation = new this.PhysX.PxQuat(...rotation);
                 const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
@@ -867,6 +873,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(tmpVec);
         this.PhysX.destroy(sceneDesc);
         this.PhysX.destroy(shapeFlags);
+        this.scene.setVisualizationParameter(this.PhysX.eSCALE, 1);
+        this.scene.setVisualizationParameter(this.PhysX.eWORLD_AXES, 1);
+        this.scene.setVisualizationParameter(this.PhysX.eACTOR_AXES, 1);
+        this.scene.setVisualizationParameter(this.PhysX.eCOLLISION_SHAPES, 1);
     }
 
     applyTransformRecursively(gltf, node, parentTransform) {
@@ -920,6 +930,25 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
     stopSimulation() {
         // Implementation specific to Nvidia physics engine
+    }
+
+    getDebugLineData() {
+        if (!this.scene) {
+            return [];
+        }
+        const result = [];
+        const rb = this.scene.getRenderBuffer();
+        for (let i = 0; i < rb.getNbLines(); i++) {
+            const line = this.PhysX.NativeArrayHelpers.prototype.getDebugLineAt(rb.getLines(), i);
+
+            result.push(line.pos0.x);
+            result.push(line.pos0.y);
+            result.push(line.pos0.z);
+            result.push(line.pos1.x);
+            result.push(line.pos1.y);
+            result.push(line.pos1.z);
+        }
+        return result;
     }
 }
 

@@ -20,6 +20,7 @@ import animationShader from "./shaders/animation.glsl";
 import cubemapVertShader from "./shaders/cubemap.vert";
 import cubemapFragShader from "./shaders/cubemap.frag";
 import scatterShader from "./shaders/scatter.frag";
+import simpleFragShader from "./shaders/simple.frag";
 import specularGlossinesShader from "./shaders/specular_glossiness.frag";
 import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
@@ -70,6 +71,7 @@ class gltfRenderer {
         shaderSources.set("cubemap.vert", cubemapVertShader);
         shaderSources.set("cubemap.frag", cubemapFragShader);
         shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
+        shaderSources.set("simple.frag", simpleFragShader);
 
         this.shaderCache = new ShaderCache(shaderSources, this.webGl);
 
@@ -542,6 +544,7 @@ class gltfRenderer {
             }
             instanceWorldTransforms.push(instanceOffset);
         }
+
         const scatterEnabled =
             this.scatterDrawables.length > 0 &&
             state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter &&
@@ -774,6 +777,45 @@ class gltfRenderer {
             this.shaderCache,
             fragDefines
         );
+
+        // Physics debug view
+        if (state.physicsController.enabled && state.physicsController.playing) {
+            const lines = state.physicsController.getDebugLineData();
+            if (lines.length !== 0) {
+                const vertexShader = "picking.vert";
+                const fragmentShader = "simple.frag";
+                const fragmentHash = this.shaderCache.selectShader(fragmentShader, []);
+                const vertexHash = this.shaderCache.selectShader(vertexShader, []);
+                this.shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+                this.webGl.context.useProgram(this.shader.program);
+                this.shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
+                this.shader.updateUniform("u_ModelMatrix", mat4.create());
+                this.shader.updateUniform("u_Color", vec4.fromValues(1.0, 0.0, 0.0, 1.0));
+                const location = this.shader.getAttributeLocation("a_position");
+                if (location !== null) {
+                    const buffer = this.webGl.context.createBuffer();
+                    this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, buffer);
+                    this.webGl.context.bufferData(
+                        this.webGl.context.ARRAY_BUFFER,
+                        new Float32Array(lines),
+                        this.webGl.context.STATIC_DRAW
+                    );
+                    this.webGl.context.vertexAttribPointer(
+                        location,
+                        3,
+                        this.webGl.context.FLOAT,
+                        false,
+                        0,
+                        0
+                    );
+                    this.webGl.context.enableVertexAttribArray(location);
+                    this.webGl.context.drawArrays(this.webGl.context.LINES, 0, lines.length / 3);
+                    this.webGl.context.disableVertexAttribArray(location);
+                    this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, null);
+                    this.webGl.context.deleteBuffer(buffer);
+                }
+            }
+        }
 
         let drawableCounter = 0;
         for (const instance of Object.values(this.opaqueDrawables)) {
