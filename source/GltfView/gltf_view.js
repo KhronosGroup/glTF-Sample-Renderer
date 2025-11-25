@@ -74,6 +74,10 @@ class GltfView {
             return;
         }
 
+        if (state.graphController?.playing) {
+            state.graphController.simulateTick();
+        }
+
         scene.applyTransformHierarchy(state.gltf);
 
         this.renderer.drawScene(state, scene);

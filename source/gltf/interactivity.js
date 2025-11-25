@@ -98,9 +98,6 @@ class GraphController {
         try {
             this.customEvents = this.decorator.loadGraph(graphIndex);
             this.graphIndex = graphIndex;
-            if (this.playing) {
-                this.decorator.playEventQueue();
-            }
         } catch (error) {
             console.error("Error loading graph:", error);
         }
@@ -138,7 +135,6 @@ class GraphController {
         if (this.graphIndex === undefined || this.playing) {
             return;
         }
-        this.decorator.playEventQueue();
         this.playing = true;
     }
 
@@ -150,6 +146,13 @@ class GraphController {
             return;
         }
         this.loadGraph(this.graphIndex);
+    }
+
+    simulateTick() {
+        if (this.graphIndex === undefined) {
+            return;
+        }
+        this.decorator.executeEventQueueTick();
     }
 
     /**
