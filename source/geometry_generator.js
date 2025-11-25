@@ -16,7 +16,8 @@ export function createCapsuleVertexData(
     const radialSegments = tessellation;
     const heightSegments = subdivisions;
 
-    const heightMinusCaps = height - (radiusTop + radiusBottom);
+    const totalHeight = height + radiusTop + radiusBottom;
+    const heightMinusCaps = height;
 
     const thetaStart = 0.0;
     const thetaLength = 2.0 * Math.PI;
@@ -24,7 +25,7 @@ export function createCapsuleVertexData(
     const capsTopSegments = capDetail;
     const capsBottomSegments = capDetail;
 
-    const alpha = Math.acos((radiusBottom - radiusTop) / height);
+    const alpha = Math.acos((radiusBottom - radiusTop) / totalHeight);
 
     let indices = [];
     const vertices = [];
@@ -70,7 +71,7 @@ export function createCapsuleVertexData(
     }
 
     const coneHeight =
-        height - radiusTop - radiusBottom + cosAlpha * radiusTop - cosAlpha * radiusBottom;
+        totalHeight - radiusTop - radiusBottom + cosAlpha * radiusTop - cosAlpha * radiusBottom;
 
     for (y = 1; y <= heightSegments; y++) {
         const indexRow = [];

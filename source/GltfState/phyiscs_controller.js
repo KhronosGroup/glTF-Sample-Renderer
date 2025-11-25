@@ -122,6 +122,7 @@ class PhysicsController {
             "rotation",
             "scale"
         ]);
+        let meshColliderCount = 0;
         const animatedNodeIndices = result.animatedIndices;
         this.hasRuntimeAnimationTargets = result.runtimeChanges;
         const gatherRigidBodies = (nodeIndices, currentRigidBody) => {
@@ -145,6 +146,7 @@ class PhysicsController {
                         }
                     }
                     if (rigidBody.collider?.geometry?.node !== undefined) {
+                        meshColliderCount++;
                         const colliderNodeIndex = rigidBody.collider.geometry.node;
                         const colliderNode = state.gltf.nodes[colliderNodeIndex];
                         if (colliderNode.skin !== undefined) {
@@ -172,7 +174,8 @@ class PhysicsController {
             this.staticActors,
             this.kinematicActors,
             this.dynamicActors,
-            this.hasRuntimeAnimationTargets
+            this.hasRuntimeAnimationTargets,
+            meshColliderCount
         );
     }
 
@@ -390,20 +393,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis) {
-        if (
-            quat.equals(scaleAxis, quat.create()) === false ||
-            radiusTop !== radiusBottom ||
-            scale[0] !== scale[2]
-        ) {
-            //TODO scale with rotation
-            const data = createCapsuleVertexData(radiusTop, radiusBottom, height);
-            return this.createConvexMesh(data.vertices, data.indices);
-        }
-        height *= scale[1];
-        radiusTop *= scale[0];
-        radiusBottom *= scale[0];
-
-        return new this.PhysX.PxCapsuleGeometry(radiusTop, height / 2);
+        //TODO scale with rotation
+        const data = createCapsuleVertexData(radiusTop, radiusBottom, height);
+        return this.createConvexMesh(data.vertices, data.indices);
     }
 
     generateCylinder(height, radiusTop, radiusBottom, scale, scaleAxis) {
@@ -458,6 +450,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         des.points.stride = vertices.BYTES_PER_ELEMENT * 3;
         des.points.count = vertices.length / 3;
         des.points.data = malloc(vertices);
+
         let flag = 0;
         flag |= this.PhysX._emscripten_enum_PxConvexFlagEnum_eCOMPUTE_CONVEX();
         flag |= this.PhysX._emscripten_enum_PxConvexFlagEnum_eQUANTIZE_INPUT();
@@ -619,6 +612,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         gltf,
         collider,
         shapeFlags,
+        noMeshShape = false,
         scale = vec3.fromValues(1, 1, 1),
         scaleAxis = quat.create()
     ) {
@@ -638,7 +632,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             }
         } else if (collider?.geometry?.node !== undefined) {
             const node = gltf.nodes[collider.geometry.node];
-            if (collider.geometry.convexHull === true) {
+            if (collider.geometry.convexHull === true || noMeshShape === true) {
                 geometry = this.createConvexMeshFromNode(gltf, node, scale, scaleAxis);
             } else {
                 geometry = this.createMeshFromNode(gltf, node, scale, scaleAxis);
@@ -687,7 +681,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return shape;
     }
 
-    createActor(gltf, node, shapeFlags, type) {
+    createActor(gltf, node, shapeFlags, type, noMeshShapes = false) {
         const worldTransform = node.worldTransform;
         const translation = vec3.create();
         mat4.getTranslation(translation, worldTransform);
@@ -787,7 +781,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 const shape = this.createShape(
                     gltf,
                     node.extensions.KHR_physics_rigid_bodies.collider,
-                    shapeFlags
+                    shapeFlags,
+                    noMeshShapes
                     //scalingTransform
                 );
 
@@ -805,14 +800,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 this.PhysX.destroy(PxPos);
                 this.PhysX.destroy(PxRotation);
                 this.PhysX.destroy(pose);
-
-                if (
-                    node.extensions.KHR_physics_rigid_bodies.collider?.geometry?.node !== undefined
-                ) {
-                    const geometryNode =
-                        gltf.nodes[node.extensions.KHR_physics_rigid_bodies.collider.geometry.node];
-                    recurseShapes(gltf, geometryNode, shapeFlags, scalingTransform, computedOffset);
-                }
             }
 
             for (const childIndex of node.children) {
@@ -836,7 +823,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         staticActors,
         kinematicActors,
         dynamicActors,
-        hasRuntimeAnimationTargets
+        hasRuntimeAnimationTargets,
+        meshColliderCount
     ) {
         if (!this.PhysX) {
             return;
@@ -867,7 +855,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.createActor(state.gltf, node, shapeFlags, "kinematic");
         }
         for (const node of dynamicActors) {
-            this.createActor(state.gltf, node, shapeFlags, "dynamic");
+            this.createActor(state.gltf, node, shapeFlags, "dynamic", meshColliderCount > 1);
         }
 
         this.PhysX.destroy(tmpVec);
