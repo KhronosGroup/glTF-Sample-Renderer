@@ -8,7 +8,7 @@ class gltfLight extends GltfObject {
         super();
         this.name = undefined;
         this.type = "directional";
-        this.color = [1, 1, 1];
+        this.color = vec3.fromValues(1, 1, 1);
         this.intensity = 1;
         this.range = -1;
         this.spot = new gltfLightSpot();

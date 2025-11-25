@@ -4,7 +4,6 @@ import { gltfBufferView } from "./buffer_view.js";
 import { gltfCamera } from "./camera.js";
 import { gltfImage } from "./image.js";
 import { gltfLight } from "./light.js";
-import { ImageBasedLight } from "./image_based_light.js";
 import { gltfMaterial } from "./material.js";
 import { gltfMesh } from "./mesh.js";
 import { gltfNode } from "./node.js";
@@ -17,10 +16,13 @@ import { GltfObject } from "./gltf_object.js";
 import { gltfAnimation } from "./animation.js";
 import { gltfSkin } from "./skin.js";
 import { gltfVariant } from "./variant.js";
+import { gltfGraph } from "./interactivity.js";
 
 const allowedExtensions = [
+    "KHR_accessor_float64",
     "KHR_animation_pointer",
     "KHR_draco_mesh_compression",
+    "KHR_interactivity",
     "KHR_lights_image_based",
     "KHR_lights_punctual",
     "KHR_materials_anisotropy",
@@ -39,6 +41,9 @@ const allowedExtensions = [
     "KHR_materials_volume",
     "KHR_materials_volume_scatter",
     "KHR_mesh_quantization",
+    "KHR_node_hoverability",
+    "KHR_node_selectability",
+    "KHR_node_visibility",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",
@@ -48,6 +53,16 @@ const allowedExtensions = [
 
 class glTF extends GltfObject {
     static animatedProperties = [];
+    static readOnlyAnimatedProperties = [
+        "animations",
+        "cameras",
+        // "materials", materials.length need to be handled manually due to the default material
+        "meshes",
+        "nodes",
+        "scene",
+        "scenes",
+        "skins"
+    ];
     constructor(file) {
         super();
         this.asset = undefined;
@@ -56,7 +71,6 @@ class glTF extends GltfObject {
         this.scene = undefined; // the default scene to show.
         this.scenes = [];
         this.cameras = [];
-        this.lights = [];
         this.imageBasedLights = [];
         this.textures = [];
         this.images = [];
@@ -97,19 +111,35 @@ class glTF extends GltfObject {
         this.scenes = objectsFromJsons(json.scenes, gltfScene);
         this.textures = objectsFromJsons(json.textures, gltfTexture);
         this.nodes = objectsFromJsons(json.nodes, gltfNode);
-        this.lights = objectsFromJsons(getJsonLightsFromExtensions(json.extensions), gltfLight);
-        this.imageBasedLights = objectsFromJsons(
-            getJsonIBLsFromExtensions(json.extensions),
-            ImageBasedLight
-        );
         this.images = objectsFromJsons(json.images, gltfImage);
         this.animations = objectsFromJsons(json.animations, gltfAnimation);
         this.skins = objectsFromJsons(json.skins, gltfSkin);
-        this.variants = objectsFromJsons(
-            getJsonVariantsFromExtension(json.extensions),
-            gltfVariant
-        );
-        this.variants = enforceVariantsUniqueness(this.variants);
+
+        if (json.extensions?.KHR_lights_punctual !== undefined) {
+            this.extensions.KHR_lights_punctual = new GltfObject([]);
+            this.extensions.KHR_lights_punctual.lights = objectsFromJsons(
+                json.extensions.KHR_lights_punctual.lights,
+                gltfLight
+            );
+        }
+        if (json.extensions?.KHR_materials_variants !== undefined) {
+            this.extensions.KHR_materials_variants = new GltfObject([]);
+            this.extensions.KHR_materials_variants.variants = objectsFromJsons(
+                json.extensions.KHR_materials_variants?.variants,
+                gltfVariant
+            );
+            this.extensions.KHR_materials_variants.variants = enforceVariantsUniqueness(
+                this.extensions.KHR_materials_variants.variants
+            );
+        }
+        if (json.extensions?.KHR_interactivity !== undefined) {
+            this.extensions.KHR_interactivity = new GltfObject([]);
+            this.extensions.KHR_interactivity.graphs = objectsFromJsons(
+                json.extensions.KHR_interactivity?.graphs,
+                gltfGraph
+            );
+            this.extensions.KHR_interactivity.graph = json.extensions.KHR_interactivity?.graph ?? 0;
+        }
 
         this.materials.push(gltfMaterial.createDefault());
         this.samplers.push(gltfSampler.createDefault());
@@ -123,6 +153,26 @@ class glTF extends GltfObject {
         }
 
         this.computeDisjointAnimations();
+        this.addNodeMetaInformation();
+    }
+
+    // Adds parent and scene information to each node
+    addNodeMetaInformation() {
+        function recurseNodes(gltf, nodeIndex, scene, parent) {
+            const node = gltf.nodes[nodeIndex];
+            node.scene = scene;
+            node.parentNode = parent;
+
+            // recurse into children
+            for (const child of node.children) {
+                recurseNodes(gltf, child, scene, node);
+            }
+        }
+        for (const scene of this.scenes) {
+            for (const nodeIndex of scene.nodes) {
+                recurseNodes(this, nodeIndex, scene, undefined);
+            }
+        }
     }
 
     // Computes indices of animations which are disjoint and can be played simultaneously.
@@ -204,36 +254,6 @@ class glTF extends GltfObject {
     }
 }
 
-function getJsonLightsFromExtensions(extensions) {
-    if (extensions === undefined) {
-        return [];
-    }
-    if (extensions.KHR_lights_punctual === undefined) {
-        return [];
-    }
-    return extensions.KHR_lights_punctual.lights;
-}
-
-function getJsonIBLsFromExtensions(extensions) {
-    if (extensions === undefined) {
-        return [];
-    }
-    if (extensions.KHR_lights_image_based === undefined) {
-        return [];
-    }
-    return extensions.KHR_lights_image_based.imageBasedLights;
-}
-
-function getJsonVariantsFromExtension(extensions) {
-    if (extensions === undefined) {
-        return [];
-    }
-    if (extensions.KHR_materials_variants === undefined) {
-        return [];
-    }
-    return extensions.KHR_materials_variants.variants;
-}
-
 function enforceVariantsUniqueness(variants) {
     for (let i = 0; i < variants.length; i++) {
         const name = variants[i].name;
@@ -264,5 +284,6 @@ export {
     GltfObject,
     gltfAnimation,
     gltfSkin,
-    gltfVariant
+    gltfVariant,
+    gltfGraph
 };

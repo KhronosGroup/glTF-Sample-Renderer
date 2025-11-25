@@ -5,6 +5,7 @@ import { GltfObject } from "./gltf_object.js";
 
 class gltfMaterial extends GltfObject {
     static animatedProperties = ["alphaCutoff", "emissiveFactor"];
+    static readOnlyAnimatedProperties = ["doubleSided"];
     static scatterSampleCount = 55;
     static scatterSamples = undefined;
     static scatterMinRadius = 1.0;

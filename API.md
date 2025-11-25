@@ -7,12 +7,18 @@
 <dt><a href="#GltfState">GltfState</a></dt>
 <dd><p>GltfState containing a state for visualization in GltfView</p>
 </dd>
+<dt><a href="#AnimationTimer">AnimationTimer</a></dt>
+<dd><p>AnimationTimer class to control animation playback.</p>
+</dd>
 <dt><a href="#ResourceLoader">ResourceLoader</a></dt>
 <dd><p>ResourceLoader can be used to load resources for the GltfState
 that are then used to display the loaded data with GltfView</p>
 </dd>
 <dt><a href="#UserCamera">UserCamera</a></dt>
 <dd></dd>
+<dt><a href="#GraphController">GraphController</a></dt>
+<dd><p>A controller for managing KHR_interactivity graphs in a glTF scene.</p>
+</dd>
 </dl>
 
 <a name="GltfView"></a>
@@ -112,9 +118,31 @@ GltfState containing a state for visualization in GltfView
         * [.animationIndices](#GltfState+animationIndices)
         * [.animationTimer](#GltfState+animationTimer)
         * [.variant](#GltfState+variant)
+        * [.graphController](#GltfState+graphController)
+        * [.selectionCallback](#GltfState+selectionCallback)
+        * [.hoverCallback](#GltfState+hoverCallback)
+        * [.triggerSelection](#GltfState+triggerSelection)
+        * [.enableHover](#GltfState+enableHover)
         * [.renderingParameters](#GltfState+renderingParameters)
             * [.morphing](#GltfState+renderingParameters.morphing)
             * [.skinning](#GltfState+renderingParameters.skinning)
+            * [.enabledExtensions](#GltfState+renderingParameters.enabledExtensions)
+                * [.KHR_materials_clearcoat](#GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat)
+                * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
+                * [.KHR_materials_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission)
+                * [.KHR_materials_volume](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume)
+                * [.KHR_materials_volume_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+                * [.KHR_materials_ior](#GltfState+renderingParameters.enabledExtensions.KHR_materials_ior)
+                * [.KHR_materials_specular](#GltfState+renderingParameters.enabledExtensions.KHR_materials_specular)
+                * [.KHR_materials_iridescence](#GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence)
+                * [.KHR_materials_diffuse_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission)
+                * [.KHR_materials_anisotropy](#GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy)
+                * [.KHR_materials_dispersion](#GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion)
+                * [.KHR_materials_emissive_strength](#GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength)
+                * [.KHR_interactivity](#GltfState+renderingParameters.enabledExtensions.KHR_interactivity)
+                * [.KHR_node_hoverability](#GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability)
+                * [.KHR_node_selectability](#GltfState+renderingParameters.enabledExtensions.KHR_node_selectability)
+                * [.KHR_node_visibility](#GltfState+renderingParameters.enabledExtensions.KHR_node_visibility)
             * [.clearColor](#GltfState+renderingParameters.clearColor)
             * [.exposure](#GltfState+renderingParameters.exposure)
             * [.usePunctual](#GltfState+renderingParameters.usePunctual)
@@ -143,6 +171,7 @@ GltfState containing a state for visualization in GltfView
                 * [.GEOMETRYNORMAL](#GltfState.DebugOutput.generic.GEOMETRYNORMAL)
                 * [.TANGENT](#GltfState.DebugOutput.generic.TANGENT)
                 * [.BITANGENT](#GltfState.DebugOutput.generic.BITANGENT)
+                * [.TANGENTW](#GltfState.DebugOutput.generic.TANGENTW)
                 * [.WORLDSPACENORMAL](#GltfState.DebugOutput.generic.WORLDSPACENORMAL)
                 * [.ALPHA](#GltfState.DebugOutput.generic.ALPHA)
                 * [.OCCLUSION](#GltfState.DebugOutput.generic.OCCLUSION)
@@ -234,6 +263,40 @@ animation timer allows to control the animation time
 KHR_materials_variants
 
 **Kind**: instance property of [<code>GltfState</code>](#GltfState)  
+<a name="GltfState+graphController"></a>
+
+### gltfState.graphController
+the graph controller allows selecting and playing graphs from KHR_interactivity
+
+**Kind**: instance property of [<code>GltfState</code>](#GltfState)  
+<a name="GltfState+selectionCallback"></a>
+
+### gltfState.selectionCallback
+callback for selection: (selectionInfo : {
+node,
+position,
+rayOrigin,
+controller }) => {}
+
+**Kind**: instance property of [<code>GltfState</code>](#GltfState)  
+<a name="GltfState+hoverCallback"></a>
+
+### gltfState.hoverCallback
+callback for hovering: (hoverInfo : { node, controller }) => {}
+
+**Kind**: instance property of [<code>GltfState</code>](#GltfState)  
+<a name="GltfState+triggerSelection"></a>
+
+### gltfState.triggerSelection
+If the renderer should compute selection information in the next frame. Is automatically reset after the frame is rendered
+
+**Kind**: instance property of [<code>GltfState</code>](#GltfState)  
+<a name="GltfState+enableHover"></a>
+
+### gltfState.enableHover
+If the renderer should compute hover information in the next frame.
+
+**Kind**: instance property of [<code>GltfState</code>](#GltfState)  
 <a name="GltfState+renderingParameters"></a>
 
 ### gltfState.renderingParameters
@@ -244,6 +307,23 @@ parameters used to configure the rendering
 * [.renderingParameters](#GltfState+renderingParameters)
     * [.morphing](#GltfState+renderingParameters.morphing)
     * [.skinning](#GltfState+renderingParameters.skinning)
+    * [.enabledExtensions](#GltfState+renderingParameters.enabledExtensions)
+        * [.KHR_materials_clearcoat](#GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat)
+        * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
+        * [.KHR_materials_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission)
+        * [.KHR_materials_volume](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume)
+        * [.KHR_materials_volume_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+        * [.KHR_materials_ior](#GltfState+renderingParameters.enabledExtensions.KHR_materials_ior)
+        * [.KHR_materials_specular](#GltfState+renderingParameters.enabledExtensions.KHR_materials_specular)
+        * [.KHR_materials_iridescence](#GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence)
+        * [.KHR_materials_diffuse_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission)
+        * [.KHR_materials_anisotropy](#GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy)
+        * [.KHR_materials_dispersion](#GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion)
+        * [.KHR_materials_emissive_strength](#GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength)
+        * [.KHR_interactivity](#GltfState+renderingParameters.enabledExtensions.KHR_interactivity)
+        * [.KHR_node_hoverability](#GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability)
+        * [.KHR_node_selectability](#GltfState+renderingParameters.enabledExtensions.KHR_node_selectability)
+        * [.KHR_node_visibility](#GltfState+renderingParameters.enabledExtensions.KHR_node_visibility)
     * [.clearColor](#GltfState+renderingParameters.clearColor)
     * [.exposure](#GltfState+renderingParameters.exposure)
     * [.usePunctual](#GltfState+renderingParameters.usePunctual)
@@ -269,6 +349,127 @@ morphing between vertices
 skin / skeleton
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.enabledExtensions"></a>
+
+#### renderingParameters.enabledExtensions
+enabled extensions
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+
+* [.enabledExtensions](#GltfState+renderingParameters.enabledExtensions)
+    * [.KHR_materials_clearcoat](#GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat)
+    * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
+    * [.KHR_materials_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission)
+    * [.KHR_materials_volume](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume)
+    * [.KHR_materials_volume_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+    * [.KHR_materials_ior](#GltfState+renderingParameters.enabledExtensions.KHR_materials_ior)
+    * [.KHR_materials_specular](#GltfState+renderingParameters.enabledExtensions.KHR_materials_specular)
+    * [.KHR_materials_iridescence](#GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence)
+    * [.KHR_materials_diffuse_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission)
+    * [.KHR_materials_anisotropy](#GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy)
+    * [.KHR_materials_dispersion](#GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion)
+    * [.KHR_materials_emissive_strength](#GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength)
+    * [.KHR_interactivity](#GltfState+renderingParameters.enabledExtensions.KHR_interactivity)
+    * [.KHR_node_hoverability](#GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability)
+    * [.KHR_node_selectability](#GltfState+renderingParameters.enabledExtensions.KHR_node_selectability)
+    * [.KHR_node_visibility](#GltfState+renderingParameters.enabledExtensions.KHR_node_visibility)
+
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat"></a>
+
+##### enabledExtensions.KHR\_materials\_clearcoat
+KHR_materials_clearcoat adds a clear coat layer on top of the glTF base material
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen"></a>
+
+##### enabledExtensions.KHR\_materials\_sheen
+KHR_materials_sheen adds a sheen layer on top of the glTF base material
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission"></a>
+
+##### enabledExtensions.KHR\_materials\_transmission
+KHR_materials_transmission adds physical-based transparency
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_volume"></a>
+
+##### enabledExtensions.KHR\_materials\_volume
+KHR_materials_volume adds support for volumetric materials. Used together with KHR_materials_transmission and KHR_materials_diffuse_transmission
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter"></a>
+
+##### enabledExtensions.KHR\_materials\_volume\_scatter
+KHR_materials_volume_scatter allows the simulation of scattering light inside a volume. Used together with KHR_materials_volume
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_ior"></a>
+
+##### enabledExtensions.KHR\_materials\_ior
+KHR_materials_ior makes the index of refraction configurable
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_specular"></a>
+
+##### enabledExtensions.KHR\_materials\_specular
+KHR_materials_specular allows configuring specular color (f0 color) and amount of specular reflection
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence"></a>
+
+##### enabledExtensions.KHR\_materials\_iridescence
+KHR_materials_iridescence adds a thin-film iridescence effect
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission"></a>
+
+##### enabledExtensions.KHR\_materials\_diffuse\_transmission
+KHR_materials_diffuse_transmission allows light to pass diffusely through the material
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy"></a>
+
+##### enabledExtensions.KHR\_materials\_anisotropy
+KHR_materials_anisotropy defines microfacet grooves in the surface, stretching the specular reflection on the surface
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion"></a>
+
+##### enabledExtensions.KHR\_materials\_dispersion
+KHR_materials_dispersion defines configuring the strength of the angular separation of colors (chromatic abberation)
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength"></a>
+
+##### enabledExtensions.KHR\_materials\_emissive\_strength
+KHR_materials_emissive_strength enables emissive factors larger than 1.0
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_interactivity"></a>
+
+##### enabledExtensions.KHR\_interactivity
+KHR_interactivity enables execution of a behavior graph
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability"></a>
+
+##### enabledExtensions.KHR\_node\_hoverability
+KHR_node_hoverability enables hovering over nodes
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_node_selectability"></a>
+
+##### enabledExtensions.KHR\_node\_selectability
+KHR_node_selectability enables selecting nodes
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_node_visibility"></a>
+
+##### enabledExtensions.KHR\_node\_visibility
+KHR_node_visibility enables controlling the visibility of nodes
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
 <a name="GltfState+renderingParameters.clearColor"></a>
 
 #### renderingParameters.clearColor
@@ -408,6 +609,7 @@ such as "NORMAL"
         * [.GEOMETRYNORMAL](#GltfState.DebugOutput.generic.GEOMETRYNORMAL)
         * [.TANGENT](#GltfState.DebugOutput.generic.TANGENT)
         * [.BITANGENT](#GltfState.DebugOutput.generic.BITANGENT)
+        * [.TANGENTW](#GltfState.DebugOutput.generic.TANGENTW)
         * [.WORLDSPACENORMAL](#GltfState.DebugOutput.generic.WORLDSPACENORMAL)
         * [.ALPHA](#GltfState.DebugOutput.generic.ALPHA)
         * [.OCCLUSION](#GltfState.DebugOutput.generic.OCCLUSION)
@@ -459,6 +661,7 @@ generic debug outputs
     * [.GEOMETRYNORMAL](#GltfState.DebugOutput.generic.GEOMETRYNORMAL)
     * [.TANGENT](#GltfState.DebugOutput.generic.TANGENT)
     * [.BITANGENT](#GltfState.DebugOutput.generic.BITANGENT)
+    * [.TANGENTW](#GltfState.DebugOutput.generic.TANGENTW)
     * [.WORLDSPACENORMAL](#GltfState.DebugOutput.generic.WORLDSPACENORMAL)
     * [.ALPHA](#GltfState.DebugOutput.generic.ALPHA)
     * [.OCCLUSION](#GltfState.DebugOutput.generic.OCCLUSION)
@@ -498,6 +701,12 @@ output the tangent from the TBN
 
 ##### generic.BITANGENT
 output the bitangent from the TBN
+
+**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
+<a name="GltfState.DebugOutput.generic.TANGENTW"></a>
+
+##### generic.TANGENTW
+output the tangent w from the TBN (black corresponds to -1; white to 1
 
 **Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
 <a name="GltfState.DebugOutput.generic.WORLDSPACENORMAL"></a>
@@ -722,6 +931,69 @@ output the anisotropic strength
 output final direction as defined by the anisotropyTexture and rotation
 
 **Kind**: static property of [<code>anisotropy</code>](#GltfState.DebugOutput.anisotropy)  
+<a name="AnimationTimer"></a>
+
+## AnimationTimer
+AnimationTimer class to control animation playback.
+
+**Kind**: global class  
+
+* [AnimationTimer](#AnimationTimer)
+    * [.start()](#AnimationTimer+start)
+    * [.pause()](#AnimationTimer+pause)
+    * [.unpause()](#AnimationTimer+unpause)
+    * [.toggle()](#AnimationTimer+toggle)
+    * [.reset()](#AnimationTimer+reset)
+    * [.setFixedTime(timeInSec)](#AnimationTimer+setFixedTime)
+    * [.elapsedSec()](#AnimationTimer+elapsedSec)
+
+<a name="AnimationTimer+start"></a>
+
+### animationTimer.start()
+Start the animation timer and all animations
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+pause"></a>
+
+### animationTimer.pause()
+Pause all animations
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+unpause"></a>
+
+### animationTimer.unpause()
+Unpause all animations
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+toggle"></a>
+
+### animationTimer.toggle()
+Toggle the animation playback state
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+reset"></a>
+
+### animationTimer.reset()
+Reset the animation timer. If animations were playing, they will be restarted.
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+<a name="AnimationTimer+setFixedTime"></a>
+
+### animationTimer.setFixedTime(timeInSec)
+Plays all animations starting from the specified time
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| timeInSec | <code>number</code> | The time in seconds to set the animation timer to |
+
+<a name="AnimationTimer+elapsedSec"></a>
+
+### animationTimer.elapsedSec()
+Get the elapsed time in seconds
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
 <a name="ResourceLoader"></a>
 
 ## ResourceLoader
@@ -992,3 +1264,100 @@ Fit view to updated canvas size without changing rotation if distance is incorre
 | gltf | <code>Gltf</code> | 
 | sceneIndex | <code>number</code> | 
 
+<a name="GraphController"></a>
+
+## GraphController
+A controller for managing KHR_interactivity graphs in a glTF scene.
+
+**Kind**: global class  
+
+* [GraphController](#GraphController)
+    * [.initializeGraphs(state)](#GraphController+initializeGraphs)
+    * [.loadGraph(graphIndex)](#GraphController+loadGraph) ⇒ <code>Array</code>
+    * [.stopGraphEngine()](#GraphController+stopGraphEngine)
+    * [.pauseGraph()](#GraphController+pauseGraph)
+    * [.resumeGraph()](#GraphController+resumeGraph)
+    * [.resetGraph()](#GraphController+resetGraph)
+    * [.dispatchEvent(eventName, data)](#GraphController+dispatchEvent)
+    * [.addCustomEventListener(eventName, callback)](#GraphController+addCustomEventListener)
+    * [.clearCustomEventListeners()](#GraphController+clearCustomEventListeners)
+
+<a name="GraphController+initializeGraphs"></a>
+
+### graphController.initializeGraphs(state)
+Initialize the graph controller with the given state.
+This needs to be called every time a glTF assets is loaded.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| state | [<code>GltfState</code>](#GltfState) | The state of the application. |
+
+<a name="GraphController+loadGraph"></a>
+
+### graphController.loadGraph(graphIndex) ⇒ <code>Array</code>
+Loads the specified graph. Resets the engine. Starts playing if this.playing is true.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+**Returns**: <code>Array</code> - An array of custom events defined in the graph.  
+
+| Param | Type |
+| --- | --- |
+| graphIndex | <code>number</code> | 
+
+<a name="GraphController+stopGraphEngine"></a>
+
+### graphController.stopGraphEngine()
+Stops the graph engine.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+<a name="GraphController+pauseGraph"></a>
+
+### graphController.pauseGraph()
+Pauses the currently playing graph.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+<a name="GraphController+resumeGraph"></a>
+
+### graphController.resumeGraph()
+Resumes the currently paused graph.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+<a name="GraphController+resetGraph"></a>
+
+### graphController.resetGraph()
+Resets the current graph.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+<a name="GraphController+dispatchEvent"></a>
+
+### graphController.dispatchEvent(eventName, data)
+Dispatches an event to the behavior engine.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+
+| Param | Type |
+| --- | --- |
+| eventName | <code>string</code> | 
+| data | <code>\*</code> | 
+
+<a name="GraphController+addCustomEventListener"></a>
+
+### graphController.addCustomEventListener(eventName, callback)
+Adds a custom event listener to the decorator.
+Khronos test assets use test/onStart, test/onFail and test/onSuccess.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  
+
+| Param | Type |
+| --- | --- |
+| eventName | <code>string</code> | 
+| callback | <code>function</code> | 
+
+<a name="GraphController+clearCustomEventListeners"></a>
+
+### graphController.clearCustomEventListeners()
+Clears all custom event listeners from the decorator.
+
+**Kind**: instance method of [<code>GraphController</code>](#GraphController)  

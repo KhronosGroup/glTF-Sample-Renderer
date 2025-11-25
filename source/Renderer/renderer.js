@@ -1,10 +1,12 @@
-import { mat4, mat3, vec3, quat } from "gl-matrix";
+import { mat4, mat3, vec3, quat, vec4 } from "gl-matrix";
 import { ShaderCache } from "./shader_cache.js";
 import { GltfState } from "../GltfState/gltf_state.js";
 import { gltfWebGl, GL } from "./webgl.js";
 import { EnvironmentRenderer } from "./environment_renderer.js";
 
 import pbrShader from "./shaders/pbr.frag";
+import pickingShader from "./shaders/picking.frag";
+import pickingVertShader from "./shaders/picking.vert";
 import brdfShader from "./shaders/brdf.glsl";
 import iridescenceShader from "./shaders/iridescence.glsl";
 import materialInfoShader from "./shaders/material_info.glsl";
@@ -38,6 +40,11 @@ class gltfRenderer {
         this.opaqueRenderTexture = 0;
         this.opaqueFramebuffer = 0;
         this.opaqueDepthTexture = 0;
+        this.pickingIDTexture = 0;
+        this.pickingPositionTexture = 0;
+        this.pickingDepthTexture = 0;
+        this.hoverIDTexture = 0;
+        this.hoverDepthTexture = 0;
         this.opaqueFramebufferWidth = 1024;
         this.opaqueFramebufferHeight = 1024;
 
@@ -48,6 +55,8 @@ class gltfRenderer {
         const shaderSources = new Map();
         shaderSources.set("primitive.vert", primitiveShader);
         shaderSources.set("pbr.frag", pbrShader);
+        shaderSources.set("picking.frag", pickingShader);
+        shaderSources.set("picking.vert", pickingVertShader);
         shaderSources.set("material_info.glsl", materialInfoShader);
         shaderSources.set("brdf.glsl", brdfShader);
         shaderSources.set("iridescence.glsl", iridescenceShader);
@@ -152,7 +161,50 @@ class gltfRenderer {
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.scatterDepthTexture, 0);
             context.drawBuffers([context.COLOR_ATTACHMENT0]);
             
+            this.pickingIDTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.pickingIDTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D(context.TEXTURE_2D, 0, context.R32UI, 1, 1, 0, context.RED_INTEGER, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
 
+            this.pickingPositionTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.pickingPositionTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D(context.TEXTURE_2D, 0, context.R32UI, 1, 1, 0, context.RED_INTEGER, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
+            this.pickingDepthTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.pickingDepthTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
+            this.hoverIDTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.hoverIDTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D(context.TEXTURE_2D, 0, context.R32UI, 1, 1, 0, context.RED_INTEGER, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
+            this.hoverDepthTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.hoverDepthTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, 1, 1, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
 
             this.colorRenderBuffer = context.createRenderbuffer();
             context.bindRenderbuffer(context.RENDERBUFFER, this.colorRenderBuffer);
@@ -165,6 +217,18 @@ class gltfRenderer {
                 context.DEPTH_COMPONENT24, 
                 this.opaqueFramebufferWidth,
                 this.opaqueFramebufferHeight);
+            
+            this.pickingFramebuffer = context.createFramebuffer();
+            context.bindFramebuffer(context.FRAMEBUFFER, this.pickingFramebuffer);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.pickingIDTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.pickingDepthTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1, context.TEXTURE_2D, this.pickingPositionTexture, 0);
+            context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
+
+            this.hoverFramebuffer = context.createFramebuffer();
+            context.bindFramebuffer(context.FRAMEBUFFER, this.hoverFramebuffer);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.hoverIDTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.hoverDepthTexture, 0);
 
             this.samples = samples;
 
@@ -272,18 +336,58 @@ class gltfRenderer {
         this.webGl.context.clearColor(...clearColor);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
+        this.webGl.context.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
+        this.webGl.context.clearBufferuiv(GL.COLOR, 1, new Uint32Array([0, 0, 0, 0]));
+        this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
+        this.webGl.context.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
+        this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
+        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
     }
 
     prepareScene(state, scene) {
-        this.nodes = scene.gatherNodes(state.gltf);
+        const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions);
+        this.selectionDrawables = newNodes.selectableNodes
+            .filter((node) => node.mesh !== undefined)
+            .reduce(
+                (accumulator, node) =>
+                    accumulator.concat(
+                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
+                            return { node: node, primitive: primitive, primitiveIndex: index };
+                        })
+                    ),
+                []
+            );
+        this.hoverDrawables = newNodes.hoverableNodes
+            .filter((node) => node.mesh !== undefined)
+            .reduce(
+                (accumulator, node) =>
+                    accumulator.concat(
+                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
+                            return { node: node, primitive: primitive, primitiveIndex: index };
+                        })
+                    ),
+                []
+            );
+
+        // check if nodes have changed since previous frame to avoid unnecessary updates
+        if (
+            newNodes.nodes.length === this.nodes?.length &&
+            newNodes.nodes.every((element, i) => element === this.nodes[i])
+        ) {
+            return;
+        }
+        this.nodes = newNodes.nodes;
 
         // collect drawables by essentially zipping primitives (for geometry and material)
         // and nodes for the transform
         const drawables = this.nodes
             .filter((node) => node.mesh !== undefined)
             .reduce(
-                (acc, node) =>
-                    acc.concat(
+                (accumulator, node) =>
+                    accumulator.concat(
                         state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
                             return { node: node, primitive: primitive, primitiveIndex: index };
                         })
@@ -291,6 +395,7 @@ class gltfRenderer {
                 []
             )
             .filter(({ primitive }) => primitive.material !== undefined);
+        this.drawables = drawables;
 
         // opaque drawables don't need sorting
         this.opaqueDrawables = drawables.filter(
@@ -355,10 +460,7 @@ class gltfRenderer {
 
     // render complete gltf scene with given camera
     drawScene(state, scene) {
-        if (this.preparedScene !== scene) {
-            this.prepareScene(state, scene);
-            this.preparedScene = scene;
-        }
+        this.prepareScene(state, scene);
 
         let currentCamera = undefined;
 
@@ -405,7 +507,7 @@ class gltfRenderer {
         this.viewMatrix = currentCamera.getViewMatrix(state.gltf);
         this.currentCameraPosition = currentCamera.getPosition(state.gltf);
 
-        this.visibleLights = this.getVisibleLights(state.gltf, scene.nodes);
+        this.visibleLights = this.getVisibleLights(state.gltf, this.nodes);
         if (
             this.visibleLights.length === 0 &&
             !state.renderingParameters.useIBL &&
@@ -481,6 +583,82 @@ class gltfRenderer {
             GltfState.DebugOutput.volumeScatter.PRE_SCATTER_PASS
         ) {
             return;
+        }
+
+        let pickingProjection = undefined;
+        let pickingViewProjection = mat4.create();
+
+        let pickingX = state.selectionPositions[0].x;
+        let pickingY = state.selectionPositions[0].y;
+
+        // Draw a 1x1 texture for picking
+        if (state.triggerSelection && pickingX !== undefined && pickingY !== undefined) {
+            pickingProjection = currentCamera.getProjectionMatrixForPixel(
+                pickingX - aspectOffsetX,
+                this.currentHeight - pickingY - aspectOffsetY,
+                aspectWidth,
+                aspectHeight
+            );
+            mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.pickingFramebuffer
+            );
+            this.webGl.context.viewport(0, 0, 1, 1);
+
+            for (const drawable of this.selectionDrawables) {
+                let renderpassConfiguration = {};
+                renderpassConfiguration.picking = true;
+                this.drawPrimitive(
+                    state,
+                    renderpassConfiguration,
+                    drawable.primitive,
+                    drawable.node,
+                    pickingViewProjection
+                );
+            }
+        }
+
+        pickingX = state.hoverPositions[0].x;
+        pickingY = state.hoverPositions[0].y;
+
+        const needsHover = state.graphController.needsHover();
+        const calcHoverInfo =
+            (state.enableHover || needsHover) && pickingX !== undefined && pickingY !== undefined;
+
+        // Draw a 1x1 texture for hover
+        if (calcHoverInfo) {
+            // We do not need to recalculate the picking projection matrix if selection and hover use the same position
+            if (
+                pickingProjection === undefined ||
+                pickingX !== state.selectionPositions[0].x ||
+                pickingY !== state.selectionPositions[0].y
+            ) {
+                pickingProjection = currentCamera.getProjectionMatrixForPixel(
+                    pickingX - aspectOffsetX,
+                    this.currentHeight - pickingY - aspectOffsetY,
+                    aspectWidth,
+                    aspectHeight
+                );
+                mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
+            }
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.hoverFramebuffer
+            );
+            this.webGl.context.viewport(0, 0, 1, 1);
+
+            for (const drawable of this.hoverDrawables) {
+                let renderpassConfiguration = {};
+                renderpassConfiguration.picking = true;
+                this.drawPrimitive(
+                    state,
+                    renderpassConfiguration,
+                    drawable.primitive,
+                    drawable.node,
+                    pickingViewProjection
+                );
+            }
         }
 
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
@@ -662,6 +840,156 @@ class gltfRenderer {
                 this.viewProjectionMatrix
             );
         }
+
+        // Handle selection
+        if (state.triggerSelection) {
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.pickingFramebuffer
+            );
+            this.webGl.context.viewport(0, 0, 1, 1);
+            state.triggerSelection = false;
+            this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
+
+            // Read pixel under controller (e.g. mouse cursor), which contains the picking ID
+            const pixels = new Uint32Array(1);
+            this.webGl.context.readPixels(
+                0,
+                0,
+                1,
+                1,
+                this.webGl.context.RED_INTEGER,
+                this.webGl.context.UNSIGNED_INT,
+                pixels
+            );
+
+            // Compute ray origin in world space. This is the near plane position of the current pixel.
+            pickingX = state.selectionPositions[0].x;
+            pickingY = state.selectionPositions[0].y;
+            const x = pickingX - aspectOffsetX;
+            const y = this.currentHeight - pickingY - aspectOffsetY;
+            const nearPlane = currentCamera.getNearPlaneForPixel(
+                x + 0.5,
+                y + 0.5,
+                aspectWidth,
+                aspectHeight
+            );
+            const zNear = currentCamera.perspective?.znear
+                ? currentCamera.perspective.znear
+                : currentCamera.orthographic.znear;
+            let rayOrigin = vec3.fromValues(nearPlane.left, nearPlane.bottom, -zNear);
+            vec3.transformMat4(rayOrigin, rayOrigin, currentCamera.getTransformMatrix(state.gltf));
+
+            let pickingResult = {
+                node: undefined,
+                position: undefined,
+                rayOrigin: rayOrigin,
+                controller: 0
+            };
+
+            // Search for node with matching picking ID
+            let found = false;
+            for (const node of state.gltf.nodes) {
+                if (node.pickingColor === pixels[0]) {
+                    found = true;
+                    pickingResult.node = node;
+                    break;
+                }
+            }
+
+            // If a node was found, we need to calculate the ray intersection position
+            if (found) {
+                // WebGL does not allow reading from depth buffer
+                this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT1);
+                const position = new Uint32Array(1);
+                this.webGl.context.readPixels(
+                    0,
+                    0,
+                    1,
+                    1,
+                    this.webGl.context.RED_INTEGER,
+                    this.webGl.context.UNSIGNED_INT,
+                    position
+                );
+
+                // Transform uint to float [-1, 1] in clip space
+                const z = (position[0] / 4294967295) * 2.0 - 1.0;
+
+                // Get view space position
+                const clipSpacePosition = vec4.fromValues(0, 0, z, 1);
+                vec4.transformMat4(
+                    clipSpacePosition,
+                    clipSpacePosition,
+                    mat4.invert(mat4.create(), pickingProjection)
+                );
+
+                // Divide by w to get normalized device coordinates
+                vec4.divide(
+                    clipSpacePosition,
+                    clipSpacePosition,
+                    vec4.fromValues(
+                        clipSpacePosition[3],
+                        clipSpacePosition[3],
+                        clipSpacePosition[3],
+                        clipSpacePosition[3]
+                    )
+                );
+                const worldPos = vec4.transformMat4(
+                    vec4.create(),
+                    clipSpacePosition,
+                    mat4.invert(mat4.create(), this.viewMatrix)
+                );
+                pickingResult.position = vec3.fromValues(worldPos[0], worldPos[1], worldPos[2]);
+            }
+
+            // Send picking result to Interactivity engine
+            state.graphController.receiveSelection(pickingResult);
+
+            if (state.selectionCallback) {
+                state.selectionCallback(pickingResult);
+            }
+        }
+
+        if (calcHoverInfo) {
+            this.webGl.context.bindFramebuffer(
+                this.webGl.context.FRAMEBUFFER,
+                this.hoverFramebuffer
+            );
+            this.webGl.context.viewport(0, 0, 1, 1);
+            this.webGl.context.readBuffer(this.webGl.context.COLOR_ATTACHMENT0);
+
+            // Read pixel under controller (e.g. mouse cursor), which contains the picking ID
+            const pixels = new Uint32Array(1);
+            this.webGl.context.readPixels(
+                0,
+                0,
+                1,
+                1,
+                this.webGl.context.RED_INTEGER,
+                this.webGl.context.UNSIGNED_INT,
+                pixels
+            );
+
+            let pickingResult = {
+                node: undefined,
+                controller: 0
+            };
+
+            // Search for node with matching picking ID
+            for (const node of state.gltf.nodes) {
+                if (node.pickingColor === pixels[0]) {
+                    pickingResult.node = node;
+                    break;
+                }
+            }
+
+            // Send picking result to Interactivity engine
+            state.graphController.receiveHover(pickingResult);
+
+            if (state.enableHover && state.hoverCallback) {
+                state.hoverCallback(pickingResult);
+            }
+        }
     }
 
     // vertices with given material
@@ -671,9 +999,9 @@ class gltfRenderer {
         if (primitive.skip) return;
 
         let material;
-        if(primitive.mappings !== undefined && state.variant != "default")
+        if(primitive.mappings !== undefined && state.variant != "default" && state.gltf.extensions?.KHR_materials_variants.variants !== undefined)
         {
-            const names = state.gltf.variants.map(obj => obj.name);
+            const names = state.gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
             const idx = names.indexOf(state.variant);
             let materialIdx = primitive.material;
             primitive.mappings.forEach(element => {
@@ -730,15 +1058,18 @@ class gltfRenderer {
 
         this.pushFragParameterDefines(fragDefines, state);
         
+        const vertexShader = renderpassConfiguration.picking ? "picking.vert" : "primitive.vert";
         let fragmentShader = "pbr.frag";
         if (material.type === "SG") {
             fragmentShader = "specular_glossiness.frag";
         } else if (renderpassConfiguration.scatter) {
             fragmentShader = "scatter.frag";
+        } else if (renderpassConfiguration.picking) {
+        	fragmentShader = "picking.frag";
         }
 
         const fragmentHash = this.shaderCache.selectShader(fragmentShader, fragDefines);
-        const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
+        const vertexHash = this.shaderCache.selectShader(vertexShader, vertDefines);
 
         if (fragmentHash && vertexHash)
         {
@@ -752,7 +1083,7 @@ class gltfRenderer {
 
         this.webGl.context.useProgram(this.shader.program);
 
-        if (state.renderingParameters.usePunctual)
+        if (state.renderingParameters.usePunctual && !renderpassConfiguration.picking)
         {
             this.applyLights();
         }
@@ -767,7 +1098,9 @@ class gltfRenderer {
         this.shader.updateUniform("u_NormalMatrix", node.normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
-        
+        if (renderpassConfiguration.picking) {
+            this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
+        } 
 
         this.updateAnimationUniforms(state, node, primitive);
 
@@ -780,7 +1113,7 @@ class gltfRenderer {
             this.webGl.context.frontFace(GL.CCW);
         }
 
-        if (material.doubleSided)
+        if (material.doubleSided || renderpassConfiguration.picking)
         {
             this.webGl.context.disable(GL.CULL_FACE);
         }
@@ -789,7 +1122,7 @@ class gltfRenderer {
             this.webGl.context.enable(GL.CULL_FACE);
         }
     
-        if (material.alphaMode === 'BLEND')
+        if (material.alphaMode === 'BLEND' && !renderpassConfiguration.picking)
         {
             this.webGl.context.enable(GL.BLEND);
             this.webGl.context.blendFuncSeparate(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA, GL.ONE, GL.ONE_MINUS_SRC_ALPHA);
@@ -813,6 +1146,9 @@ class gltfRenderer {
         let vertexCount = 0;
         for (const attribute of primitive.glAttributes)
         {
+            if (renderpassConfiguration.picking && (attribute.attribute !== "POSITION" || attribute.attribute.startsWith("JOINTS") || attribute.attribute.startsWith("WEIGHTS"))) {
+                continue;
+            }
             const gltfAccessor = state.gltf.accessors[attribute.accessor];
             vertexCount = gltfAccessor.count;
 
@@ -965,51 +1301,53 @@ class gltfRenderer {
             textureIndex++;
         }
 
-        let textureCount = textureIndex;
+        if (!renderpassConfiguration.picking) {
+            let textureCount = textureIndex;
 
-        textureCount = this.applyEnvironmentMap(state, textureCount);
+            textureCount = this.applyEnvironmentMap(state, textureCount);
 
 
-        if (state.environment !== undefined)
-        {
-            this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
-        }
+            if (state.environment !== undefined)
+            {
+                this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
+            }
 
-        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined)
-        {
-            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
-            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterFramebufferSampler"), textureCount);
-            textureCount++;
-
-            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterDepthSampleTexture);
-            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterDepthFramebufferSampler"), textureCount);
-            textureCount++;
-
-            this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), gltfMaterial.scatterMinRadius);
-            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_FramebufferSize"), renderpassConfiguration.frameBufferSize[0], renderpassConfiguration.frameBufferSize[1]);
-            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
-
-            this.shader.updateUniformArray("u_ScatterSamples", gltfMaterial.scatterSamples);
-        }
-
-        if(sampledTextures?.transmissionSampleTexture !== undefined &&
-            state.environment &&
-            state.renderingParameters.enabledExtensions.KHR_materials_transmission)
-        {
-            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.opaqueRenderTexture);
-            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_TransmissionFramebufferSampler"), textureCount);
-            textureCount++;
-
-            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_TransmissionFramebufferSize"), this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
-
-            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
-            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
-            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
-        }
-
+	        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined)
+	        {
+	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+	            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
+	            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterFramebufferSampler"), textureCount);
+	            textureCount++;
+	
+	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+	            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterDepthSampleTexture);
+	            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterDepthFramebufferSampler"), textureCount);
+	            textureCount++;
+	
+	            this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), gltfMaterial.scatterMinRadius);
+	            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_FramebufferSize"), renderpassConfiguration.frameBufferSize[0], renderpassConfiguration.frameBufferSize[1]);
+	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
+	
+	            this.shader.updateUniformArray("u_ScatterSamples", gltfMaterial.scatterSamples);
+	        }
+	
+	        if(sampledTextures?.transmissionSampleTexture !== undefined &&
+	            state.environment &&
+	            state.renderingParameters.enabledExtensions.KHR_materials_transmission)
+	        {
+	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+	            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.opaqueRenderTexture);
+	            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_TransmissionFramebufferSampler"), textureCount);
+	            textureCount++;
+	
+	            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_TransmissionFramebufferSize"), this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
+	
+	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ModelMatrix"),false, node.worldTransform);
+	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
+	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
+	        }
+	    }
+	    
         if (drawIndexed)
         {
             const indexAccessor = state.gltf.accessors[primitive.indices];
@@ -1030,6 +1368,9 @@ class gltfRenderer {
 
         for (const attribute of primitive.glAttributes)
         {
+            if (renderpassConfiguration.picking && (attribute.attribute !== "POSITION" || attribute.attribute.startsWith("JOINTS") || attribute.attribute.startsWith("WEIGHTS"))) {
+                continue;
+            }
             const location = this.shader.getAttributeLocation(attribute.name);
             if (location === null)
             {
@@ -1054,18 +1395,12 @@ class gltfRenderer {
     getVisibleLights(gltf, nodes) {
         let nodeLights = [];
 
-        for (const nodeIndex of nodes) {
-            const node = gltf.nodes[nodeIndex];
-
-            if (node.children !== undefined) {
-                nodeLights = nodeLights.concat(this.getVisibleLights(gltf, node.children));
-            }
-
+        for (const node of nodes) {
             const lightIndex = node.extensions?.KHR_lights_punctual?.light;
             if (lightIndex === undefined) {
                 continue;
             }
-            const light = gltf.lights[lightIndex];
+            const light = gltf.extensions?.KHR_lights_punctual?.lights[lightIndex];
             nodeLights.push([node, light]);
         }
 

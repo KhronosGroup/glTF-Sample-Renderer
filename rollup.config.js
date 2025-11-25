@@ -27,7 +27,7 @@ export default {
         resolve({
             browser: true,
             preferBuiltins: false,
-            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png']
+            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png', '@khronosgroup/khr_interactivity_authoring_engine']
         }),
         copy({
             targets: [
@@ -38,7 +38,8 @@ export default {
                         "assets/images/lut_sheen_E.png",
                     ], dest: "dist/assets"
                 },
-                { src: ["source/libs/*", "!source/libs/hdrpng.js"], dest: "dist/libs" }
+                { src: ["source/libs/*", "!source/libs/hdrpng.js"], dest: "dist/libs" },
+                { src: "tests/testApp/*", dest: "dist"}
             ]
         }),
         commonjs(),

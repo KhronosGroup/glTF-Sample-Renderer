@@ -1,5 +1,6 @@
+import { GraphController } from "../gltf/interactivity.js";
 import { UserCamera } from "../gltf/user_camera.js";
-import { AnimationTimer } from "../gltf/utils.js";
+import { AnimationTimer } from "./animation_timer.js";
 
 /**
  * GltfState containing a state for visualization in GltfView
@@ -31,6 +32,30 @@ class GltfState {
         /** KHR_materials_variants */
         this.variant = undefined;
 
+        /** the graph controller allows selecting and playing graphs from KHR_interactivity */
+        this.graphController = new GraphController();
+
+        /** callback for selection: (selectionInfo : {
+         * node,
+         * position,
+         * rayOrigin,
+         * controller }) => {} */
+        this.selectionCallback = undefined;
+
+        /** callback for hovering: (hoverInfo : { node, controller }) => {} */
+        this.hoverCallback = undefined;
+
+        /** If the renderer should compute selection information in the next frame. Is automatically reset after the frame is rendered */
+        this.triggerSelection = false;
+        /** If the renderer should compute hover information in the next frame. */
+        this.enableHover = false;
+
+        /* Array of screen positions for selection. Currently only one is supported. */
+        this.selectionPositions = [{ x: undefined, y: undefined }];
+
+        /* Array of screen positions for hovering. Currently only one is supported. */
+        this.hoverPositions = [{ x: undefined, y: undefined }];
+
         /** parameters used to configure the rendering */
         this.renderingParameters = {
             /** morphing between vertices */
@@ -38,16 +63,17 @@ class GltfState {
             /** skin / skeleton */
             skinning: true,
 
+            /** enabled extensions */
             enabledExtensions: {
-                /** KHR_materials_clearcoat */
+                /** KHR_materials_clearcoat adds a clear coat layer on top of the glTF base material */
                 KHR_materials_clearcoat: true,
-                /** KHR_materials_sheen */
+                /** KHR_materials_sheen adds a sheen layer on top of the glTF base material */
                 KHR_materials_sheen: true,
-                /** KHR_materials_transmission */
+                /** KHR_materials_transmission adds physical-based transparency */
                 KHR_materials_transmission: true,
-                /** KHR_materials_volume */
+                /** KHR_materials_volume adds support for volumetric materials. Used together with KHR_materials_transmission and KHR_materials_diffuse_transmission */
                 KHR_materials_volume: true,
-                /** KHR_materials_volume_scatter */
+                /** KHR_materials_volume_scatter allows the simulation of scattering light inside a volume. Used together with KHR_materials_volume */
                 KHR_materials_volume_scatter: true,
                 /** KHR_materials_ior makes the index of refraction configurable */
                 KHR_materials_ior: true,
@@ -55,12 +81,22 @@ class GltfState {
                 KHR_materials_specular: true,
                 /** KHR_materials_iridescence adds a thin-film iridescence effect */
                 KHR_materials_iridescence: true,
+                /** KHR_materials_diffuse_transmission allows light to pass diffusely through the material  */
                 KHR_materials_diffuse_transmission: true,
                 /** KHR_materials_anisotropy defines microfacet grooves in the surface, stretching the specular reflection on the surface */
                 KHR_materials_anisotropy: true,
-                /** KHR_materials_dispersion defines configuring the strength of the angular separation of colors (chromatic abberation)*/
+                /** KHR_materials_dispersion defines configuring the strength of the angular separation of colors (chromatic abberation) */
                 KHR_materials_dispersion: true,
-                KHR_materials_emissive_strength: true
+                /** KHR_materials_emissive_strength enables emissive factors larger than 1.0 */
+                KHR_materials_emissive_strength: true,
+                /** KHR_interactivity enables execution of a behavior graph */
+                KHR_interactivity: true,
+                /** KHR_node_hoverability enables hovering over nodes */
+                KHR_node_hoverability: true,
+                /** KHR_node_selectability enables selecting nodes */
+                KHR_node_selectability: true,
+                /** KHR_node_visibility enables controlling the visibility of nodes */
+                KHR_node_visibility: true
             },
             /** clear color expressed as list of ints in the range [0, 255] */
             clearColor: [58, 64, 74, 255],

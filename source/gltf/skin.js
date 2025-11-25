@@ -10,6 +10,7 @@ import { gltfSampler } from "./sampler.js";
 
 class gltfSkin extends GltfObject {
     static animatedProperties = [];
+    static readOnlyAnimatedProperties = ["joints", "skeleton"];
     constructor() {
         super();
 
@@ -68,9 +69,16 @@ class gltfSkin extends GltfObject {
     }
 
     computeJoints(gltf, webGlContext) {
-        let ibmAccessor = null;
+        let ibmAccessorData = null;
         if (this.inverseBindMatrices !== undefined) {
-            ibmAccessor = gltf.accessors[this.inverseBindMatrices].getDeinterlacedView(gltf);
+            const ibmAccessor = gltf.accessors[this.inverseBindMatrices];
+            if (ibmAccessor.componentType === GL.FLOAT) {
+                ibmAccessorData = ibmAccessor.getDeinterlacedView(gltf);
+            } else {
+                console.warn(
+                    "EXT_mesh_gpu_instancing inverseBindMatrices accessor must be a float"
+                );
+            }
         }
 
         this.jointMatrices = [];
@@ -85,8 +93,8 @@ class gltfSkin extends GltfObject {
 
             let jointMatrix = mat4.clone(node.worldTransform);
 
-            if (ibmAccessor !== null) {
-                let ibm = jsToGlSlice(ibmAccessor, i * 16, 16);
+            if (ibmAccessorData !== null) {
+                let ibm = jsToGlSlice(ibmAccessorData, i * 16, 16);
                 mat4.mul(jointMatrix, jointMatrix, ibm);
             }
 

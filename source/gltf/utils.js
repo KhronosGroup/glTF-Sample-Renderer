@@ -49,8 +49,10 @@ function objectsFromJsons(jsonObjects, GltfType) {
     }
 
     const objects = [];
-    for (const jsonObject of jsonObjects) {
-        objects.push(objectFromJson(jsonObject, GltfType));
+    for (const [index, jsonObject] of jsonObjects.entries()) {
+        const object = objectFromJson(jsonObject, GltfType);
+        object.gltfObjectIndex = index;
+        objects.push(object);
     }
     return objects;
 }
@@ -151,69 +153,14 @@ class Timer {
     }
 
     start() {
-        this.startTime = new Date().getTime() / 1000;
+        this.startTime = performance.now() / 1000;
         this.endTime = undefined;
         this.seconds = undefined;
     }
 
     stop() {
-        this.endTime = new Date().getTime() / 1000;
+        this.endTime = performance.now() / 1000;
         this.seconds = this.endTime - this.startTime;
-    }
-}
-
-class AnimationTimer {
-    constructor() {
-        this.startTime = 0;
-        this.paused = true;
-        this.fixedTime = null;
-        this.pausedTime = 0;
-    }
-
-    elapsedSec() {
-        if (this.paused) {
-            return this.pausedTime / 1000;
-        } else {
-            return this.fixedTime || (new Date().getTime() - this.startTime) / 1000;
-        }
-    }
-
-    toggle() {
-        if (this.paused) {
-            this.unpause();
-        } else {
-            this.pause();
-        }
-    }
-
-    start() {
-        this.startTime = new Date().getTime();
-        this.paused = false;
-    }
-
-    pause() {
-        this.pausedTime = new Date().getTime() - this.startTime;
-        this.paused = true;
-    }
-
-    unpause() {
-        this.startTime += new Date().getTime() - this.startTime - this.pausedTime;
-        this.paused = false;
-    }
-
-    reset() {
-        if (!this.paused) {
-            // Animation is running.
-            this.startTime = new Date().getTime();
-        } else {
-            this.startTime = 0;
-        }
-        this.pausedTime = 0;
-    }
-
-    setFixedTime(timeInSec) {
-        this.paused = false;
-        this.fixedTime = timeInSec;
     }
 }
 
@@ -236,6 +183,5 @@ export {
     combinePaths,
     UniformStruct,
     Timer,
-    AnimationTimer,
     initGlForMembers
 };

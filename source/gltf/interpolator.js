@@ -7,9 +7,13 @@ class gltfInterpolator {
     constructor() {
         this.prevKey = 0;
         this.prevT = 0.0;
+        this.prevRequestedT = 0.0;
     }
 
     slerpQuat(q1, q2, t) {
+        if (q1 instanceof Float64Array || q2 instanceof Float64Array) {
+            glMatrix.setMatrixArrayType(Float64Array);
+        }
         const qn1 = quat.create();
         const qn2 = quat.create();
 
@@ -21,26 +25,34 @@ class gltfInterpolator {
         quat.slerp(quatResult, qn1, qn2, t);
         quat.normalize(quatResult, quatResult);
 
+        glMatrix.setMatrixArrayType(Float32Array);
+
         return quatResult;
     }
 
     step(prevKey, output, stride) {
+        if (output instanceof Float64Array) {
+            glMatrix.setMatrixArrayType(Float64Array);
+        }
         const result = new glMatrix.ARRAY_TYPE(stride);
 
         for (let i = 0; i < stride; ++i) {
             result[i] = output[prevKey * stride + i];
         }
-
+        glMatrix.setMatrixArrayType(Float32Array);
         return result;
     }
 
     linear(prevKey, nextKey, output, t, stride) {
+        if (output instanceof Float64Array) {
+            glMatrix.setMatrixArrayType(Float64Array);
+        }
         const result = new glMatrix.ARRAY_TYPE(stride);
 
         for (let i = 0; i < stride; ++i) {
             result[i] = output[prevKey * stride + i] * (1 - t) + output[nextKey * stride + i] * t;
         }
-
+        glMatrix.setMatrixArrayType(Float32Array);
         return result;
     }
 
@@ -53,6 +65,9 @@ class gltfInterpolator {
         const V = 1 * stride;
         const B = 2 * stride;
 
+        if (output instanceof Float64Array) {
+            glMatrix.setMatrixArrayType(Float64Array);
+        }
         const result = new glMatrix.ARRAY_TYPE(stride);
         const tSq = t ** 2;
         const tCub = t ** 3;
@@ -72,6 +87,8 @@ class gltfInterpolator {
                 (tCub - tSq) * a;
         }
 
+        glMatrix.setMatrixArrayType(Float32Array);
+
         return result;
     }
 
@@ -79,7 +96,7 @@ class gltfInterpolator {
         this.prevKey = 0;
     }
 
-    interpolate(gltf, channel, sampler, t, stride, maxTime) {
+    interpolate(gltf, channel, sampler, t, stride, maxTime, reverse) {
         if (t === undefined) {
             return undefined;
         }
@@ -87,36 +104,62 @@ class gltfInterpolator {
         const input = gltf.accessors[sampler.input].getNormalizedDeinterlacedView(gltf);
         const output = gltf.accessors[sampler.output].getNormalizedDeinterlacedView(gltf);
 
+        this.prevRequestedT = t;
+
         if (output.length === stride) {
             // no interpolation for single keyFrame animations
-            return jsToGlSlice(output, 0, stride);
+            if (output instanceof Float64Array) {
+                glMatrix.setMatrixArrayType(Float64Array);
+            }
+            const result = jsToGlSlice(output, 0, stride);
+            glMatrix.setMatrixArrayType(Float32Array);
+            return result;
         }
 
         // Wrap t around, so the animation loops.
         // Make sure that t is never earlier than the first keyframe and never later then the last keyframe.
+        const isNegative = t < 0;
         t = t % maxTime;
+        if (isNegative) {
+            t += maxTime;
+        }
         t = clamp(t, input[0], input[input.length - 1]);
 
-        if (this.prevT > t) {
+        if (this.prevT > t && !reverse) {
             this.prevKey = 0;
+        }
+
+        if (reverse && this.prevT < t) {
+            this.prevKey = input.length - 1;
         }
 
         this.prevT = t;
 
         // Find next keyframe: min{ t of input | t > prevKey }
         let nextKey = null;
-        for (let i = this.prevKey; i < input.length; ++i) {
-            if (t <= input[i]) {
-                nextKey = clamp(i, 1, input.length - 1);
-                break;
+        // We need to search backwards for reversed animations
+        if (reverse) {
+            for (let i = this.prevKey; i >= 0; --i) {
+                if (t >= input[i]) {
+                    nextKey = i;
+                    break;
+                }
             }
+            this.prevKey = clamp(nextKey + 1, nextKey, input.length - 1);
+        } else {
+            for (let i = this.prevKey; i < input.length; ++i) {
+                if (t <= input[i]) {
+                    nextKey = clamp(i, 1, input.length - 1);
+                    break;
+                }
+            }
+            this.prevKey = clamp(nextKey - 1, 0, nextKey);
         }
-        this.prevKey = clamp(nextKey - 1, 0, nextKey);
 
-        const keyDelta = input[nextKey] - input[this.prevKey];
+        const keyDelta = Math.abs(input[nextKey] - input[this.prevKey]);
 
         // Normalize t: [t0, t1] -> [0, 1]
-        const tn = (t - input[this.prevKey]) / keyDelta;
+        const tn = Math.abs(t - input[this.prevKey]) / keyDelta;
 
         if (channel.target.path === InterpolationPath.ROTATION) {
             if (InterpolationModes.CUBICSPLINE === sampler.interpolation) {
@@ -149,6 +192,9 @@ class gltfInterpolator {
         const y = output[4 * index + 1];
         const z = output[4 * index + 2];
         const w = output[4 * index + 3];
+        if (output instanceof Float64Array) {
+            return new Float64Array([x, y, z, w]);
+        }
         return quat.fromValues(x, y, z, w);
     }
 }

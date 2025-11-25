@@ -75,6 +75,62 @@ class gltfCamera extends GltfObject {
         return projection;
     }
 
+    getNearPlaneForPixel(x, y, width, height) {
+        let subRight, subTop, subLeft, subBottom;
+        if (this.type === "perspective") {
+            const aspectRatio = this.perspective.aspectRatio ?? width / height;
+            const top = Math.tan(this.perspective.yfov / 2) * this.perspective.znear;
+            const bottom = -top;
+            const left = bottom * aspectRatio;
+            const right = top * aspectRatio;
+            const computedWidth = Math.abs(right - left);
+            const computedHeight = Math.abs(top - bottom);
+
+            const subWidth = computedWidth / width;
+            const subHeight = computedHeight / height;
+            subLeft = left + x * subWidth;
+            subBottom = bottom + y * subHeight;
+            subRight = subLeft + subWidth;
+            subTop = subBottom + subHeight;
+        } else if (this.type === "orthographic") {
+            subLeft = -this.orthographic.xmag + ((2 * this.orthographic.xmag) / width) * x;
+            subRight = subLeft + (2 * this.orthographic.xmag) / width;
+            subBottom = -this.orthographic.ymag + ((2 * this.orthographic.ymag) / height) * y;
+            subTop = subBottom + (2 * this.orthographic.ymag) / height;
+        }
+        return { left: subLeft, bottom: subBottom, right: subRight, top: subTop };
+    }
+
+    getProjectionMatrixForPixel(x, y, width, height) {
+        const projection = mat4.create();
+
+        const nearPlane = this.getNearPlaneForPixel(x, y, width, height);
+
+        if (this.type === "perspective") {
+            mat4.frustum(
+                projection,
+                nearPlane.left,
+                nearPlane.right,
+                nearPlane.bottom,
+                nearPlane.top,
+                this.perspective.znear,
+                this.perspective.zfar
+            );
+        } else if (this.type === "orthographic") {
+            mat4.ortho(
+                projection,
+                nearPlane.left,
+                nearPlane.right,
+                nearPlane.bottom,
+                nearPlane.top,
+                this.orthographic.znear,
+                this.orthographic.zfar
+            );
+        }
+
+        return projection;
+    }
+
     getViewMatrix(gltf) {
         let result = mat4.create();
         mat4.invert(result, this.getTransformMatrix(gltf));

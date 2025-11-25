@@ -14,9 +14,19 @@ class gltfAnimation extends GltfObject {
         this.samplers = [];
         this.name = "";
 
+        // For KHR_interactivity
+        this.createdTimestamp = undefined; // Time in seconds after graph creation when the animation was created. Computed via animation timer.
+        this.startTime = 0;
+        this.stopTime = undefined;
+        this.endTime = Infinity;
+        this.speed = 1.0;
+        this.endCallback = undefined; // Callback to call when the animation ends.
+        this.stopCallback = undefined; // Callback to call when the animation stops.
+
         // not gltf
         this.interpolators = [];
-        this.maxTime = 0;
+        this.maxTime = NaN;
+        this.minTime = NaN;
         this.disjointAnimations = [];
 
         this.errors = [];
@@ -39,21 +49,103 @@ class gltfAnimation extends GltfObject {
         }
     }
 
+    reset() {
+        this.createdTimestamp = undefined;
+        this.startTime = 0;
+        this.stopTime = undefined;
+        this.endTime = Infinity;
+        this.speed = 1.0;
+        this.endCallback = undefined;
+        this.stopCallback = undefined;
+    }
+
+    computeMinMaxTime(gltf) {
+        if (isNaN(this.maxTime) || isNaN(this.minTime)) {
+            this.maxTime = -Infinity;
+            this.minTime = Infinity;
+            for (let i = 0; i < this.channels.length; ++i) {
+                const channel = this.channels[i];
+                const sampler = this.samplers[channel.sampler];
+                const input = gltf.accessors[sampler.input];
+                if (
+                    input.max === undefined ||
+                    input.min === undefined ||
+                    input.max.length !== 1 ||
+                    input.min.length !== 1
+                ) {
+                    console.error("Invalid input accessor for animation channel:", channel);
+                    this.minTime = undefined;
+                    this.maxTime = undefined;
+                    return;
+                }
+                const max = input.max[0];
+                const min = input.min[0];
+                if (max > this.maxTime) {
+                    this.maxTime = max;
+                }
+                if (min < this.minTime) {
+                    this.minTime = min;
+                }
+            }
+        }
+        if (this.minTime > this.maxTime || this.minTime < 0 || this.maxTime < 0) {
+            console.error("Invalid min/max time for animation with index:", this.gltfObjectIndex);
+            this.minTime = undefined;
+            this.maxTime = undefined;
+        }
+    }
+
     // advance the animation, if totalTime is undefined, the animation is deactivated
     advance(gltf, totalTime) {
         if (this.channels === undefined) {
             return;
         }
 
-        if (this.maxTime == 0) {
-            for (let i = 0; i < this.channels.length; ++i) {
-                const channel = this.channels[i];
-                const sampler = this.samplers[channel.sampler];
-                const input = gltf.accessors[sampler.input].getDeinterlacedView(gltf);
-                const max = input[input.length - 1];
-                if (max > this.maxTime) {
-                    this.maxTime = max;
+        this.computeMinMaxTime(gltf);
+
+        if (this.maxTime === undefined || this.minTime === undefined) {
+            return;
+        }
+
+        let stopAnimation = false;
+        let endAnimation = false;
+        let elapsedTime = totalTime;
+        let reverse = false;
+
+        // createdTimestamp is only used for KHR_interactivity
+        if (this.createdTimestamp !== undefined) {
+            elapsedTime = totalTime - this.createdTimestamp;
+            elapsedTime *= this.speed;
+            if (this.startTime > this.endTime) {
+                elapsedTime *= -1;
+                reverse = true;
+            }
+            elapsedTime += this.startTime;
+            if (this.startTime === this.endTime) {
+                elapsedTime = this.startTime;
+                endAnimation = true;
+            } else if (this.stopTime !== undefined) {
+                // Check if stopTime is reached
+                if (
+                    (this.startTime < this.endTime &&
+                        elapsedTime >= this.stopTime &&
+                        this.stopTime >= this.startTime &&
+                        this.stopTime < this.endTime) ||
+                    (this.startTime > this.endTime &&
+                        elapsedTime <= this.stopTime &&
+                        this.stopTime <= this.startTime &&
+                        this.stopTime > this.endTime)
+                ) {
+                    elapsedTime = this.stopTime;
+                    stopAnimation = true;
                 }
+            } else if (
+                // Check if endTime is reached
+                (this.startTime < this.endTime && elapsedTime >= this.endTime) ||
+                (this.startTime > this.endTime && elapsedTime <= this.endTime)
+            ) {
+                elapsedTime = this.endTime;
+                endAnimation = true;
             }
         }
 
@@ -85,21 +177,28 @@ class gltfAnimation extends GltfObject {
                     break;
             }
 
+            // Search for the animated property
             if (property != null) {
-                if (property.startsWith("/extensions/KHR_lights_punctual/")) {
-                    const suffix = property.substring("/extensions/KHR_lights_punctual/".length);
-                    property = "/" + suffix;
-                }
                 let jsonPointer = JsonPointer.create(property);
                 let parentObject = jsonPointer.parent(gltf);
+                if (parentObject === undefined) {
+                    if (!this.errors.includes(property)) {
+                        console.warn(`Cannot find property ${property}`);
+                        this.errors.push(property);
+                    }
+                    continue;
+                }
                 let back = jsonPointer.path.at(-1);
                 let animatedArrayElement = undefined;
+
+                // Check if we are animating an array element e.g. weights
                 if (Array.isArray(parentObject)) {
                     animatedArrayElement = Number(back);
                     jsonPointer = JsonPointer.create(jsonPointer.path.slice(0, -1));
                     parentObject = jsonPointer.parent(gltf);
                     back = jsonPointer.path.at(-1);
                 }
+
                 let animatedProperty = undefined;
                 if (
                     parentObject.animatedPropertyObjects &&
@@ -117,6 +216,8 @@ class gltfAnimation extends GltfObject {
                     }
                     continue;
                 }
+
+                // glTF value is not defined and does not have a default value
                 if (animatedProperty.restValue === undefined) {
                     continue;
                 }
@@ -126,17 +227,21 @@ class gltfAnimation extends GltfObject {
                     stride = animatedProperty.restValue[animatedArrayElement]?.length ?? 1;
                 }
 
-                const interpolant = interpolator.interpolate(
+                let interpolant = interpolator.interpolate(
                     gltf,
                     channel,
                     sampler,
-                    totalTime,
+                    elapsedTime,
                     stride,
-                    this.maxTime
+                    this.maxTime,
+                    reverse
                 );
                 if (interpolant === undefined) {
                     animatedProperty.rest();
                     continue;
+                }
+                if (typeof animatedProperty.value() === "boolean") {
+                    interpolant = interpolant[0] !== 0;
                 }
                 // The interpolator will always return a `Float32Array`, even if the animated value is a scalar.
                 // For the renderer it's not a problem because uploading a single-element array is the same as uploading a scalar to a uniform.
@@ -158,6 +263,19 @@ class gltfAnimation extends GltfObject {
                     }
                 }
             }
+        }
+
+        // Handle end/stop of animation in interactivity
+        if (stopAnimation) {
+            this.createdTimestamp = undefined;
+            this.stopCallback?.();
+            this.reset();
+            return;
+        }
+        if (endAnimation) {
+            this.createdTimestamp = undefined;
+            this.endCallback?.();
+            this.reset();
         }
     }
 }

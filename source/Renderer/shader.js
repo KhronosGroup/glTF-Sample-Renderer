@@ -164,6 +164,29 @@ class gltfShader {
                     this.gl.context.uniform4iv(uniform.loc, value);
                     break;
 
+                case GL.UNSIGNED_INT: {
+                    if (
+                        Array.isArray(value) ||
+                        value instanceof Uint32Array ||
+                        value instanceof Int32Array
+                    ) {
+                        this.gl.context.uniform1uiv(uniform.loc, value);
+                    } else {
+                        this.gl.context.uniform1ui(uniform.loc, value);
+                    }
+                    break;
+                }
+
+                case GL.UNSIGNED_INT_VEC2:
+                    this.gl.context.uniform2uiv(uniform.loc, value);
+                    break;
+                case GL.UNSIGNED_INT_VEC3:
+                    this.gl.context.uniform3uiv(uniform.loc, value);
+                    break;
+                case GL.UNSIGNED_INT_VEC4:
+                    this.gl.context.uniform4uiv(uniform.loc, value);
+                    break;
+
                 case GL.FLOAT_MAT2:
                     this.gl.context.uniformMatrix2fv(uniform.loc, false, value);
                     break;

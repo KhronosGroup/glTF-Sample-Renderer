@@ -1,6 +1,7 @@
 import { mat4, quat, vec3 } from "gl-matrix";
 import { jsToGl, jsToGlSlice } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
+import { GL } from "../Renderer/webgl.js";
 
 // contain:
 // transform
@@ -8,6 +9,8 @@ import { GltfObject } from "./gltf_object.js";
 
 class gltfNode extends GltfObject {
     static animatedProperties = ["rotation", "scale", "translation", "weights"];
+    static readOnlyAnimatedProperties = ["camera", "children", "mesh", "skin", "weights"];
+    static currentPickingColor = 1;
     constructor() {
         super();
         this.camera = undefined;
@@ -29,10 +32,17 @@ class gltfNode extends GltfObject {
         this.light = undefined;
         this.instanceMatrices = undefined;
         this.instanceWorldTransforms = undefined;
+        this.pickingColor = undefined;
+        this.parentNode = undefined;
+        this.scene = undefined;
     }
 
     // eslint-disable-next-line no-unused-vars
     initGl(gltf, webGlContext) {
+        if (this.mesh !== undefined) {
+            this.pickingColor = gltfNode.currentPickingColor;
+            gltfNode.currentPickingColor += 1;
+        }
         if (this.extensions?.EXT_mesh_gpu_instancing?.attributes !== undefined) {
             const firstAccessor = Object.values(
                 this.extensions?.EXT_mesh_gpu_instancing?.attributes
@@ -42,17 +52,37 @@ class gltfNode extends GltfObject {
                 this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
             let translationData = undefined;
             if (translationAccessor !== undefined) {
-                translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
+                if (translationAccessor.componentType === GL.FLOAT) {
+                    translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
+                } else {
+                    console.warn("EXT_mesh_gpu_instancing translation accessor must be a float");
+                }
             }
             const rotationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
             let rotationData = undefined;
             if (rotationAccessor !== undefined) {
-                rotationData = gltf.accessors[rotationAccessor].getDeinterlacedView(gltf);
+                if (
+                    rotationAccessor.componentType === GL.FLOAT ||
+                    (rotationAccessor.normalized &&
+                        (rotationAccessor.componentType === GL.BYTE ||
+                            rotationAccessor.componentType === GL.SHORT))
+                ) {
+                    rotationData =
+                        gltf.accessors[rotationAccessor].getNormalizedDeinterlacedView(gltf);
+                } else {
+                    console.warn(
+                        "EXT_mesh_gpu_instancing rotation accessor must be a float, byte normalized, or short normalized"
+                    );
+                }
             }
             const scaleAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
             let scaleData = undefined;
             if (scaleAccessor !== undefined) {
-                scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+                if (scaleAccessor.componentType === GL.FLOAT) {
+                    scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+                } else {
+                    console.warn("EXT_mesh_gpu_instancing scale accessor must be a float");
+                }
             }
             this.instanceMatrices = [];
             for (let i = 0; i < count; i++) {
@@ -74,6 +104,22 @@ class gltfNode extends GltfObject {
         super.fromJson(jsonNode);
         if (jsonNode.matrix !== undefined) {
             this.applyMatrix(jsonNode.matrix);
+        }
+        if (jsonNode.extensions?.KHR_node_visibility !== undefined) {
+            this.extensions.KHR_node_visibility = new KHR_node_visibility();
+            this.extensions.KHR_node_visibility.fromJson(jsonNode.extensions.KHR_node_visibility);
+        }
+        if (jsonNode.extensions?.KHR_node_selectability !== undefined) {
+            this.extensions.KHR_node_selectability = new KHR_node_selectability();
+            this.extensions.KHR_node_selectability.fromJson(
+                jsonNode.extensions.KHR_node_selectability
+            );
+        }
+        if (jsonNode.extensions?.KHR_node_hoverability !== undefined) {
+            this.extensions.KHR_node_hoverability = new KHR_node_hoverability();
+            this.extensions.KHR_node_hoverability.fromJson(
+                jsonNode.extensions.KHR_node_hoverability
+            );
         }
     }
 
@@ -110,6 +156,30 @@ class gltfNode extends GltfObject {
             this.translation,
             this.scale
         );
+    }
+}
+
+class KHR_node_visibility extends GltfObject {
+    static animatedProperties = ["visible"];
+    constructor() {
+        super();
+        this.visible = true;
+    }
+}
+
+class KHR_node_selectability extends GltfObject {
+    static animatedProperties = ["selectable"];
+    constructor() {
+        super();
+        this.selectable = true;
+    }
+}
+
+class KHR_node_hoverability extends GltfObject {
+    static animatedProperties = ["hoverable"];
+    constructor() {
+        super();
+        this.hoverable = true;
     }
 }
 
