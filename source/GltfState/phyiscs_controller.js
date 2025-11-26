@@ -270,52 +270,39 @@ class PhysicsInterface {
     generateSimpleShape(shape, scale = vec3.fromValues(1, 1, 1), scaleAxis = quat.create()) {
         switch (shape.type) {
             case "box":
-                this.simpleShapes.push(
-                    this.generateBox(
-                        shape.box.size[0],
-                        shape.box.size[1],
-                        shape.box.size[2],
-                        scale,
-                        scaleAxis
-                    )
+                return this.generateBox(
+                    shape.box.size[0],
+                    shape.box.size[1],
+                    shape.box.size[2],
+                    scale,
+                    scaleAxis
                 );
-                break;
             case "capsule":
-                this.simpleShapes.push(
-                    this.generateCapsule(
-                        shape.capsule.height,
-                        shape.capsule.radiusTop,
-                        shape.capsule.radiusBottom,
-                        scale,
-                        scaleAxis
-                    )
+                return this.generateCapsule(
+                    shape.capsule.height,
+                    shape.capsule.radiusTop,
+                    shape.capsule.radiusBottom,
+                    scale,
+                    scaleAxis
                 );
-                break;
             case "cylinder":
-                this.simpleShapes.push(
-                    this.generateCylinder(
-                        shape.cylinder.height,
-                        shape.cylinder.radiusTop,
-                        shape.cylinder.radiusBottom,
-                        scale,
-                        scaleAxis
-                    )
+                return this.generateCylinder(
+                    shape.cylinder.height,
+                    shape.cylinder.radiusTop,
+                    shape.cylinder.radiusBottom,
+                    scale,
+                    scaleAxis
                 );
-                break;
             case "sphere":
-                this.simpleShapes.push(this.generateSphere(shape.sphere.radius, scale, scaleAxis));
-                break;
+                return this.generateSphere(shape.sphere.radius, scale, scaleAxis);
             case "plane":
-                this.simpleShapes.push(
-                    this.generatePlane(
-                        shape.plane.width,
-                        shape.plane.height,
-                        shape.plane.doubleSided,
-                        scale,
-                        scaleAxis
-                    )
+                return this.generatePlane(
+                    shape.plane.width,
+                    shape.plane.height,
+                    shape.plane.doubleSided,
+                    scale,
+                    scaleAxis
                 );
-                break;
         }
     }
 
@@ -325,7 +312,7 @@ class PhysicsInterface {
             return;
         }
         for (const shape of gltf.extensions.KHR_implicit_shapes.shapes) {
-            this.generateSimpleShape(shape);
+            this.simpleShapes.push(this.generateSimpleShape(shape));
         }
     }
 }
@@ -335,11 +322,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         super();
         this.PhysX = undefined;
         this.physics = undefined;
+        this.defaultMaterial = undefined;
+        this.tolerances = undefined;
+
+        // Needs to be reset for each scene
         this.scene = undefined;
         this.nodeToActor = new Map();
-        this.defaultMaterial = new gltfPhysicsMaterial();
-        this.tolerances = undefined;
         this.filterData = [];
+        this.physXFilterData = [];
+        this.physXMaterials = [];
     }
 
     async initializeEngine() {
@@ -361,6 +352,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         this.tolerances = new this.PhysX.PxTolerancesScale();
         this.physics = this.PhysX.CreatePhysics(version, foundation, this.tolerances);
+        this.defaultMaterial = this.createPhysXMaterial(new gltfPhysicsMaterial());
         console.log("Created PxPhysics");
         return this.PhysX;
     }
@@ -608,65 +600,35 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
     }
 
-    createShape(
-        gltf,
-        collider,
-        shapeFlags,
-        noMeshShape = false,
-        scale = vec3.fromValues(1, 1, 1),
-        scaleAxis = quat.create()
-    ) {
-        let geometry = null;
-        if (collider?.geometry?.shape !== undefined) {
-            if (
-                scale[0] !== 1 ||
-                scale[1] !== 1 ||
-                scale[2] !== 1 ||
-                quat.equals(scaleAxis, quat.create()) === false
-            ) {
-                const simpleShape =
-                    gltf.extensions.KHR_implicit_shapes.shapes[collider.geometry.shape];
-                geometry = this.generateSimpleShape(simpleShape, scale, scaleAxis);
-            } else {
-                geometry = this.simpleShapes[collider.geometry.shape];
-            }
-        } else if (collider?.geometry?.node !== undefined) {
-            const node = gltf.nodes[collider.geometry.node];
-            if (collider.geometry.convexHull === true || noMeshShape === true) {
-                geometry = this.createConvexMeshFromNode(gltf, node, scale, scaleAxis);
-            } else {
-                geometry = this.createMeshFromNode(gltf, node, scale, scaleAxis);
-            }
+    createPhysXMaterial(gltfPhysicsMaterial) {
+        if (gltfPhysicsMaterial === undefined) {
+            return this.defaultMaterial;
         }
-
-        const gltfMaterial = collider.physicsMaterial
-            ? gltf.extensions.KHR_physics_rigid_bodies.physicsMaterials[collider.physicsMaterial]
-            : this.defaultMaterial;
 
         const physxMaterial = this.physics.createMaterial(
-            gltfMaterial.staticFriction,
-            gltfMaterial.dynamicFriction,
-            gltfMaterial.restitution
+            gltfPhysicsMaterial.staticFriction,
+            gltfPhysicsMaterial.dynamicFriction,
+            gltfPhysicsMaterial.restitution
         );
-        if (gltfMaterial.frictionCombine !== undefined) {
-            physxMaterial.setFrictionCombine(this.mapCombineMode(gltfMaterial.frictionCombine));
-        }
-        if (gltfMaterial.restitutionCombine !== undefined) {
-            physxMaterial.setRestitutionCombineMode(
-                this.mapCombineMode(gltfMaterial.restitutionCombine)
+        if (gltfPhysicsMaterial.frictionCombine !== undefined) {
+            physxMaterial.setFrictionCombine(
+                this.mapCombineMode(gltfPhysicsMaterial.frictionCombine)
             );
         }
+        if (gltfPhysicsMaterial.restitutionCombine !== undefined) {
+            physxMaterial.setRestitutionCombineMode(
+                this.mapCombineMode(gltfPhysicsMaterial.restitutionCombine)
+            );
+        }
+        return physxMaterial;
+    }
 
-        const shape = this.physics.createShape(geometry, physxMaterial, true, shapeFlags);
-
+    createPhysXCollisionFilter(collisionFilter) {
         let word0 = null;
         let word1 = null;
-        if (
-            collider?.collisionFilter !== undefined &&
-            collider.collisionFilter < this.filterData.length - 1
-        ) {
-            word0 = 1 << collider.collisionFilter;
-            word1 = this.filterData[collider.collisionFilter];
+        if (collisionFilter !== undefined && collisionFilter < this.filterData.length - 1) {
+            word0 = 1 << collisionFilter;
+            word1 = this.filterData[collisionFilter];
         } else {
             // Default filter id is signed bit and all bits set to collide with everything
             word0 = Math.pow(2, 31);
@@ -674,9 +636,56 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
 
         const additionalFlags = 0;
-        const filterData = new this.PhysX.PxFilterData(word0, word1, additionalFlags, 0);
+        return new this.PhysX.PxFilterData(word0, word1, additionalFlags, 0);
+    }
 
-        shape.setSimulationFilterData(filterData);
+    createShape(
+        gltf,
+        node,
+        shapeFlags,
+        physXMaterial,
+        physXFilterData,
+        convexHull,
+        scale = vec3.fromValues(1, 1, 1),
+        scaleAxis = quat.create()
+    ) {
+        const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+        let geometry = undefined;
+        if (collider?.geometry?.shape !== undefined) {
+            if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
+                const simpleShape =
+                    gltf.extensions.KHR_implicit_shapes.shapes[collider.geometry.shape];
+                geometry = this.generateSimpleShape(simpleShape, scale, scaleAxis);
+            } else {
+                geometry = this.simpleShapes[collider.geometry.shape];
+            }
+        } else if (node.mesh !== undefined) {
+            if (convexHull === true) {
+                geometry = this.createConvexMeshFromNode(gltf, node, scale, scaleAxis);
+            } else {
+                geometry = this.createMeshFromNode(gltf, node, scale, scaleAxis);
+            }
+        }
+
+        if (geometry === undefined) {
+            return undefined;
+        }
+
+        if (physXMaterial === undefined) {
+            if (collider?.physicsMaterial !== undefined) {
+                physXMaterial = this.physXMaterials[collider.physicsMaterial];
+            } else {
+                physXMaterial = this.defaultMaterial;
+            }
+        }
+        const shape = this.physics.createShape(geometry, physXMaterial, true, shapeFlags);
+
+        if (physXFilterData === undefined) {
+            physXFilterData =
+                this.physXFilterData[collider?.collisionFilter ?? this.physXFilterData.length - 1];
+        }
+
+        shape.setSimulationFilterData(physXFilterData);
 
         return shape;
     }
@@ -762,12 +771,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             gltf,
             node,
             shapeFlags,
+            collider,
             shapeTransform,
             offsetTransform,
-            origin = false
+            isReferenceNode
         ) => {
             // Do not add other motion bodies' shapes to this actor
-            if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined && !origin) {
+            if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
                 return;
             }
             const scalingTransform = mat4.create();
@@ -777,19 +787,86 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const computedOffset = mat4.create();
             mat4.multiply(computedOffset, offsetTransform, node.getLocalTransform());
 
-            if (node.extensions?.KHR_physics_rigid_bodies?.collider !== undefined) {
-                const shape = this.createShape(
-                    gltf,
-                    node.extensions.KHR_physics_rigid_bodies.collider,
-                    shapeFlags,
-                    noMeshShapes
-                    //scalingTransform
-                );
+            const materialIndex =
+                node.extensions?.KHR_physics_rigid_bodies?.collider?.physicsMaterial ??
+                collider?.physicsMaterial;
 
+            const filterIndex =
+                node.extensions?.KHR_physics_rigid_bodies?.collider?.collisionFilter ??
+                collider?.collisionFilter;
+
+            const material = materialIndex
+                ? this.physXMaterials[materialIndex]
+                : this.defaultMaterial;
+
+            const physXFilterData = filterIndex
+                ? this.physXFilterData[filterIndex]
+                : this.physXFilterData[this.physXFilterData.length - 1];
+
+            const isConvexHull =
+                node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.convexHull ??
+                collider?.geometry?.convexHull;
+
+            const convexHull = noMeshShapes ? true : isConvexHull === true;
+
+            if (
+                isReferenceNode === false &&
+                node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.shape === undefined
+            ) {
+                if (
+                    node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.node !==
+                    undefined
+                ) {
+                    const colliderNodeIndex =
+                        node.extensions.KHR_physics_rigid_bodies.collider.geometry.node;
+                    const colliderNode = gltf.nodes[colliderNodeIndex];
+                    const referenceCollider = {
+                        geometry: { convexHull: isConvexHull },
+                        physicsMaterial: materialIndex,
+                        collisionFilter: filterIndex
+                    };
+                    recurseShapes(
+                        gltf,
+                        colliderNode,
+                        shapeFlags,
+                        referenceCollider,
+                        scalingTransform,
+                        computedOffset,
+                        true
+                    );
+                }
+
+                for (const childIndex of node.children) {
+                    const childNode = gltf.nodes[childIndex];
+                    recurseShapes(
+                        gltf,
+                        childNode,
+                        shapeFlags,
+                        undefined,
+                        scalingTransform,
+                        computedOffset,
+                        false
+                    );
+                }
+                return;
+            }
+
+            const shape = this.createShape(
+                gltf,
+                node,
+                shapeFlags,
+                material,
+                physXFilterData,
+                convexHull,
+                vec3.fromValues(1, 1, 1),
+                quat.create()
+            );
+
+            if (shape !== undefined) {
                 const translation = vec3.create();
                 const rotation = quat.create();
-                mat4.getTranslation(translation, offsetTransform);
-                mat4.getRotation(rotation, offsetTransform);
+                mat4.getTranslation(translation, computedOffset);
+                mat4.getRotation(rotation, computedOffset);
 
                 const PxPos = new this.PhysX.PxVec3(...translation);
                 const PxRotation = new this.PhysX.PxQuat(...rotation);
@@ -804,11 +881,62 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
             for (const childIndex of node.children) {
                 const childNode = gltf.nodes[childIndex];
-                recurseShapes(gltf, childNode, shapeFlags, scalingTransform, computedOffset);
+                recurseShapes(
+                    gltf,
+                    childNode,
+                    shapeFlags,
+                    collider,
+                    scalingTransform,
+                    computedOffset,
+                    isReferenceNode
+                );
             }
         };
 
-        recurseShapes(gltf, node, shapeFlags, worldTransform, mat4.create(), true);
+        const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+        const physxMaterial = collider?.physicsMaterial
+            ? this.physXMaterials[collider.physicsMaterial]
+            : this.defaultMaterial;
+        const physxFilterData =
+            this.physXFilterData[collider?.collisionFilter ?? this.physXFilterData.length - 1];
+
+        if (collider?.geometry?.node !== undefined) {
+            const colliderNode = gltf.nodes[collider.geometry.node];
+            recurseShapes(
+                gltf,
+                colliderNode,
+                shapeFlags,
+                node.extensions?.KHR_physics_rigid_bodies?.collider,
+                worldTransform,
+                mat4.create(),
+                true
+            );
+        } else if (collider?.geometry?.shape !== undefined) {
+            const shape = this.createShape(
+                gltf,
+                node,
+                shapeFlags,
+                physxMaterial,
+                physxFilterData,
+                true
+            );
+            if (shape !== undefined) {
+                actor.attachShape(shape);
+            }
+        }
+
+        for (const childIndex of node.children) {
+            const childNode = gltf.nodes[childIndex];
+            recurseShapes(
+                gltf,
+                childNode,
+                shapeFlags,
+                undefined,
+                worldTransform,
+                mat4.create(),
+                false
+            );
+        }
 
         this.PhysX.destroy(pos);
         this.PhysX.destroy(rotation);
@@ -832,8 +960,21 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (this.scene) {
             this.stopSimulation();
         }
+        this.resetSimulation();
         this.generateSimpleShapes(state.gltf);
         this.computeFilterData(state.gltf);
+        for (let i = 0; i < this.filterData.length; i++) {
+            const physXFilterData = this.createPhysXCollisionFilter(i);
+            this.physXFilterData.push(physXFilterData);
+        }
+
+        const materials = state.gltf.extensions?.KHR_physics_rigid_bodies?.physicsMaterials;
+        if (materials !== undefined) {
+            for (const gltfMaterial of materials) {
+                const physxMaterial = this.createPhysXMaterial(gltfMaterial);
+                this.physXMaterials.push(physxMaterial);
+            }
+        }
 
         const tmpVec = new this.PhysX.PxVec3(0, -9.81, 0);
         const sceneDesc = new this.PhysX.PxSceneDesc(this.tolerances);
@@ -914,7 +1055,22 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
     }
     resetSimulation() {
-        // Implementation specific to Nvidia physics engine
+        this.filterData = [];
+        for (const physXFilterData of this.physXFilterData) {
+            this.PhysX.destroy(physXFilterData);
+        }
+        this.physXFilterData = [];
+
+        for (const material of this.physXMaterials) {
+            material.release();
+        }
+        this.physXMaterials = [];
+
+        this.nodeToActor.clear();
+        if (this.scene) {
+            this.scene.release();
+            this.scene = undefined;
+        }
     }
     stopSimulation() {
         // Implementation specific to Nvidia physics engine
