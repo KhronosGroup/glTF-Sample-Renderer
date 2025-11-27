@@ -4,8 +4,12 @@ import PhysX from "physx-js-webidl";
 // eslint-disable-next-line no-unused-vars
 import PhysXBinaryFile from "physx-js-webidl/physx-js-webidl.wasm";
 import { gltfPhysicsMaterial } from "../gltf/rigid_bodies";
-import { createCapsuleVertexData, createCylinderVertexData } from "../geometry_generator";
-import { vec3, mat4, quat } from "gl-matrix";
+import {
+    createBoxVertexData,
+    createCapsuleVertexData,
+    createCylinderVertexData
+} from "../geometry_generator";
+import { vec3, mat4, quat, mat3 } from "gl-matrix";
 
 class PhysicsController {
     constructor() {
@@ -373,8 +377,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     generateBox(x, y, z, scale, scaleAxis) {
-        if (quat.equals(scaleAxis, quat.create()) === false) {
-            //TODO scale with rotation
+        if (
+            scale.every((value) => value === scale[0]) === false &&
+            quat.equals(scaleAxis, quat.create()) === false
+        ) {
+            const data = createBoxVertexData(x, y, z);
+            return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         }
         const geometry = new this.PhysX.PxBoxGeometry(
             (x / 2) * scale[0],
@@ -387,18 +395,19 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis) {
         //TODO scale with rotation
         const data = createCapsuleVertexData(radiusTop, radiusBottom, height);
-        return this.createConvexMesh(data.vertices, data.indices);
+        return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
     }
 
     generateCylinder(height, radiusTop, radiusBottom, scale, scaleAxis) {
         if (
-            quat.equals(scaleAxis, quat.create()) === false ||
+            (quat.equals(scaleAxis, quat.create()) === false &&
+                scale.every((value) => value === scale[0]) === false) ||
             radiusTop !== radiusBottom ||
             scale[0] !== scale[2]
         ) {
             //TODO scale with rotation
             const data = createCylinderVertexData(radiusTop, radiusBottom, height);
-            return this.createConvexMesh(data.vertices, data.indices);
+            return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         }
         height *= scale[1];
         radiusTop *= scale[0];
@@ -408,11 +417,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     generateSphere(radius, scale, scaleAxis) {
-        if (
-            scale.every((value) => value === scale[0]) === false ||
-            quat.equals(scaleAxis, quat.create()) === false
-        ) {
+        if (scale.every((value) => value === scale[0]) === false) {
             //TODO
+            const data = createCapsuleVertexData(radius, radius, 0, scale, scaleAxis);
+            return this.createConvexMesh(data.vertices, data.indices);
         } else {
             radius *= scale[0];
         }
@@ -463,16 +471,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(pxflags);
         this.PhysX.destroy(cookingParams);
         this.PhysX.destroy(des);
-        return geometry;
-    }
-
-    createTriangleMesh(
-        vertices,
-        indices,
-        scale = vec3.fromValues(1, 1, 1),
-        scaleAxis = quat.create()
-    ) {
-        const geometry = new this.PhysX.PxTriangleMeshGeometry(vertices, indices, scale, scaleAxis);
         return geometry;
     }
 
@@ -691,6 +689,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     createActor(gltf, node, shapeFlags, type, noMeshShapes = false) {
+        let parentNode = node;
+        while (parentNode.parentNode !== undefined) {
+            parentNode = parentNode.parentNode;
+        }
         const worldTransform = node.worldTransform;
         const translation = vec3.create();
         mat4.getTranslation(translation, worldTransform);
@@ -781,8 +783,17 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 return;
             }
             const scalingTransform = mat4.create();
+            console.log(
+                "Node scale for physics shape:",
+                node.gltfObjectIndex,
+                node.scale,
+                shapeTransform
+            );
             mat4.fromScaling(scalingTransform, node.scale);
+            const rotMat = mat4.create();
+            mat4.fromQuat(rotMat, node.rotation);
             mat4.multiply(scalingTransform, shapeTransform, scalingTransform);
+            mat4.multiply(scalingTransform, scalingTransform, rotMat);
 
             const computedOffset = mat4.create();
             mat4.multiply(computedOffset, offsetTransform, node.getLocalTransform());
@@ -851,6 +862,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 return;
             }
 
+            const localScale = vec3.create();
+            mat4.getScaling(localScale, scalingTransform);
+
+            const localScaleQuat = quat.create();
+            mat4.getRotation(localScaleQuat, scalingTransform);
+
             const shape = this.createShape(
                 gltf,
                 node,
@@ -858,8 +875,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 material,
                 physXFilterData,
                 convexHull,
-                vec3.fromValues(1, 1, 1),
-                quat.create()
+                localScale,
+                localScaleQuat
             );
 
             if (shape !== undefined) {
@@ -872,6 +889,14 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 const PxRotation = new this.PhysX.PxQuat(...rotation);
                 const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
                 shape.setLocalPose(pose);
+
+                console.log(
+                    "Attaching shape to actor",
+                    node.gltfObjectIndex,
+                    translation,
+                    rotation,
+                    localScale
+                );
 
                 actor.attachShape(shape);
                 this.PhysX.destroy(PxPos);
@@ -900,6 +925,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const physxFilterData =
             this.physXFilterData[collider?.collisionFilter ?? this.physXFilterData.length - 1];
 
+        const worldScale = vec3.create();
+        mat4.getScaling(worldScale, worldTransform);
+
+        const scalingTransform = mat4.create();
+        mat4.fromScaling(scalingTransform, worldScale);
+
         if (collider?.geometry?.node !== undefined) {
             const colliderNode = gltf.nodes[collider.geometry.node];
             recurseShapes(
@@ -907,20 +938,71 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 colliderNode,
                 shapeFlags,
                 node.extensions?.KHR_physics_rigid_bodies?.collider,
-                worldTransform,
+                scalingTransform,
                 mat4.create(),
                 true
             );
         } else if (collider?.geometry?.shape !== undefined) {
+            console.warn("Create shape with", worldScale, parentNode.rotation);
+
+            const childchildRotation = quat.create();
+            const childNodeRot = node.rotation;
+            const parentScale = vec3.fromValues(2, 1, 1);
+            const childScale = vec3.fromValues(2, 1, 1);
+
+            const childNodeInvertedRot = quat.create();
+            quat.invert(childNodeInvertedRot, childNodeRot);
+
+            const childScaleMat = mat4.create();
+            mat4.fromScaling(childScaleMat, childScale);
+            const parentScaleMat = mat4.create();
+            mat4.fromScaling(parentScaleMat, parentScale);
+
+            const invRotMat = mat4.create();
+            mat4.fromQuat(invRotMat, childNodeInvertedRot);
+
+            const invRotMatChildChild = mat4.create();
+            mat4.fromQuat(invRotMatChildChild, childchildRotation);
+
+            const transformedMat = mat4.create();
+            mat4.multiply(transformedMat, invRotMatChildChild, childScaleMat);
+            mat4.multiply(transformedMat, transformedMat, parentScaleMat);
+
+            const searchedScaleRotation = quat.create();
+            quat.multiply(searchedScaleRotation, childNodeRot, childchildRotation);
+
+            const searchedScale = vec3.create();
+            mat4.getScaling(searchedScale, transformedMat);
+
+            const searchedScaleRotationInverted = quat.create();
+            quat.invert(searchedScaleRotationInverted, searchedScaleRotation);
+
+            const expectedScale = vec3.create();
+            mat4.getScaling(expectedScale, node.worldTransform);
+            const expectedRot = quat.create();
+            mat4.getRotation(expectedRot, node.worldTransform);
+
+            //vec3.transformQuat(expectedScale, expectedScale, invRot);
+            //vec3.multiply(expectedScale, expectedScale, childScale);
+            console.warn("Expected result:", expectedScale, node.rotation);
+
             const shape = this.createShape(
                 gltf,
                 node,
                 shapeFlags,
                 physxMaterial,
                 physxFilterData,
-                true
+                true,
+                node.scale
             );
             if (shape !== undefined) {
+                const PxPos = new this.PhysX.PxVec3(0, 0, 0);
+                const PxRotation = new this.PhysX.PxQuat(...searchedScaleRotationInverted);
+                const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
+                //shape.setLocalPose(pose);
+                this.PhysX.destroy(PxPos);
+                this.PhysX.destroy(PxRotation);
+                this.PhysX.destroy(pose);
                 actor.attachShape(shape);
             }
         }
@@ -932,7 +1014,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 childNode,
                 shapeFlags,
                 undefined,
-                worldTransform,
+                scalingTransform,
                 mat4.create(),
                 false
             );
@@ -1041,11 +1123,93 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     transform.q.z,
                     transform.q.w
                 );
-                node.physicsTransform = mat4.fromRotationTranslation(
-                    mat4.create(),
-                    rotation,
-                    position
+
+                /*const absoluteScale = vec3.create();
+                mat4.getScaling(absoluteScale, node.worldTransform);
+
+                const parentTransform = node.parentNode
+                    ? node.parentNode.worldTransform
+                    : mat4.create();
+                const localTransform = mat4.create();
+
+                const parentInverse = mat4.create();
+                mat4.invert(parentInverse, parentTransform);
+
+                const physicsTransform = mat4.create();
+                mat4.fromRotationTranslation(physicsTransform, rotation, position);
+                console.log("Physics world transform:", physicsTransform, position, rotation);
+
+                mat4.multiply(localTransform, parentInverse, physicsTransform);
+                mat4.scale(localTransform, localTransform, absoluteScale);
+
+                const localRotation = quat.create();
+                const localPosition = vec3.create();
+                mat4.getRotation(localRotation, localTransform);
+                mat4.getTranslation(localPosition, localTransform);
+
+                mat4.fromScaling(localTransform, node.scale);
+                const rotMat = mat4.create();
+                mat4.fromQuat(rotMat, localRotation);
+                mat4.multiply(localTransform, rotMat, localTransform);
+                localTransform[12] = localPosition[0];
+                localTransform[13] = localPosition[1];
+                localTransform[14] = localPosition[2];
+
+                mat4.fromRotationTranslationScale(
+                    localTransform,
+                    localRotation,
+                    localPosition,
+                    node.scale
                 );
+
+                mat4.multiply(physicsTransform, parentTransform, localTransform);
+
+                console.log(
+                    "Compare local transforms:",
+                    localTransform,
+                    node.getLocalTransform(),
+                    mat4.equals(localTransform, node.getLocalTransform())
+                );
+                console.log("Compare world rotation:", rotation, node.worldQuaternion);
+
+                const rotTest = quat.create();
+                mat4.getRotation(rotTest, physicsTransform);
+                console.log("Extracted local rotation:", rotTest, rotation);*/
+
+                const rotationBetween = quat.create();
+
+                let parentNode = node;
+                while (parentNode.parentNode !== undefined) {
+                    parentNode = parentNode.parentNode;
+                }
+
+                quat.invert(rotationBetween, node.worldQuaternion);
+                quat.multiply(rotationBetween, rotation, rotationBetween);
+                console.log("Rotation difference:", rotationBetween);
+
+                const rotMat = mat3.create();
+                mat3.fromQuat(rotMat, rotationBetween);
+
+                const scaleRot = mat3.create();
+                mat3.fromMat4(scaleRot, node.worldTransform);
+
+                mat3.multiply(scaleRot, rotMat, scaleRot);
+
+                const physicsTransform = mat4.create();
+                physicsTransform[0] = scaleRot[0];
+                physicsTransform[1] = scaleRot[1];
+                physicsTransform[2] = scaleRot[2];
+                physicsTransform[4] = scaleRot[3];
+                physicsTransform[5] = scaleRot[4];
+                physicsTransform[6] = scaleRot[5];
+                physicsTransform[8] = scaleRot[6];
+                physicsTransform[9] = scaleRot[7];
+                physicsTransform[10] = scaleRot[8];
+                physicsTransform[12] = position[0];
+                physicsTransform[13] = position[1];
+                physicsTransform[14] = position[2];
+
+                node.physicsTransform = physicsTransform;
 
                 for (const childIndex of node.children) {
                     const childNode = state.gltf.nodes[childIndex];
