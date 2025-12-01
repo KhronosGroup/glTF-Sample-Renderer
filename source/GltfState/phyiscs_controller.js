@@ -943,48 +943,23 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 true
             );
         } else if (collider?.geometry?.shape !== undefined) {
-            console.warn("Create shape with", worldScale, parentNode.rotation);
+            const scaleFactor = vec3.clone(node.scale);
+            let scaleRotation = quat.create();
 
-            const childchildRotation = quat.create();
-            const childNodeRot = node.rotation;
-            const parentScale = vec3.fromValues(2, 1, 1);
-            const childScale = vec3.fromValues(2, 1, 1);
+            let currentNode = node.parentNode;
+            const currentRotation = quat.clone(node.rotation);
 
-            const childNodeInvertedRot = quat.create();
-            quat.invert(childNodeInvertedRot, childNodeRot);
-
-            const childScaleMat = mat4.create();
-            mat4.fromScaling(childScaleMat, childScale);
-            const parentScaleMat = mat4.create();
-            mat4.fromScaling(parentScaleMat, parentScale);
-
-            const invRotMat = mat4.create();
-            mat4.fromQuat(invRotMat, childNodeInvertedRot);
-
-            const invRotMatChildChild = mat4.create();
-            mat4.fromQuat(invRotMatChildChild, childchildRotation);
-
-            const transformedMat = mat4.create();
-            mat4.multiply(transformedMat, invRotMatChildChild, childScaleMat);
-            mat4.multiply(transformedMat, transformedMat, parentScaleMat);
-
-            const searchedScaleRotation = quat.create();
-            quat.multiply(searchedScaleRotation, childNodeRot, childchildRotation);
-
-            const searchedScale = vec3.create();
-            mat4.getScaling(searchedScale, transformedMat);
-
-            const searchedScaleRotationInverted = quat.create();
-            quat.invert(searchedScaleRotationInverted, searchedScaleRotation);
-
-            const expectedScale = vec3.create();
-            mat4.getScaling(expectedScale, node.worldTransform);
-            const expectedRot = quat.create();
-            mat4.getRotation(expectedRot, node.worldTransform);
-
-            //vec3.transformQuat(expectedScale, expectedScale, invRot);
-            //vec3.multiply(expectedScale, expectedScale, childScale);
-            console.warn("Expected result:", expectedScale, node.rotation);
+            while (currentNode !== undefined) {
+                if (vec3.equals(currentNode.scale, vec3.fromValues(1, 1, 1)) === false) {
+                    const localScale = currentNode.scale;
+                    vec3.transformQuat(localScale, currentNode.scale, scaleRotation);
+                    vec3.multiply(scaleFactor, scaleFactor, localScale);
+                    scaleRotation = quat.clone(currentRotation);
+                }
+                const nextRotation = quat.clone(currentNode.rotation);
+                quat.multiply(currentRotation, currentRotation, nextRotation);
+                currentNode = currentNode.parentNode;
+            }
 
             const shape = this.createShape(
                 gltf,
@@ -993,16 +968,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 physxMaterial,
                 physxFilterData,
                 true,
-                node.scale
+                scaleFactor,
+                scaleRotation
             );
             if (shape !== undefined) {
-                const PxPos = new this.PhysX.PxVec3(0, 0, 0);
-                const PxRotation = new this.PhysX.PxQuat(...searchedScaleRotationInverted);
-                const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
-                //shape.setLocalPose(pose);
-                this.PhysX.destroy(PxPos);
-                this.PhysX.destroy(PxRotation);
-                this.PhysX.destroy(pose);
                 actor.attachShape(shape);
             }
         }
@@ -1123,58 +1092,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     transform.q.z,
                     transform.q.w
                 );
-
-                /*const absoluteScale = vec3.create();
-                mat4.getScaling(absoluteScale, node.worldTransform);
-
-                const parentTransform = node.parentNode
-                    ? node.parentNode.worldTransform
-                    : mat4.create();
-                const localTransform = mat4.create();
-
-                const parentInverse = mat4.create();
-                mat4.invert(parentInverse, parentTransform);
-
-                const physicsTransform = mat4.create();
-                mat4.fromRotationTranslation(physicsTransform, rotation, position);
-                console.log("Physics world transform:", physicsTransform, position, rotation);
-
-                mat4.multiply(localTransform, parentInverse, physicsTransform);
-                mat4.scale(localTransform, localTransform, absoluteScale);
-
-                const localRotation = quat.create();
-                const localPosition = vec3.create();
-                mat4.getRotation(localRotation, localTransform);
-                mat4.getTranslation(localPosition, localTransform);
-
-                mat4.fromScaling(localTransform, node.scale);
-                const rotMat = mat4.create();
-                mat4.fromQuat(rotMat, localRotation);
-                mat4.multiply(localTransform, rotMat, localTransform);
-                localTransform[12] = localPosition[0];
-                localTransform[13] = localPosition[1];
-                localTransform[14] = localPosition[2];
-
-                mat4.fromRotationTranslationScale(
-                    localTransform,
-                    localRotation,
-                    localPosition,
-                    node.scale
-                );
-
-                mat4.multiply(physicsTransform, parentTransform, localTransform);
-
-                console.log(
-                    "Compare local transforms:",
-                    localTransform,
-                    node.getLocalTransform(),
-                    mat4.equals(localTransform, node.getLocalTransform())
-                );
-                console.log("Compare world rotation:", rotation, node.worldQuaternion);
-
-                const rotTest = quat.create();
-                mat4.getRotation(rotTest, physicsTransform);
-                console.log("Extracted local rotation:", rotTest, rotation);*/
 
                 const rotationBetween = quat.create();
 
