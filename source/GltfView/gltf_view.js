@@ -79,6 +79,10 @@ class GltfView {
             return;
         }
 
+        if (state.graphController?.playing) {
+            state.graphController.simulateTick();
+        }
+
         scene.applyTransformHierarchy(state.gltf);
         if (state.physicsController.playing && state.physicsController.enabled) {
             state.physicsController.simulateStep(state, (currentFrameTime - lastFrameTime) / 1000);
