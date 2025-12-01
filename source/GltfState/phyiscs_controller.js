@@ -17,6 +17,7 @@ class PhysicsController {
         this.staticActors = [];
         this.kinematicActors = [];
         this.dynamicActors = [];
+        this.jointNodes = [];
         this.morphedColliders = [];
         this.skinnedColliders = [];
         this.hasRuntimeAnimationTargets = false;
@@ -160,6 +161,9 @@ class PhysicsController {
                             this.morphedColliders.push(colliderNode);
                         }
                     }
+                    if (rigidBody.joint !== undefined) {
+                        this.jointNodes.push(node);
+                    }
                 }
                 gatherRigidBodies(node.children, parentRigidBody);
             }
@@ -178,6 +182,7 @@ class PhysicsController {
             this.staticActors,
             this.kinematicActors,
             this.dynamicActors,
+            this.jointNodes,
             this.hasRuntimeAnimationTargets,
             meshColliderCount
         );
@@ -258,7 +263,15 @@ class PhysicsInterface {
     }
 
     async initializeEngine() {}
-    initializeSimulation(state, staticActors, kinematicActors, dynamicActors) {}
+    initializeSimulation(
+        state,
+        staticActors,
+        kinematicActors,
+        dynamicActors,
+        jointNodes,
+        hasRuntimeAnimationTargets,
+        meshColliderCount
+    ) {}
     pauseSimulation() {}
     resumeSimulation() {}
     resetSimulation() {}
@@ -332,9 +345,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         // Needs to be reset for each scene
         this.scene = undefined;
         this.nodeToActor = new Map();
+        this.nodeToJoint = new Map();
         this.filterData = [];
         this.physXFilterData = [];
         this.physXMaterials = [];
+
+        this.MAX_FLOAT = 3.4028234663852885981170418348452e38;
     }
 
     async initializeEngine() {
@@ -997,11 +1013,178 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.nodeToActor.set(node.gltfObjectIndex, actor);
     }
 
+    computeJointOffsetAndActor(node) {
+        let currentNode = node;
+        while (currentNode !== undefined) {
+            if (currentNode.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
+                break;
+            }
+            currentNode = currentNode.parentNode;
+        }
+        if (currentNode === undefined) {
+            return { actor: undefined, offset: mat4.clone(node.worldTransform) };
+        }
+        const actor = this.nodeToActor.get(currentNode.gltfObjectIndex);
+        const inverseActorTransform = mat4.create();
+        mat4.invert(inverseActorTransform, currentNode.worldTransform);
+        const offset = mat4.create();
+        mat4.multiply(offset, inverseActorTransform, node.worldTransform);
+        return { actor: actor, offset: offset };
+    }
+
+    createJoint(gltf, node) {
+        const joint = node.extensions?.KHR_physics_rigid_bodies?.joint;
+        const referencedJoint = gltf.extensions?.KHR_physics_rigid_bodies?.joints[joint.joint];
+
+        if (referencedJoint === undefined) {
+            console.error("Referenced joint not found:", joint.joint);
+            return;
+        }
+
+        const { actorA, offsetA } = this.computeJointOffsetAndActor(node);
+        const { actorB, offsetB } = this.computeJointOffsetAndActor(
+            gltf.nodes[joint.connectedNode]
+        );
+        const positionA = vec3.create();
+        mat4.getTranslation(positionA, offsetA);
+        const rotationA = quat.create();
+        mat4.getRotation(rotationA, offsetA);
+
+        const pos = new this.PhysX.PxVec3(...positionA);
+        const rot = new this.PhysX.PxQuat(...rotationA);
+        const poseA = new this.PhysX.PxTransform(pos, rot);
+        this.PhysX.destroy(pos);
+        this.PhysX.destroy(rot);
+
+        const positionB = vec3.create();
+        mat4.getTranslation(positionB, offsetB);
+        const rotationB = quat.create();
+        mat4.getRotation(rotationB, offsetB);
+
+        const posB = new this.PhysX.PxVec3(...positionB);
+        const rotB = new this.PhysX.PxQuat(...rotationB);
+        const poseB = new this.PhysX.PxTransform(posB, rotB);
+        this.PhysX.destroy(posB);
+        this.PhysX.destroy(rotB);
+
+        const physxJoint = this.PhysX.PxTopLevelFunctions.D6JointCreate(
+            this.physics,
+            actorA,
+            poseA,
+            actorB,
+            poseB
+        );
+        this.PhysX.destroy(poseA);
+        this.PhysX.destroy(poseB);
+
+        physxJoint.setConstraintFlag(this.PhysX.PxConstraintFlagEnum.eVISUALIZATION, true);
+
+        this.nodeToJoint.set(node.gltfObjectIndex, physxJoint);
+
+        // Do not restict any axis by default
+        physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eX, this.PhysX.PxD6MotionEnum.eFREE);
+        physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eY, this.PhysX.PxD6MotionEnum.eFREE);
+        physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eZ, this.PhysX.PxD6MotionEnum.eFREE);
+        physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eTWIST, this.PhysX.PxD6MotionEnum.eFREE);
+        physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eSWING1, this.PhysX.PxD6MotionEnum.eFREE);
+        physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eSWING2, this.PhysX.PxD6MotionEnum.eFREE);
+
+        for (const limit of referencedJoint.limits) {
+            const spring = new this.PhysX.PxSpring(limit.stiffness ?? 0, limit.damping);
+            if (limit.linearAxes.length > 0) {
+                const linearLimitPair = new this.PhysX.PxJointLinearLimitPair(
+                    limit.min ?? -this.MAX_FLOAT,
+                    limit.max ?? this.MAX_FLOAT,
+                    spring
+                );
+                if (limit.linearAxes.includes(1)) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eX,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eX, linearLimitPair);
+                }
+                if (limit.linearAxes.includes(2)) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eY,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eY, linearLimitPair);
+                }
+                if (limit.linearAxes.includes(3)) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eZ,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eZ, linearLimitPair);
+                }
+                this.PhysX.destroy(linearLimitPair);
+            }
+            if (limit.angularAxes.length > 0) {
+                const angularLimitPair = new this.PhysX.PxJointAngularLimitPair(
+                    limit.min ?? -Math.PI / 2,
+                    limit.max ?? Math.PI / 2,
+                    spring
+                );
+                if (limit.min && limit.min === limit.max) {
+                    if (limit.angularAxes.includes(1)) {
+                        physxJoint.setMotion(
+                            this.PhysX.PxD6AxisEnum.eTWIST,
+                            this.PhysX.PxD6MotionEnum.eLOCKED
+                        );
+                    }
+                    if (limit.angularAxes.includes(2)) {
+                        physxJoint.setMotion(
+                            this.PhysX.PxD6AxisEnum.eSWING1,
+                            this.PhysX.PxD6MotionEnum.eLOCKED
+                        );
+                    }
+                    if (limit.angularAxes.includes(3)) {
+                        physxJoint.setMotion(
+                            this.PhysX.PxD6AxisEnum.eSWING2,
+                            this.PhysX.PxD6MotionEnum.eLOCKED
+                        );
+                    }
+                } else if (limit.angularAxes.includes(1)) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eTWIST,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    physxJoint.setTwistLimit(angularLimitPair);
+                } else if (limit.angularAxes.includes(2) && limit.angularAxes.includes(3)) {
+                    const jointLimitCone = new this.PhysX.PxJointLimitPyramid(
+                        limit.min ?? -Math.PI / 2,
+                        limit.max ?? Math.PI / 2,
+                        limit.min ?? -Math.PI / 2,
+                        limit.max ?? Math.PI / 2,
+                        spring
+                    );
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eSWING1,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eSWING2,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    physxJoint.setPyramidSwingLimit(jointLimitCone);
+                }
+                this.PhysX.destroy(angularLimitPair);
+            }
+            this.PhysX.destroy(spring);
+        }
+
+        for (const drive of referencedJoint.drives) {
+            //TODO
+        }
+    }
+
     initializeSimulation(
         state,
         staticActors,
         kinematicActors,
         dynamicActors,
+        jointNodes,
         hasRuntimeAnimationTargets,
         meshColliderCount
     ) {
@@ -1049,6 +1232,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         for (const node of dynamicActors) {
             this.createActor(state.gltf, node, shapeFlags, "dynamic", meshColliderCount > 1);
         }
+        for (const node of jointNodes) {
+            this.createJoint(state.gltf, node);
+        }
 
         this.PhysX.destroy(tmpVec);
         this.PhysX.destroy(sceneDesc);
@@ -1057,6 +1243,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.scene.setVisualizationParameter(this.PhysX.eWORLD_AXES, 1);
         this.scene.setVisualizationParameter(this.PhysX.eACTOR_AXES, 1);
         this.scene.setVisualizationParameter(this.PhysX.eCOLLISION_SHAPES, 1);
+        this.scene.setVisualizationParameter(this.PhysX.eJOINT_LOCAL_FRAMES, 1);
+        this.scene.setVisualizationParameter(this.PhysX.eJOINT_LIMITS, 1);
     }
 
     applyTransformRecursively(gltf, node, parentTransform) {

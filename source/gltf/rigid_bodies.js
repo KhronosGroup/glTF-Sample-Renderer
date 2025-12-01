@@ -61,7 +61,7 @@ class gltfPhysicsJointLimit extends GltfObject {
         super();
         this.min = undefined;
         this.max = undefined;
-        this.stiffness = Infinity;
+        this.stiffness = undefined;
         this.damping = 0;
         this.linearAxes = undefined;
         this.angularAxes = undefined;
@@ -81,7 +81,7 @@ class gltfPhysicsJointDrive extends GltfObject {
         this.type = undefined;
         this.mode = undefined;
         this.axis = undefined;
-        this.maxForce = Infinity;
+        this.maxForce = undefined;
         this.positionTarget = undefined;
         this.velocityTarget = undefined;
         this.stiffness = 0;
