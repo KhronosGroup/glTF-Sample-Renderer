@@ -727,12 +727,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             if (motion) {
                 const gltfAngularVelocity = motion?.angularVelocity;
                 const angularVelocity = new this.PhysX.PxVec3(...gltfAngularVelocity);
-                actor.setAngularVelocity(angularVelocity);
+                actor.setAngularVelocity(angularVelocity, true);
                 this.PhysX.destroy(angularVelocity);
 
                 const gltfLinearVelocity = motion?.linearVelocity;
                 const linearVelocity = new this.PhysX.PxVec3(...gltfLinearVelocity);
-                actor.setLinearVelocity(linearVelocity);
+                actor.setLinearVelocity(linearVelocity, true);
                 this.PhysX.destroy(linearVelocity);
 
                 if (motion.mass !== undefined) {
@@ -1016,7 +1016,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     computeJointOffsetAndActor(node) {
         let currentNode = node;
         while (currentNode !== undefined) {
-            if (currentNode.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
+            if (this.nodeToActor.has(currentNode.gltfObjectIndex)) {
                 break;
             }
             currentNode = currentNode.parentNode;
@@ -1025,61 +1025,88 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             return { actor: undefined, offset: mat4.clone(node.worldTransform) };
         }
         const actor = this.nodeToActor.get(currentNode.gltfObjectIndex);
-        const inverseActorTransform = mat4.create();
-        mat4.invert(inverseActorTransform, currentNode.worldTransform);
-        const offset = mat4.create();
-        mat4.multiply(offset, inverseActorTransform, node.worldTransform);
-        return { actor: actor, offset: offset };
+        const inverseActorRotation = quat.create();
+        quat.invert(inverseActorRotation, currentNode.worldQuaternion);
+        const offsetRotation = quat.create();
+        quat.multiply(offsetRotation, inverseActorRotation, node.worldQuaternion);
+
+        const actorPosition = vec3.create();
+        mat4.getTranslation(actorPosition, currentNode.worldTransform);
+        const nodePosition = vec3.create();
+        mat4.getTranslation(nodePosition, node.worldTransform);
+        const offsetPosition = vec3.create();
+        vec3.subtract(offsetPosition, nodePosition, actorPosition);
+
+        return { actor: actor, offsetPosition: offsetPosition, offsetRotation: offsetRotation };
+    }
+
+    convertAxisIndexToEnum(axisIndex, type) {
+        if (type === "linear") {
+            switch (axisIndex) {
+                case 0:
+                    return this.PhysX.PxD6AxisEnum.eX;
+                case 1:
+                    return this.PhysX.PxD6AxisEnum.eY;
+                case 2:
+                    return this.PhysX.PxD6AxisEnum.eZ;
+            }
+        } else if (type === "angular") {
+            switch (axisIndex) {
+                case 0:
+                    return this.PhysX.PxD6AxisEnum.eTWIST;
+                case 1:
+                    return this.PhysX.PxD6AxisEnum.eSWING1;
+                case 2:
+                    return this.PhysX.PxD6AxisEnum.eSWING2;
+            }
+        }
+        return null;
     }
 
     createJoint(gltf, node) {
         const joint = node.extensions?.KHR_physics_rigid_bodies?.joint;
-        const referencedJoint = gltf.extensions?.KHR_physics_rigid_bodies?.joints[joint.joint];
+        const referencedJoint =
+            gltf.extensions?.KHR_physics_rigid_bodies?.physicsJoints[joint.joint];
 
         if (referencedJoint === undefined) {
             console.error("Referenced joint not found:", joint.joint);
             return;
         }
 
-        const { actorA, offsetA } = this.computeJointOffsetAndActor(node);
-        const { actorB, offsetB } = this.computeJointOffsetAndActor(
-            gltf.nodes[joint.connectedNode]
-        );
-        const positionA = vec3.create();
-        mat4.getTranslation(positionA, offsetA);
-        const rotationA = quat.create();
-        mat4.getRotation(rotationA, offsetA);
+        const resultA = this.computeJointOffsetAndActor(node);
+        const resultB = this.computeJointOffsetAndActor(gltf.nodes[joint.connectedNode]);
 
-        const pos = new this.PhysX.PxVec3(...positionA);
-        const rot = new this.PhysX.PxQuat(...rotationA);
+        const pos = new this.PhysX.PxVec3(...resultA.offsetPosition);
+        const rot = new this.PhysX.PxQuat(...resultA.offsetRotation);
         const poseA = new this.PhysX.PxTransform(pos, rot);
         this.PhysX.destroy(pos);
         this.PhysX.destroy(rot);
 
-        const positionB = vec3.create();
-        mat4.getTranslation(positionB, offsetB);
-        const rotationB = quat.create();
-        mat4.getRotation(rotationB, offsetB);
-
-        const posB = new this.PhysX.PxVec3(...positionB);
-        const rotB = new this.PhysX.PxQuat(...rotationB);
+        const posB = new this.PhysX.PxVec3(...resultB.offsetPosition);
+        const rotB = new this.PhysX.PxQuat(...resultB.offsetRotation);
         const poseB = new this.PhysX.PxTransform(posB, rotB);
         this.PhysX.destroy(posB);
         this.PhysX.destroy(rotB);
 
-        const physxJoint = this.PhysX.PxTopLevelFunctions.D6JointCreate(
+        const physxJoint = this.PhysX.PxTopLevelFunctions.prototype.D6JointCreate(
             this.physics,
-            actorA,
+            resultA.actor,
             poseA,
-            actorB,
+            resultB.actor,
             poseB
         );
         this.PhysX.destroy(poseA);
         this.PhysX.destroy(poseB);
 
+        //TODO toogle debug view
         physxJoint.setConstraintFlag(this.PhysX.PxConstraintFlagEnum.eVISUALIZATION, true);
 
         this.nodeToJoint.set(node.gltfObjectIndex, physxJoint);
+
+        physxJoint.setConstraintFlag(
+            this.PhysX.PxConstraintFlagEnum.eCOLLISION_ENABLED,
+            joint.enableCollision
+        );
 
         // Do not restict any axis by default
         physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eX, this.PhysX.PxD6MotionEnum.eFREE);
@@ -1090,68 +1117,81 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eSWING2, this.PhysX.PxD6MotionEnum.eFREE);
 
         for (const limit of referencedJoint.limits) {
+            const lock = limit.min === 0 && limit.max === 0;
             const spring = new this.PhysX.PxSpring(limit.stiffness ?? 0, limit.damping);
-            if (limit.linearAxes.length > 0) {
+            if (limit.linearAxes && limit.linearAxes.length > 0) {
                 const linearLimitPair = new this.PhysX.PxJointLinearLimitPair(
                     limit.min ?? -this.MAX_FLOAT,
                     limit.max ?? this.MAX_FLOAT,
                     spring
                 );
-                if (limit.linearAxes.includes(1)) {
+                if (limit.linearAxes.includes(0)) {
                     physxJoint.setMotion(
                         this.PhysX.PxD6AxisEnum.eX,
-                        this.PhysX.PxD6MotionEnum.eLIMITED
+                        lock
+                            ? this.PhysX.PxD6MotionEnum.eLOCKED
+                            : this.PhysX.PxD6MotionEnum.eLIMITED
                     );
-                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eX, linearLimitPair);
+                    if (!lock) {
+                        physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eX, linearLimitPair);
+                    }
+                }
+                if (limit.linearAxes.includes(1)) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eY,
+                        lock
+                            ? this.PhysX.PxD6MotionEnum.eLOCKED
+                            : this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                    if (!lock) {
+                        physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eY, linearLimitPair);
+                    }
                 }
                 if (limit.linearAxes.includes(2)) {
                     physxJoint.setMotion(
-                        this.PhysX.PxD6AxisEnum.eY,
-                        this.PhysX.PxD6MotionEnum.eLIMITED
-                    );
-                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eY, linearLimitPair);
-                }
-                if (limit.linearAxes.includes(3)) {
-                    physxJoint.setMotion(
                         this.PhysX.PxD6AxisEnum.eZ,
-                        this.PhysX.PxD6MotionEnum.eLIMITED
+                        lock
+                            ? this.PhysX.PxD6MotionEnum.eLOCKED
+                            : this.PhysX.PxD6MotionEnum.eLIMITED
                     );
-                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eZ, linearLimitPair);
+                    if (!lock) {
+                        physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eZ, linearLimitPair);
+                    }
                 }
                 this.PhysX.destroy(linearLimitPair);
             }
-            if (limit.angularAxes.length > 0) {
+            if (limit.angularAxes && limit.angularAxes.length > 0) {
                 const angularLimitPair = new this.PhysX.PxJointAngularLimitPair(
                     limit.min ?? -Math.PI / 2,
                     limit.max ?? Math.PI / 2,
                     spring
                 );
-                if (limit.min && limit.min === limit.max) {
-                    if (limit.angularAxes.includes(1)) {
+                if (lock) {
+                    if (limit.angularAxes.includes(0)) {
                         physxJoint.setMotion(
                             this.PhysX.PxD6AxisEnum.eTWIST,
                             this.PhysX.PxD6MotionEnum.eLOCKED
                         );
                     }
-                    if (limit.angularAxes.includes(2)) {
+                    if (limit.angularAxes.includes(1)) {
                         physxJoint.setMotion(
                             this.PhysX.PxD6AxisEnum.eSWING1,
                             this.PhysX.PxD6MotionEnum.eLOCKED
                         );
                     }
-                    if (limit.angularAxes.includes(3)) {
+                    if (limit.angularAxes.includes(2)) {
                         physxJoint.setMotion(
                             this.PhysX.PxD6AxisEnum.eSWING2,
                             this.PhysX.PxD6MotionEnum.eLOCKED
                         );
                     }
-                } else if (limit.angularAxes.includes(1)) {
+                } else if (limit.angularAxes.includes(0)) {
                     physxJoint.setMotion(
                         this.PhysX.PxD6AxisEnum.eTWIST,
                         this.PhysX.PxD6MotionEnum.eLIMITED
                     );
                     physxJoint.setTwistLimit(angularLimitPair);
-                } else if (limit.angularAxes.includes(2) && limit.angularAxes.includes(3)) {
+                } else if (limit.angularAxes.includes(1) && limit.angularAxes.includes(2)) {
                     const jointLimitCone = new this.PhysX.PxJointLimitPyramid(
                         limit.min ?? -Math.PI / 2,
                         limit.max ?? Math.PI / 2,
@@ -1174,9 +1214,71 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.PhysX.destroy(spring);
         }
 
+        const positionTarget = vec3.fromValues(0, 0, 0);
+        const angleTarget = quat.create();
+        const linearVelocityTarget = vec3.fromValues(0, 0, 0);
+        const angularVelocityTarget = vec3.fromValues(0, 0, 0);
+
         for (const drive of referencedJoint.drives) {
-            //TODO
+            const physxDrive = new this.PhysX.PxD6JointDrive(
+                drive.stiffness,
+                drive.damping,
+                drive.maxForce ?? this.MAX_FLOAT,
+                drive.mode === "acceleration"
+            );
+            if (drive.type === "linear") {
+                const axis = this.convertAxisIndexToEnum(drive.axis, "linear");
+                physxJoint.setDrive(axis, physxDrive);
+                if (drive.positionTarget !== undefined) {
+                    positionTarget[drive.axis] = drive.positionTarget;
+                }
+                if (drive.velocityTarget !== undefined) {
+                    linearVelocityTarget[drive.axis] = drive.velocityTarget;
+                }
+            } else if (drive.type === "angular") {
+                if (drive.positionTarget !== undefined) {
+                    switch (drive.axis) {
+                        case 0: {
+                            quat.rotateX(angleTarget, angleTarget, drive.positionTarget);
+                            break;
+                        }
+                        case 1: {
+                            quat.rotateY(angleTarget, angleTarget, drive.positionTarget);
+                            break;
+                        }
+                        case 2: {
+                            quat.rotateZ(angleTarget, angleTarget, drive.positionTarget);
+                            break;
+                        }
+                    }
+                }
+
+                if (drive.velocityTarget !== undefined) {
+                    angularVelocityTarget[drive.axis] = drive.velocityTarget;
+                }
+
+                const axis = this.convertAxisIndexToEnum(drive.axis, "angular");
+                physxJoint.setDrive(axis, physxDrive);
+            }
+            this.PhysX.destroy(physxDrive);
         }
+
+        const posTarget = new this.PhysX.PxVec3(...positionTarget);
+        const rotTarget = new this.PhysX.PxQuat(...angleTarget);
+        const targetTransform = new this.PhysX.PxTransform(posTarget, rotTarget);
+        physxJoint.setDrivePosition(targetTransform);
+
+        const linVel = new this.PhysX.PxVec3(...linearVelocityTarget);
+        const angVel = new this.PhysX.PxVec3(...angularVelocityTarget);
+        physxJoint.setDriveVelocity(linVel, angVel);
+
+        this.PhysX.destroy(posTarget);
+        this.PhysX.destroy(rotTarget);
+        this.PhysX.destroy(linVel);
+        this.PhysX.destroy(angVel);
+        this.PhysX.destroy(targetTransform);
+
+        return physxJoint;
     }
 
     initializeSimulation(
@@ -1265,6 +1367,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (!this.scene) {
             return;
         }
+
+        //TODO set custom gravity and kinematic forces before simulating
+
         this.scene.simulate(deltaTime);
         this.scene.fetchResults(true);
 
@@ -1290,7 +1395,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
                 quat.invert(rotationBetween, node.worldQuaternion);
                 quat.multiply(rotationBetween, rotation, rotationBetween);
-                console.log("Rotation difference:", rotationBetween);
 
                 const rotMat = mat3.create();
                 mat3.fromQuat(rotMat, rotationBetween);
