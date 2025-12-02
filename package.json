@@ -36,7 +36,7 @@
     "json-ptr": "^3.1.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^26.0.1",
+    "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-wasm": "^6.2.2",
     "concurrently": "^8.2.2",
