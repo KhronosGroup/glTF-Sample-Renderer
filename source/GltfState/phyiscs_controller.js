@@ -1116,6 +1116,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eSWING1, this.PhysX.PxD6MotionEnum.eFREE);
         physxJoint.setMotion(this.PhysX.PxD6AxisEnum.eSWING2, this.PhysX.PxD6MotionEnum.eFREE);
 
+        let angularYLimit = undefined;
+        let angularZLimit = undefined;
+
         for (const limit of referencedJoint.limits) {
             const lock = limit.min === 0 && limit.max === 0;
             const spring = new this.PhysX.PxSpring(limit.stiffness ?? 0, limit.damping);
@@ -1178,12 +1181,14 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                             this.PhysX.PxD6AxisEnum.eSWING1,
                             this.PhysX.PxD6MotionEnum.eLOCKED
                         );
+                        angularYLimit = limit;
                     }
                     if (limit.angularAxes.includes(2)) {
                         physxJoint.setMotion(
                             this.PhysX.PxD6AxisEnum.eSWING2,
                             this.PhysX.PxD6MotionEnum.eLOCKED
                         );
+                        angularZLimit = limit;
                     }
                 } else if (limit.angularAxes.includes(0)) {
                     physxJoint.setMotion(
@@ -1191,27 +1196,98 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         this.PhysX.PxD6MotionEnum.eLIMITED
                     );
                     physxJoint.setTwistLimit(angularLimitPair);
-                } else if (limit.angularAxes.includes(1) && limit.angularAxes.includes(2)) {
-                    const jointLimitCone = new this.PhysX.PxJointLimitPyramid(
-                        limit.min ?? -Math.PI / 2,
-                        limit.max ?? Math.PI / 2,
-                        limit.min ?? -Math.PI / 2,
-                        limit.max ?? Math.PI / 2,
-                        spring
-                    );
-                    physxJoint.setMotion(
-                        this.PhysX.PxD6AxisEnum.eSWING1,
-                        this.PhysX.PxD6MotionEnum.eLIMITED
-                    );
-                    physxJoint.setMotion(
-                        this.PhysX.PxD6AxisEnum.eSWING2,
-                        this.PhysX.PxD6MotionEnum.eLIMITED
-                    );
-                    physxJoint.setPyramidSwingLimit(jointLimitCone);
+                } else if (limit.angularAxes.includes(1)) {
+                    angularYLimit = limit;
+                } else if (limit.angularAxes.includes(2)) {
+                    angularZLimit = limit;
                 }
                 this.PhysX.destroy(angularLimitPair);
             }
             this.PhysX.destroy(spring);
+        }
+
+        if (angularYLimit !== undefined && angularZLimit !== undefined) {
+            if (
+                angularYLimit.stiffness !== angularZLimit.stiffness ||
+                angularYLimit.damping !== angularZLimit.damping
+            ) {
+                console.warn(
+                    "PhysX does not support different stiffness/damping for swing limits."
+                );
+            } else {
+                const spring = new this.PhysX.PxSpring(
+                    angularYLimit.stiffness ?? 0,
+                    angularYLimit.damping
+                );
+                let yMin = -Math.PI / 2;
+                let yMax = Math.PI / 2;
+                let zMin = -Math.PI / 2;
+                let zMax = Math.PI / 2;
+                if (angularYLimit.min !== undefined) {
+                    yMin = angularYLimit.min;
+                }
+                if (angularYLimit.max !== undefined) {
+                    yMax = angularYLimit.max;
+                }
+                if (angularZLimit.min !== undefined) {
+                    zMin = angularZLimit.min;
+                }
+                if (angularZLimit.max !== undefined) {
+                    zMax = angularZLimit.max;
+                }
+                const jointLimitCone = new this.PhysX.PxJointLimitPyramid(
+                    yMin,
+                    yMax,
+                    zMin,
+                    zMax,
+                    spring
+                );
+                physxJoint.setPyramidSwingLimit(jointLimitCone);
+                this.PhysX.destroy(spring);
+
+                if (yMin !== yMax) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eSWING1,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                }
+                if (zMin !== zMax) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eSWING2,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                }
+            }
+        } else if (angularYLimit !== undefined || angularZLimit !== undefined) {
+            const singleLimit = angularYLimit ?? angularZLimit;
+            if (singleLimit.min && -1 * singleLimit.min !== singleLimit.max) {
+                console.warn(
+                    "PhysX requires symmetric limits for swing limits in single axis mode."
+                );
+            } else {
+                const spring = new this.PhysX.PxSpring(
+                    singleLimit.stiffness ?? 0,
+                    singleLimit.damping
+                );
+                const maxY = angularYLimit?.max ?? Math.PI / 2;
+                const maxZ = angularZLimit?.max ?? Math.PI / 2;
+                const jointLimitCone = new this.PhysX.PxJointLimitCone(maxY, maxZ, spring);
+                if (angularYLimit !== undefined) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eSWING1,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                }
+                if (angularZLimit !== undefined) {
+                    physxJoint.setMotion(
+                        this.PhysX.PxD6AxisEnum.eSWING2,
+                        this.PhysX.PxD6MotionEnum.eLIMITED
+                    );
+                }
+                physxJoint.setSwingLimit(jointLimitCone);
+                this.PhysX.destroy(spring);
+                this.PhysX.destroy(jointLimitCone);
+            }
         }
 
         const positionTarget = vec3.fromValues(0, 0, 0);
@@ -1237,17 +1313,18 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 }
             } else if (drive.type === "angular") {
                 if (drive.positionTarget !== undefined) {
+                    // gl-matrix seems to apply rotations clockwise for positive angles, gltf uses counter-clockwise
                     switch (drive.axis) {
                         case 0: {
-                            quat.rotateX(angleTarget, angleTarget, drive.positionTarget);
+                            quat.rotateX(angleTarget, angleTarget, -drive.positionTarget);
                             break;
                         }
                         case 1: {
-                            quat.rotateY(angleTarget, angleTarget, drive.positionTarget);
+                            quat.rotateY(angleTarget, angleTarget, -drive.positionTarget);
                             break;
                         }
                         case 2: {
-                            quat.rotateZ(angleTarget, angleTarget, drive.positionTarget);
+                            quat.rotateZ(angleTarget, angleTarget, -drive.positionTarget);
                             break;
                         }
                     }
