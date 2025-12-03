@@ -1503,7 +1503,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 node.physicsTransform = physicsTransform;
                 node.scaledPhysicsTransform = scaledPhysicsTransform;
             } else if (motion && motion.gravityFactor !== 1.0) {
-                //TODO apply custom gravity
+                const force = new this.PhysX.PxVec3(0, -9.81 * motion.gravityFactor, 0);
+                actor.addForce(force);
+                this.PhysX.destroy(force);
             }
         }
 
