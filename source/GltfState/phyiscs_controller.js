@@ -1135,9 +1135,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                             ? this.PhysX.PxD6MotionEnum.eLOCKED
                             : this.PhysX.PxD6MotionEnum.eLIMITED
                     );
-                    if (!lock) {
-                        physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eX, linearLimitPair);
-                    }
+                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eX, linearLimitPair);
                 }
                 if (limit.linearAxes.includes(1)) {
                     physxJoint.setMotion(
@@ -1146,9 +1144,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                             ? this.PhysX.PxD6MotionEnum.eLOCKED
                             : this.PhysX.PxD6MotionEnum.eLIMITED
                     );
-                    if (!lock) {
-                        physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eY, linearLimitPair);
-                    }
+                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eY, linearLimitPair);
                 }
                 if (limit.linearAxes.includes(2)) {
                     physxJoint.setMotion(
@@ -1157,9 +1153,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                             ? this.PhysX.PxD6MotionEnum.eLOCKED
                             : this.PhysX.PxD6MotionEnum.eLIMITED
                     );
-                    if (!lock) {
-                        physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eZ, linearLimitPair);
-                    }
+                    physxJoint.setLinearLimit(this.PhysX.PxD6AxisEnum.eZ, linearLimitPair);
                 }
                 this.PhysX.destroy(linearLimitPair);
             }
@@ -1175,6 +1169,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                             this.PhysX.PxD6AxisEnum.eTWIST,
                             this.PhysX.PxD6MotionEnum.eLOCKED
                         );
+                        physxJoint.setTwistLimit(angularLimitPair);
                     }
                     if (limit.angularAxes.includes(1)) {
                         physxJoint.setMotion(
