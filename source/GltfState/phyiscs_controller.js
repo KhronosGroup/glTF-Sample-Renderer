@@ -1023,7 +1023,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             currentNode = currentNode.parentNode;
         }
         if (currentNode === undefined) {
-            return { actor: undefined, offset: mat4.clone(node.worldTransform) };
+            const pos = vec3.create();
+            mat4.getTranslation(pos, node.worldTransform);
+            return { actor: undefined, offsetPosition: pos, offsetRotation: node.worldQuaternion };
         }
         const actor = this.nodeToActor.get(currentNode.gltfObjectIndex);
         const inverseActorRotation = quat.create();
