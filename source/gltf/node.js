@@ -27,6 +27,7 @@ class gltfNode extends GltfObject {
         // non gltf
         this.worldTransform = mat4.create();
         this.worldQuaternion = quat.create();
+        this.worldScale = vec3.create();
         this.inverseWorldTransform = mat4.create();
         this.normalMatrix = mat4.create();
         this.light = undefined;
@@ -36,6 +37,7 @@ class gltfNode extends GltfObject {
         this.parentNode = undefined;
         this.scene = undefined;
         this.physicsTransform = undefined;
+        this.scaledPhysicsTransform = undefined;
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -166,7 +168,7 @@ class gltfNode extends GltfObject {
     }
 
     getRenderedWorldTransform() {
-        return this.physicsTransform ?? this.worldTransform;
+        return this.scaledPhysicsTransform ?? this.worldTransform;
     }
 }
 

@@ -23,7 +23,7 @@ class PhysicsController {
         this.hasRuntimeAnimationTargets = false;
         this.morphWeights = new Map();
         this.playing = false;
-        this.enabled = false;
+        this.enabled = true;
         this.simulationStepTime = 1 / 60;
         this.timeAccumulator = 0;
         this.skipFrames = 2; // Skip the first two simulation frames to allow engine to initialize
@@ -225,7 +225,7 @@ class PhysicsController {
         this.applyAnimations(state);
         this.timeAccumulator += deltaTime;
         if (
-            this.playing &&
+            this.enabled &&
             this.engine &&
             state &&
             this.timeAccumulator >= this.simulationStepTime
@@ -238,8 +238,9 @@ class PhysicsController {
     applyAnimations(state) {
         for (const node of state.gltf.nodes) {
             // TODO set worldTransformUpdated in node when transform changes from animations/interactivity
+            // Find a good way to specify that the node is animated. Either with a flag or by setting physicsTransform to undefined
             if (node.worldTransformUpdated) {
-                node.physicsTransform = node.worldTransform;
+                node.scaledPhysicsTransform = undefined;
                 if (this.engine) {
                     this.engine.updateRigidBodyTransform(node);
                 }
@@ -1428,7 +1429,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const localTransform = node.getLocalTransform();
         const globalTransform = mat4.create();
         mat4.multiply(globalTransform, parentTransform, localTransform);
-        node.physicsTransform = globalTransform;
+        node.scaledPhysicsTransform = globalTransform;
         for (const childIndex of node.children) {
             const childNode = gltf.nodes[childIndex];
             this.applyTransformRecursively(gltf, childNode, globalTransform);
@@ -1441,6 +1442,68 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
 
         //TODO set custom gravity and kinematic forces before simulating
+        for (const [nodeIndex, actor] of this.nodeToActor.entries()) {
+            const node = state.gltf.nodes[nodeIndex];
+            const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
+            // TODO ignore if animated
+            if (motion && motion.isKinematic) {
+                const worldTransform = node.physicsTransform ?? node.worldTransform;
+                const targetPosition = vec3.create();
+                const targetRotation = quat.create();
+                if (motion.linearVelocity !== undefined) {
+                    const linearVelocity = vec3.create();
+                    vec3.scale(linearVelocity, motion.linearVelocity, deltaTime);
+                    targetPosition[0] = worldTransform[12] + linearVelocity[0];
+                    targetPosition[1] = worldTransform[13] + linearVelocity[1];
+                    targetPosition[2] = worldTransform[14] + linearVelocity[2];
+                }
+                if (motion.angularVelocity !== undefined) {
+                    // gl-matrix seems to apply rotations clockwise for positive angles, gltf uses counter-clockwise
+                    const angularVelocity = quat.create();
+                    quat.rotateX(
+                        angularVelocity,
+                        angularVelocity,
+                        -motion.angularVelocity[0] * deltaTime
+                    );
+                    quat.rotateY(
+                        angularVelocity,
+                        angularVelocity,
+                        -motion.angularVelocity[1] * deltaTime
+                    );
+                    quat.rotateZ(
+                        angularVelocity,
+                        angularVelocity,
+                        -motion.angularVelocity[2] * deltaTime
+                    );
+                    let currentRotation = quat.create();
+                    if (node.physicsTransform !== undefined) {
+                        mat4.getRotation(currentRotation, worldTransform);
+                    } else {
+                        currentRotation = node.worldQuaternion;
+                    }
+                    quat.multiply(targetRotation, angularVelocity, currentRotation);
+                }
+                const pos = new this.PhysX.PxVec3(...targetPosition);
+                const rot = new this.PhysX.PxQuat(...targetRotation);
+                const transform = new this.PhysX.PxTransform(pos, rot);
+
+                actor.setKinematicTarget(transform);
+                this.PhysX.destroy(pos);
+                this.PhysX.destroy(rot);
+                this.PhysX.destroy(transform);
+
+                const physicsTransform = mat4.create();
+                mat4.fromRotationTranslation(physicsTransform, targetRotation, targetPosition);
+
+                const scaledPhysicsTransform = mat4.create();
+                mat4.scale(scaledPhysicsTransform, physicsTransform, node.worldScale);
+
+                node.physicsTransform = physicsTransform;
+                node.scaledPhysicsTransform = scaledPhysicsTransform;
+            } else if (motion && motion.gravityFactor !== 1.0) {
+                //TODO apply custom gravity
+            }
+        }
 
         this.scene.simulate(deltaTime);
         this.scene.fetchResults(true);
@@ -1457,6 +1520,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     transform.q.z,
                     transform.q.w
                 );
+
+                const physicsTransform = mat4.create();
+                mat4.fromRotationTranslation(physicsTransform, rotation, position);
+
+                node.physicsTransform = physicsTransform;
 
                 const rotationBetween = quat.create();
 
@@ -1476,25 +1544,28 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
                 mat3.multiply(scaleRot, rotMat, scaleRot);
 
-                const physicsTransform = mat4.create();
-                physicsTransform[0] = scaleRot[0];
-                physicsTransform[1] = scaleRot[1];
-                physicsTransform[2] = scaleRot[2];
-                physicsTransform[4] = scaleRot[3];
-                physicsTransform[5] = scaleRot[4];
-                physicsTransform[6] = scaleRot[5];
-                physicsTransform[8] = scaleRot[6];
-                physicsTransform[9] = scaleRot[7];
-                physicsTransform[10] = scaleRot[8];
-                physicsTransform[12] = position[0];
-                physicsTransform[13] = position[1];
-                physicsTransform[14] = position[2];
+                const scaledPhysicsTransform = mat4.create();
+                scaledPhysicsTransform[0] = scaleRot[0];
+                scaledPhysicsTransform[1] = scaleRot[1];
+                scaledPhysicsTransform[2] = scaleRot[2];
+                scaledPhysicsTransform[4] = scaleRot[3];
+                scaledPhysicsTransform[5] = scaleRot[4];
+                scaledPhysicsTransform[6] = scaleRot[5];
+                scaledPhysicsTransform[8] = scaleRot[6];
+                scaledPhysicsTransform[9] = scaleRot[7];
+                scaledPhysicsTransform[10] = scaleRot[8];
+                scaledPhysicsTransform[12] = position[0];
+                scaledPhysicsTransform[13] = position[1];
+                scaledPhysicsTransform[14] = position[2];
 
-                node.physicsTransform = physicsTransform;
-
+                node.scaledPhysicsTransform = scaledPhysicsTransform;
                 for (const childIndex of node.children) {
                     const childNode = state.gltf.nodes[childIndex];
-                    this.applyTransformRecursively(state.gltf, childNode, node.physicsTransform);
+                    this.applyTransformRecursively(
+                        state.gltf,
+                        childNode,
+                        node.scaledPhysicsTransform
+                    );
                 }
             }
         }

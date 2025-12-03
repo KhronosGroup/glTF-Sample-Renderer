@@ -19,6 +19,7 @@ class gltfScene extends GltfObject {
             mat4.multiply(node.worldTransform, parentTransform, node.getLocalTransform());
             mat4.invert(node.inverseWorldTransform, node.worldTransform);
             mat4.transpose(node.normalMatrix, node.inverseWorldTransform);
+            mat4.getScaling(node.worldScale, node.worldTransform);
 
             if (node.instanceMatrices) {
                 node.instanceWorldTransforms = [];

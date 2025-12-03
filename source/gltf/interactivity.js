@@ -639,8 +639,8 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const pathParts = path.split("/");
                 const nodeIndex = parseInt(pathParts[2]);
                 const node = this.world.gltf.nodes[nodeIndex];
-                if (!node.physicsTransform) {
-                    return this.convertArrayToMatrix(node.getLocalTransform(), 4); // gl-matrix uses column-major order
+                if (!node.scaledPhysicsTransform) {
+                    return node.getLocalTransform();
                 }
                 node.scene.applyTransformHierarchy(this.world.gltf);
                 const parentTransform = node.parentNode

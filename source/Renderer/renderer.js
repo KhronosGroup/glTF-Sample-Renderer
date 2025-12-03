@@ -779,7 +779,8 @@ class gltfRenderer {
         );
 
         // Physics debug view
-        if (state.physicsController.enabled && state.physicsController.playing) {
+        //TODO make optional
+        if (state.physicsController.enabled) {
             const lines = state.physicsController.getDebugLineData();
             if (lines.length !== 0) {
                 const vertexShader = "picking.vert";
