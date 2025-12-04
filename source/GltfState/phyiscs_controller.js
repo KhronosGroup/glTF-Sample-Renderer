@@ -127,48 +127,66 @@ class PhysicsController {
             "rotation",
             "scale"
         ]);
-        let meshColliderCount = 0;
+        let dynamicMeshColliderCount = 0;
+        let staticMeshColliderCount = 0;
         const animatedNodeIndices = result.animatedIndices;
         this.hasRuntimeAnimationTargets = result.runtimeChanges;
-        const gatherRigidBodies = (nodeIndices, currentRigidBody) => {
+        const gatherRigidBodies = (nodeIndex, currentRigidBody) => {
             let parentRigidBody = currentRigidBody;
-            for (const nodeIndex of nodeIndices) {
-                const node = state.gltf.nodes[nodeIndex];
-                const rigidBody = node.extensions?.KHR_physics_rigid_bodies;
-                if (rigidBody) {
-                    if (rigidBody.motion) {
-                        if (rigidBody.motion.isKinematic) {
-                            this.kinematicActors.push(node);
-                        } else {
-                            this.dynamicActors.push(node);
-                        }
-                        parentRigidBody = node;
-                    } else if (currentRigidBody === undefined) {
-                        if (animatedNodeIndices.has(node.gltfObjectIndex)) {
-                            this.kinematicActors.push(node);
-                        } else {
-                            this.staticActors.push(node);
-                        }
+            const node = state.gltf.nodes[nodeIndex];
+            const rigidBody = node.extensions?.KHR_physics_rigid_bodies;
+            if (rigidBody) {
+                if (rigidBody.motion) {
+                    if (rigidBody.motion.isKinematic) {
+                        this.kinematicActors.push(node);
+                    } else {
+                        this.dynamicActors.push(node);
                     }
-                    if (rigidBody.collider?.geometry?.node !== undefined) {
-                        meshColliderCount++;
-                        const colliderNodeIndex = rigidBody.collider.geometry.node;
-                        const colliderNode = state.gltf.nodes[colliderNodeIndex];
-                        if (colliderNode.skin !== undefined) {
-                            this.skinnedColliders.push(colliderNode);
-                        }
-                        if (morphedNodeIndices.has(colliderNodeIndex)) {
-                            this.morphedColliders.push(colliderNode);
-                        }
-                    }
-                    if (rigidBody.joint !== undefined) {
-                        this.jointNodes.push(node);
+                    parentRigidBody = node;
+                } else if (currentRigidBody === undefined) {
+                    if (animatedNodeIndices.has(node.gltfObjectIndex)) {
+                        this.kinematicActors.push(node);
+                    } else {
+                        this.staticActors.push(node);
                     }
                 }
-                gatherRigidBodies(node.children, parentRigidBody);
+                if (rigidBody.collider?.geometry?.node !== undefined) {
+                    if (!rigidBody.collider.geometry.convexHull) {
+                        if (
+                            parentRigidBody === undefined ||
+                            parentRigidBody.extensions.KHR_physics_rigid_bodies.motion.isKinematic
+                        ) {
+                            staticMeshColliderCount++;
+                        } else {
+                            if (
+                                currentRigidBody?.gltfObjectIndex !==
+                                parentRigidBody.gltfObjectIndex
+                            ) {
+                                dynamicMeshColliderCount++;
+                            }
+                        }
+                    }
+                    const colliderNodeIndex = rigidBody.collider.geometry.node;
+                    const colliderNode = state.gltf.nodes[colliderNodeIndex];
+                    if (colliderNode.skin !== undefined) {
+                        this.skinnedColliders.push(colliderNode);
+                    }
+                    if (morphedNodeIndices.has(colliderNodeIndex)) {
+                        this.morphedColliders.push(colliderNode);
+                    }
+                }
+                if (rigidBody.joint !== undefined) {
+                    this.jointNodes.push(node);
+                }
+            }
+            for (const childIndex of node.children) {
+                gatherRigidBodies(childIndex, parentRigidBody);
             }
         };
-        gatherRigidBodies(scene.nodes, undefined);
+
+        for (const nodeIndex of scene.nodes) {
+            gatherRigidBodies(nodeIndex, undefined);
+        }
         if (
             !this.engine ||
             (this.staticActors.length === 0 &&
@@ -184,7 +202,8 @@ class PhysicsController {
             this.dynamicActors,
             this.jointNodes,
             this.hasRuntimeAnimationTargets,
-            meshColliderCount
+            staticMeshColliderCount,
+            dynamicMeshColliderCount
         );
     }
 
@@ -271,7 +290,8 @@ class PhysicsInterface {
         dynamicActors,
         jointNodes,
         hasRuntimeAnimationTargets,
-        meshColliderCount
+        staticMeshColliderCount,
+        dynamicMeshColliderCount
     ) {}
     pauseSimulation() {}
     resumeSimulation() {}
@@ -1363,7 +1383,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         dynamicActors,
         jointNodes,
         hasRuntimeAnimationTargets,
-        meshColliderCount
+        staticMeshColliderCount,
+        dynamicMeshColliderCount
     ) {
         if (!this.PhysX) {
             return;
@@ -1400,6 +1421,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 this.PhysX.PxShapeFlagEnum.eVISUALIZATION
         );
 
+        const alwaysConvexMeshes =
+            dynamicMeshColliderCount > 1 ||
+            (staticMeshColliderCount > 0 && dynamicMeshColliderCount > 0);
+
         for (const node of staticActors) {
             this.createActor(state.gltf, node, shapeFlags, "static");
         }
@@ -1407,7 +1432,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.createActor(state.gltf, node, shapeFlags, "kinematic");
         }
         for (const node of dynamicActors) {
-            this.createActor(state.gltf, node, shapeFlags, "dynamic", meshColliderCount > 1);
+            this.createActor(state.gltf, node, shapeFlags, "dynamic", alwaysConvexMeshes);
         }
         for (const node of jointNodes) {
             this.createJoint(state.gltf, node);
