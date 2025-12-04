@@ -522,7 +522,7 @@ class gltfRenderer {
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
 
         // Update skins.
-        for (const node of this.nodes) {
+        for (const node of state.gltf.nodes) {
             if (node.mesh !== undefined && node.skin !== undefined) {
                 this.updateSkin(state, node);
             }

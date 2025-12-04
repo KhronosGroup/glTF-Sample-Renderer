@@ -518,9 +518,79 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let positionCount = 0;
         let indexDataArray = [];
         let indexCount = 0;
+        let skinData = undefined;
+
+        if (node.skin !== undefined) {
+            const skin = gltf.skins[node.skin];
+            if (skin.jointTextureData === undefined) {
+                skin.computeJoints(gltf);
+            }
+            skinData = skin.jointTextureData;
+        }
+
         for (const primitive of mesh.primitives) {
             const positionAccessor = gltf.accessors[primitive.attributes.POSITION];
-            positionDataArray.push(positionAccessor.getNormalizedDeinterlacedView(gltf));
+            const positionData = positionAccessor.getNormalizedDeinterlacedView(gltf);
+            if (skinData !== undefined) {
+                // Apply skinning on CPU
+                const joints0Accessor = gltf.accessors[primitive.attributes.JOINTS_0];
+                const weights0Accessor = gltf.accessors[primitive.attributes.WEIGHTS_0];
+                const joints0Data = joints0Accessor.getDeinterlacedView(gltf);
+                const weights0Data = weights0Accessor.getNormalizedDeinterlacedView(gltf);
+                let joints1Data = undefined;
+                let weights1Data = undefined;
+                if (
+                    primitive.attributes.JOINTS_1 !== undefined &&
+                    primitive.attributes.WEIGHTS_1 !== undefined
+                ) {
+                    const joints1Accessor = gltf.accessors[primitive.attributes.JOINTS_1];
+                    const weights1Accessor = gltf.accessors[primitive.attributes.WEIGHTS_1];
+                    joints1Data = joints1Accessor.getDeinterlacedView(gltf);
+                    weights1Data = weights1Accessor.getNormalizedDeinterlacedView(gltf);
+                }
+
+                for (let i = 0; i < positionData.length / 3; i++) {
+                    let skinnedPosition = vec3.create();
+                    const originalPosition = vec3.fromValues(
+                        positionData[i * 3],
+                        positionData[i * 3 + 1],
+                        positionData[i * 3 + 2]
+                    );
+                    const skinningMatrix = mat4.create();
+                    for (let j = 0; j < 4; j++) {
+                        const jointIndex = joints0Data[i * 4 + j];
+                        const weight = weights0Data[i * 4 + j];
+                        const jointMatrix = mat4.create();
+                        jointMatrix.set(skinData.slice(jointIndex * 32, jointIndex * 32 + 16));
+                        mat4.multiplyScalarAndAdd(
+                            skinningMatrix,
+                            skinningMatrix,
+                            jointMatrix,
+                            weight
+                        );
+                        if (joints1Data !== undefined && weights1Data !== undefined && j >= 4) {
+                            const joint1Index = joints1Data[i * 4 + (j - 4)];
+                            const weight1 = weights1Data[i * 4 + (j - 4)];
+                            const jointMatrix = mat4.create();
+                            jointMatrix.set(
+                                skinData.slice(joint1Index * 32, joint1Index * 32 + 16)
+                            );
+                            mat4.multiplyScalarAndAdd(
+                                skinningMatrix,
+                                skinningMatrix,
+                                jointMatrix,
+                                weight1
+                            );
+                        }
+                    }
+                    vec3.transformMat4(skinnedPosition, originalPosition, skinningMatrix);
+                    positionData[i * 3] = skinnedPosition[0];
+                    positionData[i * 3 + 1] = skinnedPosition[1];
+                    positionData[i * 3 + 2] = skinnedPosition[2];
+                }
+            }
+
+            positionDataArray.push(positionData);
             positionCount += positionAccessor.count;
             if (primitive.indices !== undefined) {
                 const indexAccessor = gltf.accessors[primitive.indices];
@@ -579,8 +649,18 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const cookingParams = new this.PhysX.PxCookingParams(this.tolerances);
         const tri = this.PhysX.CreateTriangleMesh(cookingParams, des);
 
-        const PxScale = new this.PhysX.PxVec3(scale[0], scale[1], scale[2]);
-        const PxQuat = new this.PhysX.PxQuat(...scaleAxis);
+        const PxScale = new this.PhysX.PxVec3(1, 1, 1);
+        const PxQuat = new this.PhysX.PxQuat(0, 0, 0, 1);
+        // Skins ignore the the transforms of the nodes they are attached to
+        if (node.skin === undefined) {
+            PxScale.x = scale[0];
+            PxScale.y = scale[1];
+            PxScale.z = scale[2];
+            PxQuat.x = scaleAxis[0];
+            PxQuat.y = scaleAxis[1];
+            PxQuat.z = scaleAxis[2];
+            PxQuat.w = scaleAxis[3];
+        }
         const ms = new this.PhysX.PxMeshScale(PxScale, PxQuat);
         const f = new this.PhysX.PxMeshGeometryFlags();
         const geometry = new this.PhysX.PxTriangleMeshGeometry(tri, ms, f);
@@ -694,11 +774,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             } else {
                 geometry = this.simpleShapes[collider.geometry.shape];
             }
-        } else if (node.mesh !== undefined) {
-            if (convexHull === true) {
-                geometry = this.createConvexMeshFromNode(gltf, node, scale, scaleAxis);
-            } else {
-                geometry = this.createMeshFromNode(gltf, node, scale, scaleAxis);
+        } else {
+            if (node.mesh !== undefined) {
+                if (convexHull === true && node.skin === undefined) {
+                    geometry = this.createConvexMeshFromNode(gltf, node, scale, scaleAxis);
+                } else {
+                    geometry = this.createMeshFromNode(gltf, node, scale, scaleAxis);
+                }
             }
         }
 
@@ -857,6 +939,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
             const convexHull = noMeshShapes ? true : isConvexHull === true;
 
+            // If current node is not a reference to a collider search this node and its children to find colliders
             if (
                 isReferenceNode === false &&
                 node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.shape === undefined

@@ -22,6 +22,7 @@ class gltfSkin extends GltfObject {
         // not gltf
         this.jointTextureInfo = undefined;
         this.jointWebGlTexture = undefined;
+        this.jointTextureData = undefined;
     }
 
     initGl(gltf, webGlContext) {
@@ -106,6 +107,8 @@ class gltfSkin extends GltfObject {
             textureData.set(normalMatrix, i * 32 + 16);
             ++i;
         }
+
+        this.jointTextureData = textureData;
 
         webGlContext.bindTexture(webGlContext.TEXTURE_2D, this.jointWebGlTexture);
         // Set texture format and upload data.
