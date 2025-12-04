@@ -531,6 +531,36 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         for (const primitive of mesh.primitives) {
             const positionAccessor = gltf.accessors[primitive.attributes.POSITION];
             const positionData = positionAccessor.getNormalizedDeinterlacedView(gltf);
+
+            if (primitive.targets !== undefined) {
+                let morphWeights = node.weights ?? mesh.weights;
+                if (morphWeights !== undefined) {
+                    // Calculate morphed vertex positions on CPU
+                    const morphPositionData = [];
+                    for (const target of primitive.targets) {
+                        if (target.POSITION !== undefined) {
+                            const morphAccessor = gltf.accessors[target.POSITION];
+                            morphPositionData.push(
+                                morphAccessor.getNormalizedDeinterlacedView(gltf)
+                            );
+                        } else {
+                            morphPositionData.push(undefined);
+                        }
+                    }
+                    for (let i = 0; i < positionData.length / 3; i++) {
+                        for (let j = 0; j < morphWeights.length; j++) {
+                            const morphData = morphPositionData[j];
+                            if (morphWeights[j] === 0 || morphData === undefined) {
+                                continue;
+                            }
+                            positionData[i * 3] += morphData[i * 3] * morphWeights[j];
+                            positionData[i * 3 + 1] += morphData[i * 3 + 1] * morphWeights[j];
+                            positionData[i * 3 + 2] += morphData[i * 3 + 2] * morphWeights[j];
+                        }
+                    }
+                }
+            }
+
             if (skinData !== undefined) {
                 // Apply skinning on CPU
                 const joints0Accessor = gltf.accessors[primitive.attributes.JOINTS_0];
