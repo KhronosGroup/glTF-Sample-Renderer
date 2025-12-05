@@ -27,6 +27,7 @@ class PhysicsController {
         this.enabled = true;
         this.simulationStepTime = 1 / 60;
         this.timeAccumulator = 0;
+        this.pauseTime = undefined;
         this.skipFrames = 2; // Skip the first two simulation frames to allow engine to initialize
 
         //TODO PxShape needs to be recreated if collisionFilter differs
@@ -238,6 +239,7 @@ class PhysicsController {
     }
 
     pauseSimulation() {
+        this.pauseTime = performance.now();
         this.enabled = true;
         this.playing = false;
     }
@@ -252,6 +254,12 @@ class PhysicsController {
         }
         this.applyAnimations(state);
         this.timeAccumulator += deltaTime;
+        if (this.pauseTime !== undefined) {
+            this.timeAccumulator = this.simulationStepTime;
+            if (this.playing) {
+                this.pauseTime = undefined;
+            }
+        }
         if (
             this.enabled &&
             this.engine &&
