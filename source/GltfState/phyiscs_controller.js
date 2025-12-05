@@ -22,13 +22,13 @@ class PhysicsController {
         this.skinnedColliders = [];
         this.hasRuntimeAnimationTargets = false;
         this.morphWeights = new Map();
+
         this.playing = false;
         this.enabled = true;
         this.simulationStepTime = 1 / 60;
         this.timeAccumulator = 0;
         this.skipFrames = 2; // Skip the first two simulation frames to allow engine to initialize
 
-        //TODO different scaled primitive colliders might need to be uniquely created
         //TODO PxShape needs to be recreated if collisionFilter differs
         //TODO Cache geometries for faster computation
         // PxShape has localTransform which applies to all actors using the shape
@@ -109,7 +109,7 @@ class PhysicsController {
     }
 
     loadScene(state, sceneIndex) {
-        //TODO reset previous scene
+        this.resetScene();
         if (
             state.gltf.extensionsUsed === undefined ||
             state.gltf.extensionsUsed.includes("KHR_physics_rigid_bodies") === false
@@ -208,6 +208,15 @@ class PhysicsController {
     }
 
     resetScene() {
+        this.staticActors = [];
+        this.kinematicActors = [];
+        this.dynamicActors = [];
+        this.jointNodes = [];
+        this.morphedColliders = [];
+        this.skinnedColliders = [];
+        this.hasRuntimeAnimationTargets = false;
+        this.morphWeights.clear();
+        this.timeAccumulator = 0;
         if (this.engine) {
             this.engine.resetSimulation();
         }
@@ -363,6 +372,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.defaultMaterial = undefined;
         this.tolerances = undefined;
 
+        this.reset = false;
+
         // Needs to be reset for each scene
         this.scene = undefined;
         this.nodeToActor = new Map();
@@ -370,6 +381,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.filterData = [];
         this.physXFilterData = [];
         this.physXMaterials = [];
+
+        // Need for memory management
+        this.convexMeshes = [];
+        this.triangleMeshes = [];
 
         this.MAX_FLOAT = 3.4028234663852885981170418348452e38;
     }
@@ -392,6 +407,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         console.log("Created PxFoundation");
 
         this.tolerances = new this.PhysX.PxTolerancesScale();
+        this.tolerances.speed = 9.81;
         this.physics = this.PhysX.CreatePhysics(version, foundation, this.tolerances);
         this.defaultMaterial = this.createPhysXMaterial(new gltfPhysicsMaterial());
         console.log("Created PxPhysics");
@@ -430,7 +446,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis) {
-        //TODO scale with rotation
         const data = createCapsuleVertexData(radiusTop, radiusBottom, height);
         return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
     }
@@ -442,7 +457,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             radiusTop !== radiusBottom ||
             scale[0] !== scale[2]
         ) {
-            //TODO scale with rotation
             const data = createCylinderVertexData(radiusTop, radiusBottom, height);
             return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         }
@@ -455,9 +469,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
     generateSphere(radius, scale, scaleAxis) {
         if (scale.every((value) => value === scale[0]) === false) {
-            //TODO
-            const data = createCapsuleVertexData(radius, radius, 0, scale, scaleAxis);
-            return this.createConvexMesh(data.vertices, data.indices);
+            const data = createCapsuleVertexData(radius, radius, 0);
+            return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         } else {
             radius *= scale[0];
         }
@@ -496,6 +509,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         des.flags = pxflags;
         const cookingParams = new this.PhysX.PxCookingParams(this.tolerances);
         const tri = this.PhysX.CreateConvexMesh(cookingParams, des);
+        this.convexMeshes.push(tri);
 
         const PxScale = new this.PhysX.PxVec3(scale[0], scale[1], scale[2]);
         const PxQuat = new this.PhysX.PxQuat(...scaleAxis);
@@ -678,6 +692,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         const cookingParams = new this.PhysX.PxCookingParams(this.tolerances);
         const tri = this.PhysX.CreateTriangleMesh(cookingParams, des);
+        this.triangleMeshes.push(tri);
 
         const PxScale = new this.PhysX.PxVec3(1, 1, 1);
         const PxQuat = new this.PhysX.PxQuat(0, 0, 0, 1);
@@ -913,7 +928,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
                 if (motion.gravityFactor !== 1.0) {
                     actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_GRAVITY, true);
-                    //TODO Apply custom gravity in simulation step
                 }
             }
         }
@@ -1502,10 +1516,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (!this.PhysX) {
             return;
         }
-        if (this.scene) {
-            this.stopSimulation();
-        }
-        this.resetSimulation();
         this.generateSimpleShapes(state.gltf);
         this.computeFilterData(state.gltf);
         for (let i = 0; i < this.filterData.length; i++) {
@@ -1545,7 +1555,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.createActor(state.gltf, node, shapeFlags, "kinematic");
         }
         for (const node of dynamicActors) {
-            this.createActor(state.gltf, node, shapeFlags, "dynamic", alwaysConvexMeshes);
+            this.createActor(state.gltf, node, shapeFlags, "dynamic", true);
         }
         for (const node of jointNodes) {
             this.createJoint(state.gltf, node);
@@ -1578,10 +1588,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
     simulateStep(state, deltaTime) {
         if (!this.scene) {
+            this.reset = false;
+            return;
+        }
+        if (this.reset === true) {
+            this._resetSimulation();
+            this.reset = false;
             return;
         }
 
-        //TODO set custom gravity and kinematic forces before simulating
         for (const [nodeIndex, actor] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];
             const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
@@ -1712,7 +1727,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             }
         }
     }
+
     resetSimulation() {
+        this.reset = true;
+        this.simulateStep({}, 0);
+    }
+
+    _resetSimulation() {
+        const scenePointer = this.scene;
+        this.scene = undefined;
         this.filterData = [];
         for (const physXFilterData of this.physXFilterData) {
             this.PhysX.destroy(physXFilterData);
@@ -1724,14 +1747,34 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         this.physXMaterials = [];
 
-        this.nodeToActor.clear();
-        if (this.scene) {
-            this.scene.release();
-            this.scene = undefined;
+        for (const shape of this.simpleShapes) {
+            shape.destroy?.();
         }
-    }
-    stopSimulation() {
-        // Implementation specific to Nvidia physics engine
+        this.simpleShapes = [];
+
+        for (const convexMesh of this.convexMeshes) {
+            convexMesh.release();
+        }
+        this.convexMeshes = [];
+
+        for (const triangleMesh of this.triangleMeshes) {
+            triangleMesh.release();
+        }
+        this.triangleMeshes = [];
+
+        for (const joint of this.nodeToJoint.values()) {
+            joint.release();
+        }
+        this.nodeToJoint.clear();
+
+        for (const actor of this.nodeToActor.values()) {
+            actor.release();
+        }
+
+        this.nodeToActor.clear();
+        if (scenePointer) {
+            scenePointer.release();
+        }
     }
 
     getDebugLineData() {
