@@ -119,8 +119,9 @@ class gltfInterpolator {
         // Wrap t around, so the animation loops.
         // Make sure that t is never earlier than the first keyframe and never later then the last keyframe.
         const isNegative = t < 0;
+        const isZero = t === 0;
         t = t % maxTime;
-        if (isNegative) {
+        if (isNegative || (t === 0 && !isZero)) {
             t += maxTime;
         }
         t = clamp(t, input[0], input[input.length - 1]);
