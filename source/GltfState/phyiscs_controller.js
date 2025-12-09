@@ -860,6 +860,33 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return shape;
     }
 
+    calculateScaleAndAxis(node, referencingNode = undefined) {
+        const referencedNodeIndex =
+            referencingNode?.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.node;
+        const scaleFactor = vec3.clone(node.scale);
+        let scaleRotation = quat.create();
+
+        let currentNode =
+            node.gltfObjectIndex === referencedNodeIndex ? referencingNode : node.parentNode;
+        const currentRotation = quat.clone(node.rotation);
+
+        while (currentNode !== undefined) {
+            if (vec3.equals(currentNode.scale, vec3.fromValues(1, 1, 1)) === false) {
+                const localScale = currentNode.scale;
+                vec3.transformQuat(localScale, currentNode.scale, scaleRotation);
+                vec3.multiply(scaleFactor, scaleFactor, localScale);
+                scaleRotation = quat.clone(currentRotation);
+            }
+            const nextRotation = quat.clone(currentNode.rotation);
+            quat.multiply(currentRotation, currentRotation, nextRotation);
+            currentNode =
+                currentNode.gltfObjectIndex === referencedNodeIndex
+                    ? referencingNode
+                    : currentNode.parentNode;
+        }
+        return { scale: scaleFactor, scaleAxis: scaleRotation };
+    }
+
     createActor(gltf, node, shapeFlags, type, noMeshShapes = false) {
         let parentNode = node;
         while (parentNode.parentNode !== undefined) {
@@ -947,7 +974,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             collider,
             actorNode,
             worldTransform,
-            isReferenceNode
+            referencingNode
         ) => {
             // Do not add other motion bodies' shapes to this actor
             if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
@@ -988,7 +1015,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
             // If current node is not a reference to a collider search this node and its children to find colliders
             if (
-                isReferenceNode === false &&
+                referencingNode === undefined &&
                 node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.shape === undefined
             ) {
                 if (
@@ -1010,7 +1037,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         referenceCollider,
                         actorNode,
                         computedWorldTransform,
-                        true
+                        node
                     );
                 }
 
@@ -1023,7 +1050,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         undefined,
                         actorNode,
                         computedWorldTransform,
-                        false
+                        undefined
                     );
                 }
                 return;
@@ -1049,10 +1076,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             mat4.getRotation(rotation, offsetTransform);
 
             // Calculate scale and scaleAxis
-            const scaleRotation = quat.create();
-            //mat4.getRotation(scaleRotation, computedWorldTransform);
-            const scale = vec3.create();
-            //mat4.getScaling(scale, computedWorldTransform);
+            const { scale, scaleAxis } = this.calculateScaleAndAxis(node, referencingNode);
 
             const shape = this.createShape(
                 gltf,
@@ -1062,7 +1086,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 physXFilterData,
                 convexHull,
                 scale,
-                scaleRotation
+                scaleAxis
             );
 
             if (shape !== undefined) {
@@ -1086,7 +1110,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     collider,
                     actorNode,
                     computedWorldTransform,
-                    isReferenceNode
+                    referencingNode
                 );
             }
         };
@@ -1107,26 +1131,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 node.extensions?.KHR_physics_rigid_bodies?.collider,
                 node,
                 worldTransform,
-                true
+                node
             );
         } else if (collider?.geometry?.shape !== undefined) {
-            const scaleFactor = vec3.clone(node.scale);
-            let scaleRotation = quat.create();
-
-            let currentNode = node.parentNode;
-            const currentRotation = quat.clone(node.rotation);
-
-            while (currentNode !== undefined) {
-                if (vec3.equals(currentNode.scale, vec3.fromValues(1, 1, 1)) === false) {
-                    const localScale = currentNode.scale;
-                    vec3.transformQuat(localScale, currentNode.scale, scaleRotation);
-                    vec3.multiply(scaleFactor, scaleFactor, localScale);
-                    scaleRotation = quat.clone(currentRotation);
-                }
-                const nextRotation = quat.clone(currentNode.rotation);
-                quat.multiply(currentRotation, currentRotation, nextRotation);
-                currentNode = currentNode.parentNode;
-            }
+            const { scale, scaleAxis } = this.calculateScaleAndAxis(node);
 
             const shape = this.createShape(
                 gltf,
@@ -1135,8 +1143,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 physxMaterial,
                 physxFilterData,
                 true,
-                scaleFactor,
-                scaleRotation
+                scale,
+                scaleAxis
             );
             if (shape !== undefined) {
                 actor.attachShape(shape);
@@ -1145,7 +1153,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         for (const childIndex of node.children) {
             const childNode = gltf.nodes[childIndex];
-            recurseShapes(gltf, childNode, shapeFlags, undefined, node, worldTransform, false);
+            recurseShapes(gltf, childNode, shapeFlags, undefined, node, worldTransform, undefined);
         }
 
         this.PhysX.destroy(pos);
