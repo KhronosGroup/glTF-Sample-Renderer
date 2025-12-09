@@ -945,29 +945,24 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             node,
             shapeFlags,
             collider,
-            shapeTransform,
-            offsetTransform,
+            actorNode,
+            worldTransform,
             isReferenceNode
         ) => {
             // Do not add other motion bodies' shapes to this actor
             if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
                 return;
             }
-            const scalingTransform = mat4.create();
+
             console.log(
                 "Node scale for physics shape:",
                 node.gltfObjectIndex,
                 node.scale,
-                shapeTransform
+                actorNode
             );
-            mat4.fromScaling(scalingTransform, node.scale);
-            const rotMat = mat4.create();
-            mat4.fromQuat(rotMat, node.rotation);
-            mat4.multiply(scalingTransform, shapeTransform, scalingTransform);
-            mat4.multiply(scalingTransform, scalingTransform, rotMat);
 
-            const computedOffset = mat4.create();
-            mat4.multiply(computedOffset, offsetTransform, node.getLocalTransform());
+            const computedWorldTransform = mat4.create();
+            mat4.multiply(computedWorldTransform, worldTransform, node.getLocalTransform());
 
             const materialIndex =
                 node.extensions?.KHR_physics_rigid_bodies?.collider?.physicsMaterial ??
@@ -1013,8 +1008,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         colliderNode,
                         shapeFlags,
                         referenceCollider,
-                        scalingTransform,
-                        computedOffset,
+                        actorNode,
+                        computedWorldTransform,
                         true
                     );
                 }
@@ -1026,19 +1021,38 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         childNode,
                         shapeFlags,
                         undefined,
-                        scalingTransform,
-                        computedOffset,
+                        actorNode,
+                        computedWorldTransform,
                         false
                     );
                 }
                 return;
             }
 
-            const localScale = vec3.create();
-            mat4.getScaling(localScale, scalingTransform);
+            // Calculate offset position
+            const translation = vec3.create();
+            const shapePosition = vec3.create();
+            mat4.getTranslation(shapePosition, actorNode.worldTransform);
+            const invertedActorRotation = quat.create();
+            quat.invert(invertedActorRotation, actorNode.worldQuaternion);
+            const offsetPosition = vec3.create();
+            mat4.getTranslation(offsetPosition, computedWorldTransform);
+            vec3.subtract(translation, offsetPosition, shapePosition);
+            vec3.transformQuat(translation, translation, invertedActorRotation);
 
-            const localScaleQuat = quat.create();
-            mat4.getRotation(localScaleQuat, scalingTransform);
+            // Calculate offset rotation
+            const rotation = quat.create();
+            const offsetTransform = mat4.create();
+            const inverseShapeTransform = mat4.create();
+            mat4.invert(inverseShapeTransform, actorNode.worldTransform);
+            mat4.multiply(offsetTransform, inverseShapeTransform, computedWorldTransform);
+            mat4.getRotation(rotation, offsetTransform);
+
+            // Calculate scale and scaleAxis
+            const scaleRotation = quat.create();
+            //mat4.getRotation(scaleRotation, computedWorldTransform);
+            const scale = vec3.create();
+            //mat4.getScaling(scale, computedWorldTransform);
 
             const shape = this.createShape(
                 gltf,
@@ -1047,28 +1061,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 material,
                 physXFilterData,
                 convexHull,
-                localScale,
-                localScaleQuat
+                scale,
+                scaleRotation
             );
 
             if (shape !== undefined) {
-                const translation = vec3.create();
-                const rotation = quat.create();
-                mat4.getTranslation(translation, computedOffset);
-                mat4.getRotation(rotation, computedOffset);
-
                 const PxPos = new this.PhysX.PxVec3(...translation);
                 const PxRotation = new this.PhysX.PxQuat(...rotation);
                 const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
                 shape.setLocalPose(pose);
-
-                console.log(
-                    "Attaching shape to actor",
-                    node.gltfObjectIndex,
-                    translation,
-                    rotation,
-                    localScale
-                );
 
                 actor.attachShape(shape);
                 this.PhysX.destroy(PxPos);
@@ -1083,8 +1084,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     childNode,
                     shapeFlags,
                     collider,
-                    scalingTransform,
-                    computedOffset,
+                    actorNode,
+                    computedWorldTransform,
                     isReferenceNode
                 );
             }
@@ -1097,12 +1098,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const physxFilterData =
             this.physXFilterData[collider?.collisionFilter ?? this.physXFilterData.length - 1];
 
-        const worldScale = vec3.create();
-        mat4.getScaling(worldScale, worldTransform);
-
-        const scalingTransform = mat4.create();
-        mat4.fromScaling(scalingTransform, worldScale);
-
         if (collider?.geometry?.node !== undefined) {
             const colliderNode = gltf.nodes[collider.geometry.node];
             recurseShapes(
@@ -1110,8 +1105,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 colliderNode,
                 shapeFlags,
                 node.extensions?.KHR_physics_rigid_bodies?.collider,
-                scalingTransform,
-                mat4.create(),
+                node,
+                worldTransform,
                 true
             );
         } else if (collider?.geometry?.shape !== undefined) {
@@ -1150,15 +1145,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         for (const childIndex of node.children) {
             const childNode = gltf.nodes[childIndex];
-            recurseShapes(
-                gltf,
-                childNode,
-                shapeFlags,
-                undefined,
-                scalingTransform,
-                mat4.create(),
-                false
-            );
+            recurseShapes(gltf, childNode, shapeFlags, undefined, node, worldTransform, false);
         }
 
         this.PhysX.destroy(pos);
