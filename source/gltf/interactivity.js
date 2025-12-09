@@ -773,8 +773,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                         return [NaN, NaN, NaN, NaN];
                     }
                     activeCamera = this.world.gltf.cameras[cameraIndex];
+                    activeCamera.setNode(this.world.gltf, this.world.cameraNodeIndex);
                 }
-                return activeCamera.getRotation().slice(0);
+                return activeCamera.getRotation(this.world.gltf).slice(0);
             },
             (_path, _value) => {
                 //no-op
@@ -799,8 +800,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                         return [NaN, NaN, NaN];
                     }
                     activeCamera = this.world.gltf.cameras[cameraIndex];
+                    activeCamera.setNode(this.world.gltf, this.world.cameraNodeIndex);
                 }
-                return activeCamera.getPosition().slice(0);
+                return activeCamera.getPosition(this.world.gltf).slice(0);
             },
             (_path, _value) => {
                 //no-op
