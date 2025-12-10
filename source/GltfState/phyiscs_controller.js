@@ -11,6 +11,163 @@ import {
 } from "../geometry_generator";
 import { vec3, mat4, quat, mat3 } from "gl-matrix";
 
+class PhysicsUtils {
+    static calculateScaleAndAxis(node, referencingNode = undefined) {
+        const referencedNodeIndex =
+            referencingNode?.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.node;
+        const scaleFactor = vec3.clone(node.scale);
+        let scaleRotation = quat.create();
+
+        let currentNode =
+            node.gltfObjectIndex === referencedNodeIndex ? referencingNode : node.parentNode;
+        const currentRotation = quat.clone(node.rotation);
+
+        while (currentNode !== undefined) {
+            if (vec3.equals(currentNode.scale, vec3.fromValues(1, 1, 1)) === false) {
+                const localScale = currentNode.scale;
+                vec3.transformQuat(localScale, currentNode.scale, scaleRotation);
+                vec3.multiply(scaleFactor, scaleFactor, localScale);
+                scaleRotation = quat.clone(currentRotation);
+            }
+            const nextRotation = quat.clone(currentNode.rotation);
+            quat.multiply(currentRotation, currentRotation, nextRotation);
+            currentNode =
+                currentNode.gltfObjectIndex === referencedNodeIndex
+                    ? referencingNode
+                    : currentNode.parentNode;
+        }
+        return { scale: scaleFactor, scaleAxis: scaleRotation };
+    }
+
+    static recurseCollider(
+        gltf,
+        node,
+        collider,
+        actorNode,
+        worldTransform,
+        referencingNode,
+        customFunction,
+        args = []
+    ) {
+        // Do not add other motion bodies' shapes to this actor
+        if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
+            return;
+        }
+
+        const computedWorldTransform = mat4.create();
+        mat4.multiply(computedWorldTransform, worldTransform, node.getLocalTransform());
+
+        const materialIndex =
+            node.extensions?.KHR_physics_rigid_bodies?.collider?.physicsMaterial ??
+            collider?.physicsMaterial;
+
+        const filterIndex =
+            node.extensions?.KHR_physics_rigid_bodies?.collider?.collisionFilter ??
+            collider?.collisionFilter;
+
+        const material = materialIndex ? this.physXMaterials[materialIndex] : this.defaultMaterial;
+
+        const physXFilterData = filterIndex
+            ? this.physXFilterData[filterIndex]
+            : this.physXFilterData[this.physXFilterData.length - 1];
+
+        const isConvexHull =
+            node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.convexHull ??
+            collider?.geometry?.convexHull;
+
+        // If current node is not a reference to a collider search this node and its children to find colliders
+        if (
+            referencingNode === undefined &&
+            node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.shape === undefined
+        ) {
+            if (node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.node !== undefined) {
+                const colliderNodeIndex =
+                    node.extensions.KHR_physics_rigid_bodies.collider.geometry.node;
+                const colliderNode = gltf.nodes[colliderNodeIndex];
+                const referenceCollider = {
+                    geometry: { convexHull: isConvexHull },
+                    physicsMaterial: materialIndex,
+                    collisionFilter: filterIndex
+                };
+                this.recurseCollider(
+                    gltf,
+                    colliderNode,
+                    referenceCollider,
+                    actorNode,
+                    computedWorldTransform,
+                    node,
+                    customFunction,
+                    args
+                );
+            }
+
+            for (const childIndex of node.children) {
+                const childNode = gltf.nodes[childIndex];
+                this.recurseCollider(
+                    gltf,
+                    childNode,
+                    undefined,
+                    actorNode,
+                    computedWorldTransform,
+                    undefined,
+                    customFunction,
+                    args
+                );
+            }
+            return;
+        }
+
+        // Calculate offset position
+        const translation = vec3.create();
+        const shapePosition = vec3.create();
+        mat4.getTranslation(shapePosition, actorNode.worldTransform);
+        const invertedActorRotation = quat.create();
+        quat.invert(invertedActorRotation, actorNode.worldQuaternion);
+        const offsetPosition = vec3.create();
+        mat4.getTranslation(offsetPosition, computedWorldTransform);
+        vec3.subtract(translation, offsetPosition, shapePosition);
+        vec3.transformQuat(translation, translation, invertedActorRotation);
+
+        // Calculate offset rotation
+        const rotation = quat.create();
+        const offsetTransform = mat4.create();
+        const inverseShapeTransform = mat4.create();
+        mat4.invert(inverseShapeTransform, actorNode.worldTransform);
+        mat4.multiply(offsetTransform, inverseShapeTransform, computedWorldTransform);
+        mat4.getRotation(rotation, offsetTransform);
+
+        // Calculate scale and scaleAxis
+        const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
+
+        customFunction(
+            gltf,
+            node,
+            material,
+            physXFilterData,
+            isConvexHull,
+            translation,
+            rotation,
+            scale,
+            scaleAxis,
+            ...args
+        );
+
+        for (const childIndex of node.children) {
+            const childNode = gltf.nodes[childIndex];
+            this.recurseCollider(
+                gltf,
+                childNode,
+                collider,
+                actorNode,
+                computedWorldTransform,
+                referencingNode,
+                customFunction,
+                args
+            );
+        }
+    }
+}
+
 class PhysicsController {
     constructor() {
         this.engine = undefined;
@@ -860,33 +1017,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return shape;
     }
 
-    calculateScaleAndAxis(node, referencingNode = undefined) {
-        const referencedNodeIndex =
-            referencingNode?.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.node;
-        const scaleFactor = vec3.clone(node.scale);
-        let scaleRotation = quat.create();
-
-        let currentNode =
-            node.gltfObjectIndex === referencedNodeIndex ? referencingNode : node.parentNode;
-        const currentRotation = quat.clone(node.rotation);
-
-        while (currentNode !== undefined) {
-            if (vec3.equals(currentNode.scale, vec3.fromValues(1, 1, 1)) === false) {
-                const localScale = currentNode.scale;
-                vec3.transformQuat(localScale, currentNode.scale, scaleRotation);
-                vec3.multiply(scaleFactor, scaleFactor, localScale);
-                scaleRotation = quat.clone(currentRotation);
-            }
-            const nextRotation = quat.clone(currentNode.rotation);
-            quat.multiply(currentRotation, currentRotation, nextRotation);
-            currentNode =
-                currentNode.gltfObjectIndex === referencedNodeIndex
-                    ? referencingNode
-                    : currentNode.parentNode;
-        }
-        return { scale: scaleFactor, scaleAxis: scaleRotation };
-    }
-
     createActor(gltf, node, shapeFlags, type, noMeshShapes = false) {
         let parentNode = node;
         while (parentNode.parentNode !== undefined) {
@@ -967,124 +1097,24 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             }
         }
 
-        const recurseShapes = (
+        const createAndAddShape = (
             gltf,
             node,
-            shapeFlags,
-            collider,
-            actorNode,
-            worldTransform,
-            referencingNode
+            material,
+            physXFilterData,
+            isConvexHull,
+            translation,
+            rotation,
+            scale,
+            scaleAxis
         ) => {
-            // Do not add other motion bodies' shapes to this actor
-            if (node.extensions?.KHR_physics_rigid_bodies?.motion !== undefined) {
-                return;
-            }
-
-            console.log(
-                "Node scale for physics shape:",
-                node.gltfObjectIndex,
-                node.scale,
-                actorNode
-            );
-
-            const computedWorldTransform = mat4.create();
-            mat4.multiply(computedWorldTransform, worldTransform, node.getLocalTransform());
-
-            const materialIndex =
-                node.extensions?.KHR_physics_rigid_bodies?.collider?.physicsMaterial ??
-                collider?.physicsMaterial;
-
-            const filterIndex =
-                node.extensions?.KHR_physics_rigid_bodies?.collider?.collisionFilter ??
-                collider?.collisionFilter;
-
-            const material = materialIndex
-                ? this.physXMaterials[materialIndex]
-                : this.defaultMaterial;
-
-            const physXFilterData = filterIndex
-                ? this.physXFilterData[filterIndex]
-                : this.physXFilterData[this.physXFilterData.length - 1];
-
-            const isConvexHull =
-                node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.convexHull ??
-                collider?.geometry?.convexHull;
-
-            const convexHull = noMeshShapes ? true : isConvexHull === true;
-
-            // If current node is not a reference to a collider search this node and its children to find colliders
-            if (
-                referencingNode === undefined &&
-                node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.shape === undefined
-            ) {
-                if (
-                    node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.node !==
-                    undefined
-                ) {
-                    const colliderNodeIndex =
-                        node.extensions.KHR_physics_rigid_bodies.collider.geometry.node;
-                    const colliderNode = gltf.nodes[colliderNodeIndex];
-                    const referenceCollider = {
-                        geometry: { convexHull: isConvexHull },
-                        physicsMaterial: materialIndex,
-                        collisionFilter: filterIndex
-                    };
-                    recurseShapes(
-                        gltf,
-                        colliderNode,
-                        shapeFlags,
-                        referenceCollider,
-                        actorNode,
-                        computedWorldTransform,
-                        node
-                    );
-                }
-
-                for (const childIndex of node.children) {
-                    const childNode = gltf.nodes[childIndex];
-                    recurseShapes(
-                        gltf,
-                        childNode,
-                        shapeFlags,
-                        undefined,
-                        actorNode,
-                        computedWorldTransform,
-                        undefined
-                    );
-                }
-                return;
-            }
-
-            // Calculate offset position
-            const translation = vec3.create();
-            const shapePosition = vec3.create();
-            mat4.getTranslation(shapePosition, actorNode.worldTransform);
-            const invertedActorRotation = quat.create();
-            quat.invert(invertedActorRotation, actorNode.worldQuaternion);
-            const offsetPosition = vec3.create();
-            mat4.getTranslation(offsetPosition, computedWorldTransform);
-            vec3.subtract(translation, offsetPosition, shapePosition);
-            vec3.transformQuat(translation, translation, invertedActorRotation);
-
-            // Calculate offset rotation
-            const rotation = quat.create();
-            const offsetTransform = mat4.create();
-            const inverseShapeTransform = mat4.create();
-            mat4.invert(inverseShapeTransform, actorNode.worldTransform);
-            mat4.multiply(offsetTransform, inverseShapeTransform, computedWorldTransform);
-            mat4.getRotation(rotation, offsetTransform);
-
-            // Calculate scale and scaleAxis
-            const { scale, scaleAxis } = this.calculateScaleAndAxis(node, referencingNode);
-
             const shape = this.createShape(
                 gltf,
                 node,
                 shapeFlags,
                 material,
                 physXFilterData,
-                convexHull,
+                noMeshShapes || isConvexHull,
                 scale,
                 scaleAxis
             );
@@ -1100,19 +1130,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 this.PhysX.destroy(PxRotation);
                 this.PhysX.destroy(pose);
             }
-
-            for (const childIndex of node.children) {
-                const childNode = gltf.nodes[childIndex];
-                recurseShapes(
-                    gltf,
-                    childNode,
-                    shapeFlags,
-                    collider,
-                    actorNode,
-                    computedWorldTransform,
-                    referencingNode
-                );
-            }
         };
 
         const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
@@ -1124,17 +1141,17 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         if (collider?.geometry?.node !== undefined) {
             const colliderNode = gltf.nodes[collider.geometry.node];
-            recurseShapes(
+            PhysicsUtils.recurseCollider(
                 gltf,
                 colliderNode,
-                shapeFlags,
                 node.extensions?.KHR_physics_rigid_bodies?.collider,
                 node,
                 worldTransform,
-                node
+                node,
+                createAndAddShape
             );
         } else if (collider?.geometry?.shape !== undefined) {
-            const { scale, scaleAxis } = this.calculateScaleAndAxis(node);
+            const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node);
 
             const shape = this.createShape(
                 gltf,
@@ -1153,7 +1170,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         for (const childIndex of node.children) {
             const childNode = gltf.nodes[childIndex];
-            recurseShapes(gltf, childNode, shapeFlags, undefined, node, worldTransform, undefined);
+            PhysicsUtils.recurseCollider(
+                gltf,
+                childNode,
+                undefined,
+                node,
+                worldTransform,
+                undefined,
+                createAndAddShape
+            );
         }
 
         this.PhysX.destroy(pos);
