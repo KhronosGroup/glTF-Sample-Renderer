@@ -15,13 +15,18 @@ class gltfScene extends GltfObject {
     }
 
     applyTransformHierarchy(gltf, rootTransform = mat4.create()) {
-        function applyTransform(gltf, node, parentTransform) {
-            mat4.multiply(node.worldTransform, parentTransform, node.getLocalTransform());
-            mat4.invert(node.inverseWorldTransform, node.worldTransform);
-            mat4.transpose(node.normalMatrix, node.inverseWorldTransform);
-            mat4.getScaling(node.worldScale, node.worldTransform);
+        function applyTransform(gltf, node, parentTransform, parentRotation, parentDirty) {
+            const nodeDirty = parentDirty || node.isTransformDirty();
+            if (nodeDirty) {
+                mat4.multiply(node.worldTransform, parentTransform, node.getLocalTransform());
+                mat4.invert(node.inverseWorldTransform, node.worldTransform);
+                mat4.transpose(node.normalMatrix, node.inverseWorldTransform);
+                quat.multiply(node.worldQuaternion, parentRotation, node.rotation);
+                mat4.getScaling(node.worldScale, node.worldTransform);
+                node.clearTransformDirty();
+            }
 
-            if (node.instanceMatrices) {
+            if (nodeDirty && node.instanceMatrices) {
                 node.instanceWorldTransforms = [];
                 for (let i = 0; i < node.instanceMatrices.length; i++) {
                     const instanceTransform = node.instanceMatrices[i];
@@ -32,24 +37,17 @@ class gltfScene extends GltfObject {
             }
 
             for (const child of node.children) {
-                applyTransform(gltf, gltf.nodes[child], node.worldTransform);
+                applyTransform(
+                    gltf,
+                    gltf.nodes[child],
+                    node.worldTransform,
+                    node.worldQuaternion,
+                    nodeDirty
+                );
             }
         }
         for (const node of this.nodes) {
-            applyTransform(gltf, gltf.nodes[node], rootTransform);
-        }
-
-        function applyWorldRotation(gltf, node, parentRotation) {
-            quat.multiply(node.worldQuaternion, parentRotation, node.rotation);
-
-            // Recurse into children
-            for (const child of node.children) {
-                applyWorldRotation(gltf, gltf.nodes[child], node.worldQuaternion);
-            }
-        }
-
-        for (const node of this.nodes) {
-            applyWorldRotation(gltf, gltf.nodes[node], quat.create());
+            applyTransform(gltf, gltf.nodes[node], rootTransform, quat.create(), false);
         }
     }
 

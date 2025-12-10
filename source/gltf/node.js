@@ -170,6 +170,21 @@ class gltfNode extends GltfObject {
     getRenderedWorldTransform() {
         return this.scaledPhysicsTransform ?? this.worldTransform;
     }
+    
+    isTransformDirty() {
+        for (const prop of ["rotation", "scale", "translation"]) {
+            if (this.animatedPropertyObjects[prop].dirty) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    clearTransformDirty() {
+        for (const prop of ["rotation", "scale", "translation"]) {
+            this.animatedPropertyObjects[prop].dirty = false;
+        }
+    }
 }
 
 class KHR_node_visibility extends GltfObject {
