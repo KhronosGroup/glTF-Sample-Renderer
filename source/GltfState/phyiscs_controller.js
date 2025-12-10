@@ -46,6 +46,8 @@ class PhysicsUtils {
         actorNode,
         worldTransform,
         referencingNode,
+        offsetChanged,
+        scaleChanged,
         customFunction,
         args = []
     ) {
@@ -56,6 +58,12 @@ class PhysicsUtils {
 
         const computedWorldTransform = mat4.create();
         mat4.multiply(computedWorldTransform, worldTransform, node.getLocalTransform());
+        if (node.animatedPropertyObjects.scale.dirty) {
+            scaleChanged = true;
+        }
+        if (node.isLocalTransformDirty()) {
+            offsetChanged = true;
+        }
 
         const materialIndex =
             node.extensions?.KHR_physics_rigid_bodies?.collider?.physicsMaterial ??
@@ -91,6 +99,8 @@ class PhysicsUtils {
                     actorNode,
                     computedWorldTransform,
                     node,
+                    offsetChanged,
+                    scaleChanged,
                     customFunction,
                     args
                 );
@@ -105,6 +115,8 @@ class PhysicsUtils {
                     actorNode,
                     computedWorldTransform,
                     undefined,
+                    offsetChanged,
+                    scaleChanged,
                     customFunction,
                     args
                 );
@@ -119,6 +131,8 @@ class PhysicsUtils {
             actorNode,
             computedWorldTransform,
             referencingNode,
+            offsetChanged,
+            scaleChanged,
             ...args
         );
 
@@ -131,6 +145,8 @@ class PhysicsUtils {
                 actorNode,
                 computedWorldTransform,
                 referencingNode,
+                offsetChanged,
+                scaleChanged,
                 customFunction,
                 args
             );
@@ -399,6 +415,54 @@ class PhysicsController {
     }
 
     applyAnimations(state) {
+        const updateColliders = () => {
+            //TODO
+        };
+
+        for (const node of this.staticActors) {
+            const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+            if (node.dirtyTransform) {
+                this.engine.updateRigidBodyTransform(node);
+            }
+
+            if (collider?.geometry?.node !== undefined) {
+                const colliderNode = state.gltf.nodes[collider.geometry.node];
+                PhysicsUtils.recurseCollider(
+                    state.gltf,
+                    colliderNode,
+                    node.extensions?.KHR_physics_rigid_bodies?.collider,
+                    node,
+                    node.worldTransform,
+                    node,
+                    node.dirtyScale,
+                    node.dirtyScale,
+                    updateColliders
+                );
+            } else if (collider?.geometry?.shape !== undefined) {
+                if (node.dirtyScale) {
+                    const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node);
+
+                    //TODO update simple shape collider scale
+                }
+                //TODO update shapes properties
+            }
+
+            for (const childIndex of node.children) {
+                const childNode = state.gltf.nodes[childIndex];
+                PhysicsUtils.recurseCollider(
+                    state.gltf,
+                    childNode,
+                    undefined,
+                    node,
+                    node.worldTransform,
+                    undefined,
+                    node.dirtyScale,
+                    node.dirtyScale,
+                    updateColliders
+                );
+            }
+        }
+
         for (const node of state.gltf.nodes) {
             // TODO set worldTransformUpdated in node when transform changes from animations/interactivity
             // Find a good way to specify that the node is animated. Either with a flag or by setting physicsTransform to undefined
@@ -1146,6 +1210,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 node,
                 worldTransform,
                 node,
+                node.dirtyScale,
+                node.dirtyScale,
                 createAndAddShape
             );
         } else if (collider?.geometry?.shape !== undefined) {
@@ -1175,6 +1241,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 node,
                 worldTransform,
                 undefined,
+                node.dirtyScale,
+                node.dirtyScale,
                 createAndAddShape
             );
         }
