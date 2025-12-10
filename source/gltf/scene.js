@@ -15,15 +15,26 @@ class gltfScene extends GltfObject {
     }
 
     applyTransformHierarchy(gltf, rootTransform = mat4.create()) {
-        function applyTransform(gltf, node, parentTransform, parentRotation, parentDirty) {
-            const nodeDirty = parentDirty || node.isTransformDirty();
+        function applyTransform(
+            gltf,
+            node,
+            parentTransform,
+            parentRotation,
+            parentDirty,
+            parentScaleDirty
+        ) {
+            const nodeDirty = parentDirty || node.isLocalTransformDirty();
+            node.dirtyTransform = nodeDirty;
+            node.dirtyScale = false;
             if (nodeDirty) {
                 mat4.multiply(node.worldTransform, parentTransform, node.getLocalTransform());
                 mat4.invert(node.inverseWorldTransform, node.worldTransform);
                 mat4.transpose(node.normalMatrix, node.inverseWorldTransform);
                 quat.multiply(node.worldQuaternion, parentRotation, node.rotation);
                 mat4.getScaling(node.worldScale, node.worldTransform);
-                node.clearTransformDirty();
+                if (parentScaleDirty || node.animatedPropertyObjects["scale"].dirty) {
+                    node.dirtyScale = true;
+                }
             }
 
             if (nodeDirty && node.instanceMatrices) {
@@ -42,12 +53,13 @@ class gltfScene extends GltfObject {
                     gltf.nodes[child],
                     node.worldTransform,
                     node.worldQuaternion,
-                    nodeDirty
+                    nodeDirty,
+                    node.dirtyScale
                 );
             }
         }
         for (const node of this.nodes) {
-            applyTransform(gltf, gltf.nodes[node], rootTransform, quat.create(), false);
+            applyTransform(gltf, gltf.nodes[node], rootTransform, quat.create(), false, false);
         }
     }
 

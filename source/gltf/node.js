@@ -39,6 +39,7 @@ class gltfNode extends GltfObject {
         this.physicsTransform = undefined;
         this.scaledPhysicsTransform = undefined;
         this.dirtyTransform = true;
+        this.dirtyScale = true;
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -189,6 +190,7 @@ class gltfNode extends GltfObject {
             this.animatedPropertyObjects[prop].dirty = false;
         }
         this.dirtyTransform = false;
+        this.dirtyScale = false;
     }
 }
 
