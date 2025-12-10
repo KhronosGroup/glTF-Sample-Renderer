@@ -173,10 +173,7 @@ class gltfNode extends GltfObject {
         return this.scaledPhysicsTransform ?? this.worldTransform;
     }
 
-    isTransformDirty() {
-        if (this.dirtyTransform) {
-            return true;
-        }
+    isLocalTransformDirty() {
         for (const prop of ["rotation", "scale", "translation"]) {
             if (this.animatedPropertyObjects[prop].dirty) {
                 return true;
