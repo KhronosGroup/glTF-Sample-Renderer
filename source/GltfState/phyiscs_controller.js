@@ -65,15 +65,15 @@ class PhysicsUtils {
             node.extensions?.KHR_physics_rigid_bodies?.collider?.collisionFilter ??
             collider?.collisionFilter;
 
-        const material = materialIndex ? this.physXMaterials[materialIndex] : this.defaultMaterial;
-
-        const physXFilterData = filterIndex
-            ? this.physXFilterData[filterIndex]
-            : this.physXFilterData[this.physXFilterData.length - 1];
-
         const isConvexHull =
             node.extensions?.KHR_physics_rigid_bodies?.collider?.geometry?.convexHull ??
             collider?.geometry?.convexHull;
+
+        const referenceCollider = {
+            geometry: { convexHull: isConvexHull },
+            physicsMaterial: materialIndex,
+            collisionFilter: filterIndex
+        };
 
         // If current node is not a reference to a collider search this node and its children to find colliders
         if (
@@ -84,11 +84,6 @@ class PhysicsUtils {
                 const colliderNodeIndex =
                     node.extensions.KHR_physics_rigid_bodies.collider.geometry.node;
                 const colliderNode = gltf.nodes[colliderNodeIndex];
-                const referenceCollider = {
-                    geometry: { convexHull: isConvexHull },
-                    physicsMaterial: materialIndex,
-                    collisionFilter: filterIndex
-                };
                 this.recurseCollider(
                     gltf,
                     colliderNode,
@@ -117,38 +112,13 @@ class PhysicsUtils {
             return;
         }
 
-        // Calculate offset position
-        const translation = vec3.create();
-        const shapePosition = vec3.create();
-        mat4.getTranslation(shapePosition, actorNode.worldTransform);
-        const invertedActorRotation = quat.create();
-        quat.invert(invertedActorRotation, actorNode.worldQuaternion);
-        const offsetPosition = vec3.create();
-        mat4.getTranslation(offsetPosition, computedWorldTransform);
-        vec3.subtract(translation, offsetPosition, shapePosition);
-        vec3.transformQuat(translation, translation, invertedActorRotation);
-
-        // Calculate offset rotation
-        const rotation = quat.create();
-        const offsetTransform = mat4.create();
-        const inverseShapeTransform = mat4.create();
-        mat4.invert(inverseShapeTransform, actorNode.worldTransform);
-        mat4.multiply(offsetTransform, inverseShapeTransform, computedWorldTransform);
-        mat4.getRotation(rotation, offsetTransform);
-
-        // Calculate scale and scaleAxis
-        const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
-
         customFunction(
             gltf,
             node,
-            material,
-            physXFilterData,
-            isConvexHull,
-            translation,
-            rotation,
-            scale,
-            scaleAxis,
+            referenceCollider,
+            actorNode,
+            computedWorldTransform,
+            referencingNode,
             ...args
         );
 
@@ -1100,21 +1070,49 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const createAndAddShape = (
             gltf,
             node,
-            material,
-            physXFilterData,
-            isConvexHull,
-            translation,
-            rotation,
-            scale,
-            scaleAxis
+            collider,
+            actorNode,
+            worldTransform,
+            referencingNode
         ) => {
+            // Calculate offset position
+            const translation = vec3.create();
+            const shapePosition = vec3.create();
+            mat4.getTranslation(shapePosition, actorNode.worldTransform);
+            const invertedActorRotation = quat.create();
+            quat.invert(invertedActorRotation, actorNode.worldQuaternion);
+            const offsetPosition = vec3.create();
+            mat4.getTranslation(offsetPosition, worldTransform);
+            vec3.subtract(translation, offsetPosition, shapePosition);
+            vec3.transformQuat(translation, translation, invertedActorRotation);
+
+            // Calculate offset rotation
+            const rotation = quat.create();
+            const offsetTransform = mat4.create();
+            const inverseShapeTransform = mat4.create();
+            mat4.invert(inverseShapeTransform, actorNode.worldTransform);
+            mat4.multiply(offsetTransform, inverseShapeTransform, worldTransform);
+            mat4.getRotation(rotation, offsetTransform);
+
+            // Calculate scale and scaleAxis
+            const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
+
+            const materialIndex = collider?.physicsMaterial;
+            const material = materialIndex
+                ? this.physXMaterials[materialIndex]
+                : this.defaultMaterial;
+
+            const physXFilterData = collider?.collisionFilter
+                ? this.physXFilterData[collider.collisionFilter]
+                : this.physXFilterData[this.physXFilterData.length - 1];
+
             const shape = this.createShape(
                 gltf,
                 node,
                 shapeFlags,
                 material,
                 physXFilterData,
-                noMeshShapes || isConvexHull,
+                noMeshShapes || collider?.geometry?.convexHull === true,
                 scale,
                 scaleAxis
             );
