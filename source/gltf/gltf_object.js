@@ -37,6 +37,12 @@ class GltfObject {
     initGl(gltf, webGlContext) {
         initGlForMembers(this, gltf, webGlContext);
     }
+
+    resetDirtyFlags() {
+        for (const prop in this.animatedPropertyObjects) {
+            this.animatedPropertyObjects[prop].dirty = false;
+        }
+    }
 }
 
 export { GltfObject };

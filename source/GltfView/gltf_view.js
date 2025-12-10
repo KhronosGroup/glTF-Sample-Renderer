@@ -89,6 +89,7 @@ class GltfView {
         }
 
         this.renderer.drawScene(state, scene);
+        scene.resetHierarchyDirtyFlags(state.gltf);
     }
 
     /**

@@ -51,6 +51,13 @@ class gltfScene extends GltfObject {
         }
     }
 
+    resetHierarchyDirtyFlags(gltf) {
+        for (const nodeIndex of this.nodes) {
+            const node = gltf.nodes[nodeIndex];
+            node.clearTransformDirty();
+        }
+    }
+
     gatherNodes(gltf, enabledExtensions) {
         const nodes = [];
         const selectableNodes = [];

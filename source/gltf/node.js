@@ -38,6 +38,7 @@ class gltfNode extends GltfObject {
         this.scene = undefined;
         this.physicsTransform = undefined;
         this.scaledPhysicsTransform = undefined;
+        this.dirtyTransform = true;
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -170,8 +171,11 @@ class gltfNode extends GltfObject {
     getRenderedWorldTransform() {
         return this.scaledPhysicsTransform ?? this.worldTransform;
     }
-    
+
     isTransformDirty() {
+        if (this.dirtyTransform) {
+            return true;
+        }
         for (const prop of ["rotation", "scale", "translation"]) {
             if (this.animatedPropertyObjects[prop].dirty) {
                 return true;
@@ -184,6 +188,7 @@ class gltfNode extends GltfObject {
         for (const prop of ["rotation", "scale", "translation"]) {
             this.animatedPropertyObjects[prop].dirty = false;
         }
+        this.dirtyTransform = false;
     }
 }
 
