@@ -415,14 +415,14 @@ class PhysicsController {
     }
 
     applyAnimations(state) {
-        const updateColliders = () => {
-            //TODO
-        };
+        this.engine.updateSimpleShapes(state.gltf);
+        const actors = [].concat(this.staticActors, this.kinematicActors, this.dynamicActors);
 
-        for (const node of this.staticActors) {
+        for (let i = 0; i < actors.length; i++) {
+            const node = actors[i];
             const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
             if (node.dirtyTransform) {
-                this.engine.updateRigidBodyTransform(node);
+                this.engine.updateRigidBodyTransform(node); //TODO
             }
 
             if (collider?.geometry?.node !== undefined) {
@@ -436,7 +436,7 @@ class PhysicsController {
                     node,
                     node.dirtyScale,
                     node.dirtyScale,
-                    updateColliders
+                    this.engine.updateCollider
                 );
             } else if (collider?.geometry?.shape !== undefined) {
                 if (node.dirtyScale) {
@@ -458,22 +458,9 @@ class PhysicsController {
                     undefined,
                     node.dirtyScale,
                     node.dirtyScale,
-                    updateColliders
+                    this.engine.updateCollider
                 );
             }
-        }
-
-        for (const node of state.gltf.nodes) {
-            // TODO set worldTransformUpdated in node when transform changes from animations/interactivity
-            // Find a good way to specify that the node is animated. Either with a flag or by setting physicsTransform to undefined
-            if (node.worldTransformUpdated) {
-                node.scaledPhysicsTransform = undefined;
-                if (this.engine) {
-                    this.engine.updateRigidBodyTransform(node);
-                }
-            }
-            // TODO check if morph target weights and skinning have changed
-            // TODO check if collider/physics properties have changed
         }
     }
 
@@ -506,14 +493,18 @@ class PhysicsInterface {
     resetSimulation() {}
     stopSimulation() {}
 
-    generateBox(x, y, z, scale, scaleAxis) {}
-    generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis) {}
-    generateCylinder(height, radiusTop, radiusBottom, scale, scaleAxis) {}
-    generateSphere(radius, scale, scaleAxis) {}
-    generatePlane(width, height, doubleSided, scale, scaleAxis) {}
-
+    generateBox(x, y, z, scale, scaleAxis, reference) {}
+    generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis, reference) {}
+    generateCylinder(height, radiusTop, radiusBottom, scale, scaleAxis, reference) {}
+    generateSphere(radius, scale, scaleAxis, reference) {}
+    generatePlane(width, height, doubleSided, scale, scaleAxis, reference) {}
     //TODO Handle non-uniform scale properly (also for parent nodes)
-    generateSimpleShape(shape, scale = vec3.fromValues(1, 1, 1), scaleAxis = quat.create()) {
+    generateSimpleShape(
+        shape,
+        scale = vec3.fromValues(1, 1, 1),
+        scaleAxis = quat.create(),
+        reference = undefined
+    ) {
         switch (shape.type) {
             case "box":
                 return this.generateBox(
@@ -521,7 +512,8 @@ class PhysicsInterface {
                     shape.box.size[1],
                     shape.box.size[2],
                     scale,
-                    scaleAxis
+                    scaleAxis,
+                    reference
                 );
             case "capsule":
                 return this.generateCapsule(
@@ -529,7 +521,8 @@ class PhysicsInterface {
                     shape.capsule.radiusTop,
                     shape.capsule.radiusBottom,
                     scale,
-                    scaleAxis
+                    scaleAxis,
+                    reference
                 );
             case "cylinder":
                 return this.generateCylinder(
@@ -537,17 +530,19 @@ class PhysicsInterface {
                     shape.cylinder.radiusTop,
                     shape.cylinder.radiusBottom,
                     scale,
-                    scaleAxis
+                    scaleAxis,
+                    reference
                 );
             case "sphere":
-                return this.generateSphere(shape.sphere.radius, scale, scaleAxis);
+                return this.generateSphere(shape.sphere.radius, scale, scaleAxis, reference);
             case "plane":
                 return this.generatePlane(
                     shape.plane.width,
                     shape.plane.height,
                     shape.plane.doubleSided,
                     scale,
-                    scaleAxis
+                    scaleAxis,
+                    reference
                 );
         }
     }
@@ -559,6 +554,27 @@ class PhysicsInterface {
         }
         for (const shape of gltf.extensions.KHR_implicit_shapes.shapes) {
             this.simpleShapes.push(this.generateSimpleShape(shape));
+        }
+    }
+
+    updateSimpleShapes(gltf) {
+        if (gltf?.extensions?.KHR_implicit_shapes === undefined) {
+            return;
+        }
+        for (let i = 0; i < gltf.extensions.KHR_implicit_shapes.shapes.length; i++) {
+            const shape = gltf.extensions.KHR_implicit_shapes.shapes[i];
+            if (shape.isDirty()) {
+                const newGeometry = this.generateSimpleShape(
+                    shape,
+                    vec3.fromValues(1, 1, 1),
+                    quat.create(),
+                    this.simpleShapes[i]
+                );
+                if (newGeometry !== undefined) {
+                    this.simpleShapes[i].release?.();
+                    this.simpleShapes[i] = newGeometry;
+                }
+            }
         }
     }
 }
@@ -613,7 +629,117 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return this.PhysX;
     }
 
-    createCollider(colliderNode) {}
+    updateCollider(
+        gltf,
+        node,
+        collider,
+        actorNode,
+        worldTransform,
+        referencingNode,
+        offsetChanged,
+        scaleChanged
+    ) {
+        const glTFCollider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+        const { actor, pxShapeMap } = this.nodeToActor.get(actorNode.gltfObjectIndex);
+        const currentShape = pxShapeMap.get(node.gltfObjectIndex);
+        let currentGeometry = currentShape.getGeometry();
+        const currentColliderType = currentShape.getType();
+        const actorType = actor.getType();
+        const shapeIndex = glTFCollider?.shape;
+        let scale = vec3.fromValues(1, 1, 1);
+        let scaleAxis = quat.create();
+        if (shapeIndex !== undefined) {
+            // Simple shapes need to be recreated if scale changed
+            // If properties changed we also need to recreate the mesh colliders
+            const dirty = this.simpleShapes[shapeIndex].isDirty();
+            if (scaleChanged && !dirty && currentColliderType === "eCONVEXMESH") {
+                // Update convex mesh scale
+                const result = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
+                scale = result.scale;
+                scaleAxis = result.scaleAxis;
+                currentGeometry.scale.scale = scale;
+                currentGeometry.scale.rotation = scaleAxis;
+            } else if (!scaleChanged && dirty && currentColliderType !== "eCONVEXMESH") {
+                // Use geometry from array, if this is a reference we do not need to do anything here since we already updated the array
+            } else {
+                // Recreate simple shape collider
+                const newGeometry = this.generateSimpleShape(
+                    gltf.extensions.KHR_implicit_shapes.shapes[shapeIndex],
+                    scale,
+                    scaleAxis
+                );
+                if (newGeometry.getType() !== currentColliderType) {
+                    // We need to recreate the shape
+                    this.PhysX.destroy(currentShape);
+                    const shape = this.createShapeFromGeometry(
+                        newGeometry,
+                        undefined,
+                        undefined,
+                        undefined /*TODO*/,
+                        glTFCollider
+                    );
+                    pxShapeMap.set(node.gltfObjectIndex, shape);
+                    actor.detachShape(currentShape);
+                    actor.attachShape(shape);
+                    currentGeometry = newGeometry;
+                } else {
+                    currentShape.setGeometry(newGeometry);
+                }
+            }
+        } else if (node.mesh !== undefined) {
+            const weights =
+                node.animatedPropertyObjects.weights ??
+                gltf.meshes[node.mesh].animatedPropertyObjects.weights;
+            if (weights !== undefined && weights.dirty) {
+                if (actorType === "dynamic") {
+                    //recreate convex hull from morphed mesh
+                    currentGeometry = this.createConvexMeshFromNode(gltf, node);
+                    currentShape.setGeometry(currentGeometry);
+                } else {
+                    // apply morphed vertices to collider
+                    //TODO: not sure how if getVerticesForModification returns correct values
+                    currentGeometry.triangleMesh.getVerticesForModification();
+                    currentGeometry.triangleMesh.refitBVH();
+                    this.scene.resetFiltering(actor);
+                }
+            }
+            if (scaleChanged) {
+                // apply scale
+                const result = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
+                scale = result.scale;
+                scaleAxis = result.scaleAxis;
+                currentGeometry.scale.scale = scale;
+                currentGeometry.scale.rotation = scaleAxis;
+            }
+        } else if (node.skin !== undefined) {
+            //TODO handle skinned colliders (can also include morphing)
+        }
+        if (offsetChanged) {
+            // Calculate offset position
+            const translation = vec3.create();
+            const shapePosition = vec3.create();
+            mat4.getTranslation(shapePosition, actorNode.worldTransform);
+            const invertedActorRotation = quat.create();
+            quat.invert(invertedActorRotation, actorNode.worldQuaternion);
+            const offsetPosition = vec3.create();
+            mat4.getTranslation(offsetPosition, worldTransform);
+            vec3.subtract(translation, offsetPosition, shapePosition);
+            vec3.transformQuat(translation, translation, invertedActorRotation);
+
+            // Calculate offset rotation
+            const rotation = quat.create();
+            const offsetTransform = mat4.create();
+            const inverseShapeTransform = mat4.create();
+            mat4.invert(inverseShapeTransform, actorNode.worldTransform);
+            mat4.multiply(offsetTransform, inverseShapeTransform, worldTransform);
+            mat4.getRotation(rotation, offsetTransform);
+
+            const PxPos = new this.PhysX.PxVec3(...translation);
+            const PxRotation = new this.PhysX.PxQuat(...rotation);
+            const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
+            currentShape.setLocalPose(pose);
+        }
+    }
 
     mapCombineMode(mode) {
         switch (mode) {
@@ -628,7 +754,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
     }
 
-    generateBox(x, y, z, scale, scaleAxis) {
+    // Either create a box or update an existing one. Returns only newly created geometry
+    generateBox(x, y, z, scale, scaleAxis, reference) {
+        let referenceType = undefined;
+        if (reference !== undefined) {
+            referenceType = reference.getType();
+        }
         if (
             scale.every((value) => value === scale[0]) === false &&
             quat.equals(scaleAxis, quat.create()) === false
@@ -636,20 +767,27 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const data = createBoxVertexData(x, y, z);
             return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         }
-        const geometry = new this.PhysX.PxBoxGeometry(
+        const halfExtents = new this.PhysX.PxVec3(
             (x / 2) * scale[0],
             (y / 2) * scale[1],
             (z / 2) * scale[2]
         );
+        let geometry = undefined;
+        if (referenceType === "eBOX") {
+            reference.halfExtents = halfExtents;
+        } else {
+            geometry = new this.PhysX.PxBoxGeometry(halfExtents);
+        }
+        this.PhysX.destroy(halfExtents);
         return geometry;
     }
 
-    generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis) {
+    generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis, reference) {
         const data = createCapsuleVertexData(radiusTop, radiusBottom, height);
         return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
     }
 
-    generateCylinder(height, radiusTop, radiusBottom, scale, scaleAxis) {
+    generateCylinder(height, radiusTop, radiusBottom, scale, scaleAxis, reference) {
         if (
             (quat.equals(scaleAxis, quat.create()) === false &&
                 scale.every((value) => value === scale[0]) === false) ||
@@ -666,18 +804,30 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return this.createConvexMesh(data.vertices, data.indices);
     }
 
-    generateSphere(radius, scale, scaleAxis) {
+    generateSphere(radius, scale, scaleAxis, reference) {
+        let referenceType = undefined;
+        if (reference !== undefined) {
+            referenceType = reference.getType();
+        }
         if (scale.every((value) => value === scale[0]) === false) {
             const data = createCapsuleVertexData(radius, radius, 0);
             return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         } else {
             radius *= scale[0];
         }
+        if (referenceType === "eSPHERE") {
+            reference.radius = radius;
+            return undefined;
+        }
         const geometry = new this.PhysX.PxSphereGeometry(radius);
         return geometry;
     }
 
-    generatePlane(width, height, doubleSided, scale, scaleAxis) {
+    generatePlane(width, height, doubleSided, scale, scaleAxis, reference) {
+        if (reference !== undefined) {
+            //TODO handle update
+            return undefined;
+        }
         const geometry = new this.PhysX.PxPlaneGeometry();
         return geometry;
     }
@@ -998,6 +1148,28 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return new this.PhysX.PxFilterData(word0, word1, additionalFlags, 0);
     }
 
+    createShapeFromGeometry(geometry, physXMaterial, physXFilterData, shapeFlags, glTFCollider) {
+        if (physXMaterial === undefined) {
+            if (glTFCollider?.physicsMaterial !== undefined) {
+                physXMaterial = this.physXMaterials[glTFCollider.physicsMaterial];
+            } else {
+                physXMaterial = this.defaultMaterial;
+            }
+        }
+        const shape = this.physics.createShape(geometry, physXMaterial, true, shapeFlags);
+
+        if (physXFilterData === undefined) {
+            physXFilterData =
+                this.physXFilterData[
+                    glTFCollider?.collisionFilter ?? this.physXFilterData.length - 1
+                ];
+        }
+
+        shape.setSimulationFilterData(physXFilterData);
+
+        return shape;
+    }
+
     createShape(
         gltf,
         node,
@@ -1032,23 +1204,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             return undefined;
         }
 
-        if (physXMaterial === undefined) {
-            if (collider?.physicsMaterial !== undefined) {
-                physXMaterial = this.physXMaterials[collider.physicsMaterial];
-            } else {
-                physXMaterial = this.defaultMaterial;
-            }
-        }
-        const shape = this.physics.createShape(geometry, physXMaterial, true, shapeFlags);
-
-        if (physXFilterData === undefined) {
-            physXFilterData =
-                this.physXFilterData[collider?.collisionFilter ?? this.physXFilterData.length - 1];
-        }
-
-        shape.setSimulationFilterData(physXFilterData);
-
-        return shape;
+        return this.createShapeFromGeometry(
+            geometry,
+            physXMaterial,
+            physXFilterData,
+            shapeFlags,
+            collider
+        );
     }
 
     createActor(gltf, node, shapeFlags, type, noMeshShapes = false) {
@@ -1063,6 +1225,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const rotation = new this.PhysX.PxQuat(...node.worldQuaternion);
         const pose = new this.PhysX.PxTransform(pos, rotation);
         let actor = null;
+        const pxShapeMap = new Map();
         if (type === "static") {
             actor = this.physics.createRigidStatic(pose);
         } else {
@@ -1188,6 +1351,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 shape.setLocalPose(pose);
 
                 actor.attachShape(shape);
+                pxShapeMap.set(node.gltfObjectIndex, shape);
                 this.PhysX.destroy(PxPos);
                 this.PhysX.destroy(PxRotation);
                 this.PhysX.destroy(pose);
@@ -1252,7 +1416,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(pose);
 
         this.scene.addActor(actor);
-        this.nodeToActor.set(node.gltfObjectIndex, actor);
+        this.nodeToActor.set(node.gltfObjectIndex, { actor, pxShapeMap: pxShapeMap });
     }
 
     computeJointOffsetAndActor(node) {
@@ -1268,7 +1432,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             mat4.getTranslation(pos, node.worldTransform);
             return { actor: undefined, offsetPosition: pos, offsetRotation: node.worldQuaternion };
         }
-        const actor = this.nodeToActor.get(currentNode.gltfObjectIndex);
+        const actor = this.nodeToActor.get(currentNode.gltfObjectIndex)?.actor;
         const inverseActorRotation = quat.create();
         quat.invert(inverseActorRotation, currentNode.worldQuaternion);
         const offsetRotation = quat.create();
@@ -1691,7 +1855,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             return;
         }
 
-        for (const [nodeIndex, actor] of this.nodeToActor.entries()) {
+        for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];
             const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
             // TODO ignore if animated
@@ -1759,7 +1923,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.scene.simulate(deltaTime);
         this.scene.fetchResults(true);
 
-        for (const [nodeIndex, actor] of this.nodeToActor.entries()) {
+        for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];
             const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
             if (motion && !motion.isKinematic) {
@@ -1862,7 +2026,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.nodeToJoint.clear();
 
         for (const actor of this.nodeToActor.values()) {
-            actor.release();
+            actor.actor.release();
         }
 
         this.nodeToActor.clear();
