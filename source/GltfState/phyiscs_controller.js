@@ -414,57 +414,72 @@ class PhysicsController {
         }
     }
 
+    updateColliders(state, node) {
+        this.engine.animateActorTransform(node); //TODO
+        const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+
+        if (collider?.geometry?.node !== undefined) {
+            const colliderNode = state.gltf.nodes[collider.geometry.node];
+            PhysicsUtils.recurseCollider(
+                state.gltf,
+                colliderNode,
+                node.extensions?.KHR_physics_rigid_bodies?.collider,
+                node,
+                node.worldTransform,
+                node,
+                node.dirtyScale,
+                node.dirtyScale,
+                this.engine.updateCollider
+            );
+        } else if (collider?.geometry?.shape !== undefined) {
+            this.engine.updateCollider(
+                state.gltf,
+                node,
+                node.extensions?.KHR_physics_rigid_bodies?.collider,
+                node,
+                node.worldTransform,
+                undefined,
+                false,
+                node.dirtyScale
+            );
+        }
+
+        for (const childIndex of node.children) {
+            const childNode = state.gltf.nodes[childIndex];
+            PhysicsUtils.recurseCollider(
+                state.gltf,
+                childNode,
+                undefined,
+                node,
+                node.worldTransform,
+                undefined,
+                node.dirtyScale,
+                node.dirtyScale,
+                this.engine.updateCollider
+            );
+        }
+    }
+
     applyAnimations(state) {
         this.engine.updateSimpleShapes(state.gltf);
-        const actors = [].concat(this.staticActors, this.kinematicActors, this.dynamicActors);
+        this.engine.updatePhysicMaterials(state.gltf);
 
-        for (let i = 0; i < actors.length; i++) {
-            const node = actors[i];
-            const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
-            if (node.dirtyTransform) {
-                this.engine.updateRigidBodyTransform(node); //TODO
-            }
+        for (const actorNode of this.staticActors) {
+            this.updateColliders(state, actorNode);
+        }
 
-            if (collider?.geometry?.node !== undefined) {
-                const colliderNode = state.gltf.nodes[collider.geometry.node];
-                PhysicsUtils.recurseCollider(
-                    state.gltf,
-                    colliderNode,
-                    node.extensions?.KHR_physics_rigid_bodies?.collider,
-                    node,
-                    node.worldTransform,
-                    node,
-                    node.dirtyScale,
-                    node.dirtyScale,
-                    this.engine.updateCollider
-                );
-            } else if (collider?.geometry?.shape !== undefined) {
-                this.engine.updateCollider(
-                    state.gltf,
-                    node,
-                    node.extensions?.KHR_physics_rigid_bodies?.collider,
-                    node,
-                    node.worldTransform,
-                    undefined,
-                    false,
-                    node.dirtyScale
-                );
-            }
+        for (const actorNode of this.kinematicActors) {
+            this.engine.updateMotion(actorNode); //TODO
+            this.updateColliders(state, actorNode);
+        }
 
-            for (const childIndex of node.children) {
-                const childNode = state.gltf.nodes[childIndex];
-                PhysicsUtils.recurseCollider(
-                    state.gltf,
-                    childNode,
-                    undefined,
-                    node,
-                    node.worldTransform,
-                    undefined,
-                    node.dirtyScale,
-                    node.dirtyScale,
-                    this.engine.updateCollider
-                );
-            }
+        for (const actorNode of this.dynamicActors) {
+            this.engine.updateMotion(actorNode);
+            this.updateColliders(state, actorNode);
+        }
+
+        for (const jointNode of this.jointNodes) {
+            this.engine.updatePhysicsJoint(state, jointNode); //TODO
         }
     }
 
@@ -631,6 +646,76 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.defaultMaterial = this.createPhysXMaterial(new gltfPhysicsMaterial());
         console.log("Created PxPhysics");
         return this.PhysX;
+    }
+
+    updatePhysicMaterials(gltf) {
+        const materials = gltf.extensions?.KHR_physics_rigid_bodies?.physicsMaterials;
+        if (materials === undefined) {
+            return;
+        }
+        for (let i = 0; i < materials.length; i++) {
+            const material = materials[i];
+            if (material.isDirty()) {
+                const physXMaterial = this.physXMaterials[i];
+                physXMaterial.setStaticFriction(material.staticFriction);
+                physXMaterial.setDynamicFriction(material.dynamicFriction);
+                physXMaterial.setRestitution(material.restitution);
+            }
+        }
+    }
+
+    updateMotion(actorNode) {
+        const motion = actorNode.extensions?.KHR_physics_rigid_bodies?.motion;
+        const actor = this.nodeToActor.get(actorNode.gltfObjectIndex).actor;
+        if (motion.animatedPropertyObjects.isKinematic.dirty) {
+            actor.setRigidBodyFlag(this.PhysX.PxRigidBodyFlag.eKINEMATIC, motion.isKinematic);
+        }
+        if (motion.animatedPropertyObjects.mass.dirty) {
+            actor.setMass(motion.mass);
+        }
+        if (
+            motion.animatedPropertyObjects.centerOfMass.dirty ||
+            motion.animatedPropertyObjects.inertiaOrientation.dirty ||
+            motion.animatedPropertyObjects.inertiaDiagonal.dirty
+        ) {
+            const pos = new this.PhysX.PxVec3(0, 0, 0);
+            if (motion.centerOfMass !== undefined) {
+                pos.x = motion.centerOfMass[0];
+                pos.y = motion.centerOfMass[1];
+                pos.z = motion.centerOfMass[2];
+            }
+            const rot = new this.PhysX.PxQuat(this.PhysX.PxIDENTITYEnum.PxIdentity);
+            if (motion.inertiaDiagonal !== undefined) {
+                if (
+                    motion.inertiaOrientation !== undefined &&
+                    !quat.exactEquals(motion.inertiaOrientation, quat.create())
+                ) {
+                    //TODO diagonalize inertia tensor with given rotation
+                }
+                const inertia = new this.PhysX.PxVec3(...motion.inertiaDiagonal);
+                actor.setMassSpaceInertiaTensor(inertia);
+                this.PhysX.destroy(inertia);
+            } else {
+                if (motion.mass === undefined) {
+                    this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, pos);
+                } else {
+                    this.PhysX.PxRigidBodyExt.prototype.setMassAndUpdateInertia(
+                        actor,
+                        motion.mass,
+                        pos
+                    );
+                }
+            }
+
+            const pose = new this.PhysX.PxTransform(pos, rot);
+            actor.setCMassLocalPose(pose);
+            this.PhysX.destroy(pos);
+            this.PhysX.destroy(rot);
+            this.PhysX.destroy(pose);
+        }
+        if (motion.animatedPropertyObjects.isKinematic.dirty) {
+            actor.setRigidBodyFlag(this.PhysX.PxRigidBodyFlag.eKINEMATIC, motion.isKinematic);
+        }
     }
 
     updateCollider(
@@ -1252,45 +1337,45 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 if (motion.mass !== undefined) {
                     actor.setMass(motion.mass);
                 }
+
+                const com = new this.PhysX.PxVec3(0, 0, 0);
+                const inertiaRotation = new this.PhysX.PxQuat(this.PhysX.PxIDENTITYEnum.PxIdentity);
                 if (motion.centerOfMass !== undefined) {
-                    const com = new this.PhysX.PxVec3(...motion.centerOfMass);
-                    const inertiaRotation = new this.PhysX.PxQuat(
-                        this.PhysX.PxIDENTITYEnum.PxIdentity
-                    );
-                    if (motion.inertiaOrientation !== undefined) {
-                        inertiaRotation.x = motion.inertiaOrientation[0];
-                        inertiaRotation.y = motion.inertiaOrientation[1];
-                        inertiaRotation.z = motion.inertiaOrientation[2];
-                        inertiaRotation.w = motion.inertiaOrientation[3];
-                    }
-                    const comTransform = new this.PhysX.PxTransform(com, inertiaRotation);
-                    actor.setCMassLocalPose(comTransform);
-                    this.PhysX.destroy(com);
-                    this.PhysX.destroy(inertiaRotation);
-                    this.PhysX.destroy(comTransform);
+                    com.x = motion.centerOfMass[0];
+                    com.y = motion.centerOfMass[1];
+                    com.z = motion.centerOfMass[2];
                 }
                 if (motion.inertiaDiagonal !== undefined) {
-                    const inertia = new this.PhysX.PxVec3(...motion.inertiaDiagonal);
-                    actor.setMassSpaceInertiaTensor(inertia);
-                    this.PhysX.destroy(inertia);
+                    if (
+                        motion.inertiaOrientation !== undefined &&
+                        !quat.exactEquals(motion.inertiaOrientation, quat.create())
+                    ) {
+                        // TODO diagonalize inertia tensor
+                    } else {
+                        const inertia = new this.PhysX.PxVec3(...motion.inertiaDiagonal);
+                        actor.setMassSpaceInertiaTensor(inertia);
+                        this.PhysX.destroy(inertia);
+                    }
                 }
+
+                const comTransform = new this.PhysX.PxTransform(com, inertiaRotation);
+                actor.setCMassLocalPose(comTransform);
 
                 // Let the engine compute mass and inertia if not all parameters are specified
                 if (motion.inertiaDiagonal === undefined) {
-                    const pose = motion.centerOfMass
-                        ? new this.PhysX.PxVec3(...motion.centerOfMass)
-                        : new this.PhysX.PxVec3(0, 0, 0);
                     if (motion.mass === undefined) {
-                        this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, pose);
+                        this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, com);
                     } else {
                         this.PhysX.PxRigidBodyExt.prototype.setMassAndUpdateInertia(
                             actor,
                             motion.mass,
-                            pose
+                            com
                         );
                     }
-                    this.PhysX.destroy(pose);
                 }
+                this.PhysX.destroy(com);
+                this.PhysX.destroy(inertiaRotation);
+                this.PhysX.destroy(comTransform);
 
                 if (motion.gravityFactor !== 1.0) {
                     actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_GRAVITY, true);
