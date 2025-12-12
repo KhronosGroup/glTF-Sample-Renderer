@@ -439,12 +439,16 @@ class PhysicsController {
                     this.engine.updateCollider
                 );
             } else if (collider?.geometry?.shape !== undefined) {
-                if (node.dirtyScale) {
-                    const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node);
-
-                    //TODO update simple shape collider scale
-                }
-                //TODO update shapes properties
+                this.engine.updateCollider(
+                    state.gltf,
+                    node,
+                    node.extensions?.KHR_physics_rigid_bodies?.collider,
+                    node,
+                    node.worldTransform,
+                    undefined,
+                    false,
+                    node.dirtyScale
+                );
             }
 
             for (const childIndex of node.children) {
@@ -1359,11 +1363,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         };
 
         const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
-        const physxMaterial = collider?.physicsMaterial
-            ? this.physXMaterials[collider.physicsMaterial]
-            : this.defaultMaterial;
-        const physxFilterData =
-            this.physXFilterData[collider?.collisionFilter ?? this.physXFilterData.length - 1];
 
         if (collider?.geometry?.node !== undefined) {
             const colliderNode = gltf.nodes[collider.geometry.node];
@@ -1379,21 +1378,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 createAndAddShape
             );
         } else if (collider?.geometry?.shape !== undefined) {
-            const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node);
-
-            const shape = this.createShape(
-                gltf,
-                node,
-                shapeFlags,
-                physxMaterial,
-                physxFilterData,
-                true,
-                scale,
-                scaleAxis
-            );
-            if (shape !== undefined) {
-                actor.attachShape(shape);
-            }
+            createAndAddShape(gltf, node, collider, node, worldTransform, undefined);
         }
 
         for (const childIndex of node.children) {
