@@ -48,6 +48,7 @@ class gltfRenderer {
 
         // create render target for transmission materials back faces
         this.transmissionBackfacesRenderTexture = 0;
+        this.transmissionBackfacesDepthTexture = 0;
         this.transmissionBackfacesFramebuffer = 0;
         this.diffuseTransmissionBackfacesRenderTexture = 0;
         this.diffuseTransmissionBackfacesFramebuffer = 0;
@@ -162,16 +163,27 @@ class gltfRenderer {
             
             this.transmissionBackfacesRenderTexture = context.createTexture();
             context.bindTexture(context.TEXTURE_2D, this.transmissionBackfacesRenderTexture);
-            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.LINEAR_MIPMAP_LINEAR);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
             context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
             context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.RGBA, context.UNSIGNED_BYTE, null);
             context.bindTexture(context.TEXTURE_2D, null);
+
+            this.transmissionBackfacesDepthTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.transmissionBackfacesDepthTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
             
             this.transmissionBackfacesFramebuffer = context.createFramebuffer();
             context.bindFramebuffer(context.FRAMEBUFFER, this.transmissionBackfacesFramebuffer);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.transmissionBackfacesRenderTexture, 0);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.transmissionBackfacesDepthTexture, 0);
+            context.drawBuffers([context.COLOR_ATTACHMENT0]);
 
             // this.diffuseTransmissionBackfacesRenderTexture = context.createTexture();
             // context.bindTexture(context.TEXTURE_2D, this.diffuseTransmissionBackfacesRenderTexture);
@@ -270,6 +282,40 @@ class gltfRenderer {
                 this.webGl.context.bindTexture(
                     this.webGl.context.TEXTURE_2D,
                     this.scatterDepthTexture
+                );
+                this.webGl.context.texImage2D(
+                    this.webGl.context.TEXTURE_2D,
+                    0,
+                    this.webGl.context.DEPTH_COMPONENT24,
+                    this.currentWidth,
+                    this.currentHeight,
+                    0,
+                    this.webGl.context.DEPTH_COMPONENT,
+                    this.webGl.context.UNSIGNED_INT,
+                    null
+                );
+                this.webGl.context.bindFramebuffer(
+                    this.webGl.context.FRAMEBUFFER,
+                    this.transmissionBackfacesFramebuffer
+                );
+                this.webGl.context.bindTexture(
+                    this.webGl.context.TEXTURE_2D,
+                    this.transmissionBackfacesRenderTexture
+                );
+                this.webGl.context.texImage2D(
+                    this.webGl.context.TEXTURE_2D,
+                    0,
+                    this.webGl.context.RGBA,
+                    this.currentWidth,
+                    this.currentHeight,
+                    0,
+                    this.webGl.context.RGBA,
+                    this.webGl.context.UNSIGNED_BYTE,
+                    null
+                );
+                this.webGl.context.bindTexture(
+                    this.webGl.context.TEXTURE_2D,
+                    this.transmissionBackfacesDepthTexture
                 );
                 this.webGl.context.texImage2D(
                     this.webGl.context.TEXTURE_2D,
@@ -626,21 +672,19 @@ class gltfRenderer {
                 this.webGl.context.FRAMEBUFFER,
                 this.transmissionBackfacesFramebuffer
             );
-            this.webGl.context.viewport(
-                0,
-                0,
-                this.opaqueFramebufferWidth,
-                this.opaqueFramebufferHeight
-            );
+            if (
+                state.renderingParameters.debugOutput ===
+                GltfState.DebugOutput.transmission.TRANSMISSION_BACKFACES
+            ) {
+                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+            }
+            this.webGl.context.viewport(aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
 
             for (const drawable of this.transmissionDrawables.filter((a) => a.depth <= 0)) {
                 let renderpassConfiguration = {};
-                renderpassConfiguration.linearOutput = false;
+                renderpassConfiguration.linearOutput = true;
                 renderpassConfiguration.transmissionBackFaces = true;
-                renderpassConfiguration.frameBufferSize = [
-                    this.opaqueFramebufferWidth,
-                    this.opaqueFramebufferHeight
-                ];
+                renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
                 this.drawPrimitive(
                     state,
                     renderpassConfiguration,
@@ -648,6 +692,13 @@ class gltfRenderer {
                     drawable.node,
                     this.viewProjectionMatrix
                 );
+            }
+
+            if (
+                state.renderingParameters.debugOutput ===
+                GltfState.DebugOutput.transmission.TRANSMISSION_BACKFACES
+            ) {
+                return;
             }
 
             // // render diffuse transmission backfaces
@@ -1109,7 +1160,7 @@ class gltfRenderer {
             state.renderingParameters.enabledExtensions.KHR_materials_transmission)
         {
             this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.opaqueRenderTexture);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.transmissionSampleTexture);
             this.webGl.context.uniform1i(this.shader.getUniformLocation("u_TransmissionFramebufferSampler"), textureCount);
             textureCount++;
             
@@ -1123,7 +1174,7 @@ class gltfRenderer {
             state.renderingParameters.enabledExtensions.KHR_materials_transmission)
         {
             this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
-            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.transmissionBackfacesRenderTexture);
+            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.transmissionBackfacesRenderTexture);
             this.webGl.context.uniform1i(this.shader.getUniformLocation("u_TransmissionBackfacesSampler"), textureCount);
             textureCount++;
             
