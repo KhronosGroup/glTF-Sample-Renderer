@@ -97,10 +97,10 @@ vec3 getPunctualRadianceTransmission(vec3 normal, vec3 view, vec3 pointToLight, 
     float D = D_GGX(clamp(dot(n, h), 0.0, 1.0), transmissionRougness);
     float Vis = V_GGX(clamp(dot(n, l_mirror), 0.0, 1.0), clamp(dot(n, v), 0.0, 1.0), transmissionRougness);
 
-#ifdef MATERIAL_VOLUME
-    vec2 uvCoords = gl_FragCoord.xy * (1.0 / vec2(u_FramebufferSize));
+#if defined(MATERIAL_VOLUME) && defined(HAS_BASE_COLOR_MAP)
+    vec2 uvCoords = gl_FragCoord.xy / vec2(u_FramebufferSize);
     vec3 transmissionBackface = texture(u_TransmissionBackfacesSampler, uvCoords).rgb;
-    baseColor *= transmissionBackface;
+    baseColor = transmissionBackface;
 #endif
     // Transmission BTDF
     return baseColor * D * Vis;

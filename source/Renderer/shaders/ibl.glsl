@@ -56,10 +56,19 @@ vec3 getIBLRadianceGGX(vec3 n, vec3 v, float roughness)
 
 
 #ifdef MATERIAL_TRANSMISSION
-vec3 getTransmissionSample(vec2 fragCoord, float roughness, float ior)
+vec3 getTransmissionSample(vec2 fragCoord, float roughness, float ior, vec3 baseColor)
 {
     float framebufferLod = log2(float(u_TransmissionFramebufferSize.x)) * applyIorToRoughness(roughness, ior);
     vec3 transmittedLight = textureLod(u_TransmissionFramebufferSampler, fragCoord.xy, framebufferLod).rgb;
+
+// In case of volumes, we need to apply the backface color to the transmitted light
+#ifdef MATERIAL_VOLUME
+#if defined(HAS_BASE_COLOR_MAP)
+        transmittedLight *= texture(u_TransmissionBackfacesSampler, fragCoord).rgb;
+#else
+        transmittedLight *= baseColor;
+#endif
+#endif
 
     return transmittedLight;
 }
@@ -91,10 +100,7 @@ vec3 getIBLVolumeRefraction(vec3 n, vec3 v, float perceptualRoughness, vec3 base
         refractionCoords /= 2.0;
 
         // Sample framebuffer to get pixel the refracted ray hits for this color channel.
-        transmittedLight[i] = getTransmissionSample(refractionCoords, perceptualRoughness, iors[i])[i];
-
-        vec3 transmissionBackface = texture(u_TransmissionBackfacesSampler, refractionCoords).rgb;
-        transmittedLight[i] *= transmissionBackface[i];
+        transmittedLight[i] = getTransmissionSample(refractionCoords, perceptualRoughness, iors[i], baseColor)[i];
     }
 #else
     vec3 transmissionRay = getVolumeTransmissionRay(n, v, thickness, ior, modelMatrix);
@@ -108,10 +114,7 @@ vec3 getIBLVolumeRefraction(vec3 n, vec3 v, float perceptualRoughness, vec3 base
     refractionCoords /= 2.0;
 
     // Sample framebuffer to get pixel the refracted ray hits.
-    vec3 transmittedLight = getTransmissionSample(refractionCoords, perceptualRoughness, ior);
-
-    vec3 transmissionBackface = texture(u_TransmissionBackfacesSampler, refractionCoords).rgb;
-    transmittedLight *= transmissionBackface;
+    vec3 transmittedLight = getTransmissionSample(refractionCoords, perceptualRoughness, ior, baseColor);
 
 #endif // MATERIAL_DISPERSION
     vec3 attenuatedColor = applyVolumeAttenuation(transmittedLight, transmissionRayLength, attenuationColor, attenuationDistance);

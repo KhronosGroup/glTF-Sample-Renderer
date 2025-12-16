@@ -437,6 +437,20 @@ class gltfRenderer {
                 state.gltf.materials[primitive.material].extensions.KHR_materials_volume !==
                     undefined
         );
+
+        this.transmissionBackFaceDrawables = this.transmissionDrawables.filter(({ primitive }) => {
+            state.gltf.materials[primitive.material].extensions?.KHR_materials_volume !==
+                undefined &&
+                state.gltf.materials[primitive.material].baseColorTexture !== undefined;
+        });
+
+        this.diffuseTransmissionBackFaceDrawables = drawables.filter(({ primitive }) => {
+            state.gltf.materials[primitive.material]?.extensions?.KHR_materials_volume !==
+                undefined &&
+                state.gltf.materials[primitive.material]?.extensions
+                    ?.KHR_materials_diffuse_transmission.diffuseTransmissionColorTexture !==
+                    undefined;
+        });
     }
 
     // render complete gltf scene with given camera
@@ -680,7 +694,7 @@ class gltfRenderer {
             }
             this.webGl.context.viewport(aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
 
-            for (const drawable of this.transmissionDrawables.filter((a) => a.depth <= 0)) {
+            for (const drawable of this.transmissionBackFaceDrawables.filter((a) => a.depth <= 0)) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.linearOutput = true;
                 renderpassConfiguration.transmissionBackFaces = true;

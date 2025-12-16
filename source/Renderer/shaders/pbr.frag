@@ -307,6 +307,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME
         transmittedLight = applyVolumeAttenuation(transmittedLight, length(transmissionRay), materialInfo.attenuationColor, materialInfo.attenuationDistance);
+        transmittedLight *= baseColor.rgb;
 #endif
         l_diffuse = mix(l_diffuse, transmittedLight, materialInfo.transmissionFactor);
 #endif
@@ -492,10 +493,7 @@ vec3 specularTexture = vec3(1.0);
     // Transmission, Volume:
 #ifdef MATERIAL_TRANSMISSION
 #if DEBUG == DEBUG_TRANSMISSION_FACTOR
-    vec2 uvCoords = gl_FragCoord.xy * (1.0 / vec2(u_FramebufferSize));
-    vec4 transmisisonColor = texture(u_TransmissionBackfacesSampler, uvCoords);
-    g_finalColor.rgb = transmisisonColor.rgb;
-    // g_finalColor.rgb = vec3(materialInfo.transmissionFactor);
+    g_finalColor.rgb = vec3(materialInfo.transmissionFactor);
 #endif
 #endif
 #ifdef MATERIAL_VOLUME
