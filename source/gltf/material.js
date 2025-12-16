@@ -21,9 +21,10 @@ class gltfMaterial extends GltfObject {
         this.doubleSided = false;
 
         // pbr next extension toggles
+        // These values will be set in getDefines() since the are dependent on rendering parameters
         this.hasClearcoat = false;
         this.hasSheen = false;
-        this.hasTransmission = false;
+        this.hasSpecularTransmission = false;
         this.hasDiffuseTransmission = false;
         this.hasIOR = false;
         this.hasEmissiveStrength = false;
@@ -52,57 +53,98 @@ class gltfMaterial extends GltfObject {
     getDefines(renderingParameters) {
         const defines = Array.from(this.defines);
 
-        if (this.hasClearcoat && renderingParameters.enabledExtensions.KHR_materials_clearcoat) {
+        this.hasSpecularTransmission =
+            this.extensions?.KHR_materials_transmission?.transmissionFactor > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_transmission;
+
+        this.hasDiffuseTransmission =
+            this.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionFactor > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission;
+
+        const hasTransmission = this.hasSpecularTransmission || this.hasDiffuseTransmission;
+
+        this.hasVolume =
+            hasTransmission &&
+            this.extensions?.KHR_materials_volume?.thicknessFactor > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_volume;
+
+        this.hasClearcoat =
+            this.extensions?.KHR_materials_clearcoat?.clearcoatFactor > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_clearcoat;
+
+        this.hasSheen =
+            this.extensions?.KHR_materials_sheen?.sheenColorFactor > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_sheen;
+
+        this.hasVolumeScatter =
+            this.hasVolume &&
+            this.extensions?.KHR_materials_volume_scatter &&
+            !vec3.exactEquals(
+                this.extensions.KHR_materials_volume_scatter.multiScatterColor,
+                vec3.fromValues(0, 0, 0)
+            ) &&
+            renderingParameters.enabledExtensions.KHR_materials_volume_scatter;
+
+        this.hasIOR =
+            this.extensions?.KHR_materials_ior &&
+            renderingParameters.enabledExtensions.KHR_materials_ior;
+
+        this.hasSpecular =
+            this.extensions?.KHR_materials_specular &&
+            renderingParameters.enabledExtensions.KHR_materials_specular;
+
+        this.hasIridescence =
+            this.extensions?.KHR_materials_iridescence?.iridescenceFactor > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_iridescence;
+
+        this.hasEmissiveStrength =
+            this.extensions?.KHR_materials_emissive_strength?.emissiveStrengthFactor !== 1.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_emissive_strength;
+
+        this.hasDispersion =
+            this.hasVolume &&
+            this.extensions?.KHR_materials_dispersion?.dispersion > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_dispersion;
+
+        this.hasAnisotropy =
+            this.extensions?.KHR_materials_anisotropy?.anisotropyStrength > 0.0 &&
+            renderingParameters.enabledExtensions.KHR_materials_anisotropy;
+
+        if (this.hasClearcoat) {
             defines.push("MATERIAL_CLEARCOAT 1");
         }
-        if (this.hasSheen && renderingParameters.enabledExtensions.KHR_materials_sheen) {
+        if (this.hasSheen) {
             defines.push("MATERIAL_SHEEN 1");
         }
-        if (
-            this.hasTransmission &&
-            renderingParameters.enabledExtensions.KHR_materials_transmission
-        ) {
+        if (this.hasSpecularTransmission) {
             defines.push("MATERIAL_TRANSMISSION 1");
         }
-        if (
-            this.hasDiffuseTransmission &&
-            renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission
-        ) {
+        if (this.hasDiffuseTransmission) {
             defines.push("MATERIAL_DIFFUSE_TRANSMISSION 1");
         }
-        if (this.hasVolume && renderingParameters.enabledExtensions.KHR_materials_volume) {
+        if (this.hasVolume) {
             defines.push("MATERIAL_VOLUME 1");
         }
-        if (
-            this.hasVolumeScatter &&
-            renderingParameters.enabledExtensions.KHR_materials_volume_scatter &&
-            renderingParameters.enabledExtensions.KHR_materials_volume
-        ) {
+        if (this.hasVolumeScatter) {
             defines.push("MATERIAL_VOLUME_SCATTER 1");
             defines.push(`SCATTER_SAMPLES_COUNT ${gltfMaterial.scatterSampleCount}`);
         }
-        if (this.hasIOR && renderingParameters.enabledExtensions.KHR_materials_ior) {
+        if (this.hasIOR) {
             defines.push("MATERIAL_IOR 1");
         }
-        if (this.hasSpecular && renderingParameters.enabledExtensions.KHR_materials_specular) {
+        if (this.hasSpecular) {
             defines.push("MATERIAL_SPECULAR 1");
         }
-        if (
-            this.hasIridescence &&
-            renderingParameters.enabledExtensions.KHR_materials_iridescence
-        ) {
+        if (this.hasIridescence) {
             defines.push("MATERIAL_IRIDESCENCE 1");
         }
-        if (
-            this.hasEmissiveStrength &&
-            renderingParameters.enabledExtensions.KHR_materials_emissive_strength
-        ) {
+        if (this.hasEmissiveStrength) {
             defines.push("MATERIAL_EMISSIVE_STRENGTH 1");
         }
-        if (this.hasAnisotropy && renderingParameters.enabledExtensions.KHR_materials_anisotropy) {
+        if (this.hasAnisotropy) {
             defines.push("MATERIAL_ANISOTROPY 1");
         }
-        if (this.hasDispersion && renderingParameters.enabledExtensions.KHR_materials_dispersion) {
+        if (this.hasDispersion) {
             defines.push("MATERIAL_DISPERSION 1");
         }
 
@@ -266,8 +308,6 @@ class gltfMaterial extends GltfObject {
 
             // Clearcoat is part of the default metallic-roughness shader
             if (this.extensions.KHR_materials_clearcoat !== undefined) {
-                this.hasClearcoat = true;
-
                 const clearcoatTexture = this.extensions.KHR_materials_clearcoat.clearcoatTexture;
                 if (clearcoatTexture !== undefined) {
                     clearcoatTexture.samplerName = "u_ClearcoatSampler";
@@ -301,8 +341,6 @@ class gltfMaterial extends GltfObject {
             // Sheen material extension
             // https://github.com/sebavan/glTF/tree/KHR_materials_sheen/extensions/2.0/Khronos/KHR_materials_sheen
             if (this.extensions.KHR_materials_sheen !== undefined) {
-                this.hasSheen = true;
-
                 if (this.extensions.KHR_materials_sheen.sheenRoughnessTexture !== undefined) {
                     this.extensions.KHR_materials_sheen.sheenRoughnessTexture.samplerName =
                         "u_SheenRoughnessSampler";
@@ -325,8 +363,6 @@ class gltfMaterial extends GltfObject {
 
             // KHR Extension: Specular
             if (this.extensions.KHR_materials_specular !== undefined) {
-                this.hasSpecular = true;
-
                 if (this.extensions.KHR_materials_specular?.specularTexture !== undefined) {
                     this.extensions.KHR_materials_specular.specularTexture.samplerName =
                         "u_SpecularSampler";
@@ -350,15 +386,8 @@ class gltfMaterial extends GltfObject {
                 }
             }
 
-            // KHR Extension: Emissive strength
-            if (this.extensions.KHR_materials_emissive_strength !== undefined) {
-                this.hasEmissiveStrength = true;
-            }
-
             // KHR Extension: Transmission
             if (this.extensions.KHR_materials_transmission !== undefined) {
-                this.hasTransmission = true;
-
                 if (
                     this.extensions?.KHR_materials_transmission?.transmissionTexture !== undefined
                 ) {
@@ -378,8 +407,6 @@ class gltfMaterial extends GltfObject {
             // KHR Extension: Diffuse Transmission
             if (this.extensions.KHR_materials_diffuse_transmission !== undefined) {
                 const extension = this.extensions.KHR_materials_diffuse_transmission;
-
-                this.hasDiffuseTransmission = true;
 
                 if (extension.diffuseTransmissionTexture !== undefined) {
                     extension.diffuseTransmissionTexture.samplerName =
@@ -404,16 +431,8 @@ class gltfMaterial extends GltfObject {
                 }
             }
 
-            // KHR Extension: IOR
-            //https://github.com/DassaultSystemes-Technology/glTF/tree/KHR_materials_ior/extensions/2.0/Khronos/KHR_materials_ior
-            if (this.extensions.KHR_materials_ior !== undefined) {
-                this.hasIOR = true;
-            }
-
             // KHR Extension: Volume
             if (this.extensions.KHR_materials_volume !== undefined) {
-                this.hasVolume = true;
-
                 if (this.extensions?.KHR_materials_volume?.thicknessTexture !== undefined) {
                     this.extensions.KHR_materials_volume.thicknessTexture.samplerName =
                         "u_ThicknessSampler";
@@ -427,8 +446,6 @@ class gltfMaterial extends GltfObject {
             }
 
             if (this.extensions.KHR_materials_volume_scatter !== undefined) {
-                this.hasVolumeScatter = true;
-                this.defines.push("HAS_VOLUME_SCATTER 1");
                 if (!gltfMaterial.scatterSamples) {
                     gltfMaterial.scatterSamples = gltfMaterial.computeScatterSamples();
                 }
@@ -437,8 +454,6 @@ class gltfMaterial extends GltfObject {
             // KHR Extension: Iridescence
             // See https://github.com/ux3d/glTF/tree/extensions/KHR_materials_iridescence/extensions/2.0/Khronos/KHR_materials_iridescence
             if (this.extensions.KHR_materials_iridescence !== undefined) {
-                this.hasIridescence = true;
-
                 const extension = this.extensions.KHR_materials_iridescence;
 
                 if (extension.iridescenceTexture !== undefined) {
@@ -463,8 +478,6 @@ class gltfMaterial extends GltfObject {
             // KHR Extension: Anisotropy
             // See https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_anisotropy
             if (this.extensions.KHR_materials_anisotropy !== undefined) {
-                this.hasAnisotropy = true;
-
                 const anisotropyTexture =
                     this.extensions.KHR_materials_anisotropy.anisotropyTexture;
 
@@ -474,12 +487,6 @@ class gltfMaterial extends GltfObject {
                     this.textures.push(anisotropyTexture);
                     this.defines.push("HAS_ANISOTROPY_MAP 1");
                 }
-            }
-
-            // KHR Extension: Dispersion
-            // See https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_dispersion
-            if (this.extensions.KHR_materials_dispersion !== undefined) {
-                this.hasDispersion = true;
             }
         }
 
