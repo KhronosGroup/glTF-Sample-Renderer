@@ -47,6 +47,7 @@ const allowedExtensions = [
     "KHR_node_hoverability",
     "KHR_node_selectability",
     "KHR_node_visibility",
+    "KHR_physics_rigid_bodies",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",

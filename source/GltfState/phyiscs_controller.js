@@ -429,7 +429,7 @@ class PhysicsController {
                 node,
                 node.dirtyScale,
                 node.dirtyScale,
-                this.engine.updateCollider
+                this.engine.updateCollider.bind(this.engine)
             );
         } else if (collider?.geometry?.shape !== undefined) {
             this.engine.updateCollider(
@@ -455,12 +455,13 @@ class PhysicsController {
                 undefined,
                 node.dirtyScale,
                 node.dirtyScale,
-                this.engine.updateCollider
+                this.engine.updateCollider.bind(this.engine)
             );
         }
     }
 
     applyAnimations(state) {
+        /*
         this.engine.updateSimpleShapes(state.gltf);
         this.engine.updatePhysicMaterials(state.gltf);
 
@@ -480,7 +481,7 @@ class PhysicsController {
 
         for (const jointNode of this.jointNodes) {
             this.engine.updatePhysicsJoint(state, jointNode); //TODO
-        }
+        }*/
     }
 
     getDebugLineData() {
@@ -668,7 +669,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const motion = actorNode.extensions?.KHR_physics_rigid_bodies?.motion;
         const actor = this.nodeToActor.get(actorNode.gltfObjectIndex).actor;
         if (motion.animatedPropertyObjects.isKinematic.dirty) {
-            actor.setRigidBodyFlag(this.PhysX.PxRigidBodyFlag.eKINEMATIC, motion.isKinematic);
+            actor.setRigidBodyFlag(this.PhysX.PxRigidBodyFlagEnum.eKINEMATIC, motion.isKinematic);
         }
         if (motion.animatedPropertyObjects.mass.dirty) {
             actor.setMass(motion.mass);
@@ -713,8 +714,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.PhysX.destroy(rot);
             this.PhysX.destroy(pose);
         }
-        if (motion.animatedPropertyObjects.isKinematic.dirty) {
-            actor.setRigidBodyFlag(this.PhysX.PxRigidBodyFlag.eKINEMATIC, motion.isKinematic);
+        if (motion.animatedPropertyObjects.gravityFactor.dirty) {
+            actor.setActorFlag(
+                this.PhysX.PxActorFlagEnum.eDISABLE_GRAVITY,
+                motion.gravityFactor !== 1.0
+            );
         }
     }
 
@@ -732,7 +736,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const { actor, pxShapeMap } = this.nodeToActor.get(actorNode.gltfObjectIndex);
         const currentShape = pxShapeMap.get(node.gltfObjectIndex);
         let currentGeometry = currentShape.getGeometry();
-        const currentColliderType = currentShape.getType();
+        const currentColliderType = currentGeometry.getType();
         const actorType = actor.getType();
         const shapeIndex = glTFCollider?.shape;
         let scale = vec3.fromValues(1, 1, 1);
@@ -776,10 +780,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 }
             }
         } else if (node.mesh !== undefined) {
-            const weights =
-                node.animatedPropertyObjects.weights ??
-                gltf.meshes[node.mesh].animatedPropertyObjects.weights;
-            if (weights !== undefined && weights.dirty) {
+            const weights = node.animatedPropertyObjects.weights.value()
+                ? node.animatedPropertyObjects.weights
+                : gltf.meshes[node.mesh].animatedPropertyObjects.weights;
+            if (weights.value() !== undefined && weights.dirty) {
                 if (actorType === "dynamic") {
                     //recreate convex hull from morphed mesh
                     currentGeometry = this.createConvexMeshFromNode(gltf, node);
@@ -856,18 +860,23 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const data = createBoxVertexData(x, y, z);
             return this.createConvexMesh(data.vertices, data.indices, scale, scaleAxis);
         }
-        const halfExtents = new this.PhysX.PxVec3(
-            (x / 2) * scale[0],
-            (y / 2) * scale[1],
-            (z / 2) * scale[2]
-        );
         let geometry = undefined;
         if (referenceType === "eBOX") {
+            const halfExtents = new this.PhysX.PxVec3(
+                (x / 2) * scale[0],
+                (y / 2) * scale[1],
+                (z / 2) * scale[2]
+            );
             reference.halfExtents = halfExtents;
+            this.PhysX.destroy(halfExtents);
         } else {
-            geometry = new this.PhysX.PxBoxGeometry(halfExtents);
+            geometry = new this.PhysX.PxBoxGeometry(
+                (x / 2) * scale[0],
+                (y / 2) * scale[1],
+                (z / 2) * scale[2]
+            );
         }
-        this.PhysX.destroy(halfExtents);
+
         return geometry;
     }
 
