@@ -665,6 +665,79 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
     }
 
+    calculateMassAndInertia(motion, actor) {
+        const pos = new this.PhysX.PxVec3(0, 0, 0);
+        if (motion.centerOfMass !== undefined) {
+            pos.x = motion.centerOfMass[0];
+            pos.y = motion.centerOfMass[1];
+            pos.z = motion.centerOfMass[2];
+        }
+        const rot = new this.PhysX.PxQuat(this.PhysX.PxIDENTITYEnum.PxIdentity);
+        if (motion.inertiaDiagonal !== undefined) {
+            let inertia = undefined;
+            if (
+                motion.inertiaOrientation !== undefined &&
+                !quat.exactEquals(motion.inertiaOrientation, quat.create())
+            ) {
+                const intertiaRotMat = mat3.create();
+                mat3.fromQuat(intertiaRotMat, motion.inertiaOrientation);
+
+                const inertiaDiagonalMat = mat3.create();
+                inertiaDiagonalMat[0] = motion.inertiaDiagonal[0];
+                inertiaDiagonalMat[4] = motion.inertiaDiagonal[1];
+                inertiaDiagonalMat[8] = motion.inertiaDiagonal[2];
+
+                const inertiaTensor = mat3.create();
+                mat3.multiply(inertiaTensor, intertiaRotMat, inertiaDiagonalMat);
+
+                const col0 = new this.PhysX.PxVec3(
+                    inertiaTensor[0],
+                    inertiaTensor[1],
+                    inertiaTensor[2]
+                );
+                const col1 = new this.PhysX.PxVec3(
+                    inertiaTensor[3],
+                    inertiaTensor[4],
+                    inertiaTensor[5]
+                );
+                const col2 = new this.PhysX.PxVec3(
+                    inertiaTensor[6],
+                    inertiaTensor[7],
+                    inertiaTensor[8]
+                );
+                const pxInertiaTensor = new this.PhysX.PxMat33(col0, col1, col2);
+                inertia = this.PhysX.PxMassProperties.prototype.getMassSpaceInertia(
+                    pxInertiaTensor,
+                    rot
+                );
+                this.PhysX.destroy(col0);
+                this.PhysX.destroy(col1);
+                this.PhysX.destroy(col2);
+                this.PhysX.destroy(pxInertiaTensor);
+            } else {
+                inertia = new this.PhysX.PxVec3(...motion.inertiaDiagonal);
+            }
+            actor.setMassSpaceInertiaTensor(inertia);
+            this.PhysX.destroy(inertia);
+        } else {
+            if (motion.mass === undefined) {
+                this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, pos);
+            } else {
+                this.PhysX.PxRigidBodyExt.prototype.setMassAndUpdateInertia(
+                    actor,
+                    motion.mass,
+                    pos
+                );
+            }
+        }
+
+        const pose = new this.PhysX.PxTransform(pos, rot);
+        actor.setCMassLocalPose(pose);
+        this.PhysX.destroy(pos);
+        this.PhysX.destroy(rot);
+        this.PhysX.destroy(pose);
+    }
+
     updateMotion(actorNode) {
         const motion = actorNode.extensions?.KHR_physics_rigid_bodies?.motion;
         const actor = this.nodeToActor.get(actorNode.gltfObjectIndex).actor;
@@ -679,40 +752,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             motion.animatedPropertyObjects.inertiaOrientation.dirty ||
             motion.animatedPropertyObjects.inertiaDiagonal.dirty
         ) {
-            const pos = new this.PhysX.PxVec3(0, 0, 0);
-            if (motion.centerOfMass !== undefined) {
-                pos.x = motion.centerOfMass[0];
-                pos.y = motion.centerOfMass[1];
-                pos.z = motion.centerOfMass[2];
-            }
-            const rot = new this.PhysX.PxQuat(this.PhysX.PxIDENTITYEnum.PxIdentity);
-            if (motion.inertiaDiagonal !== undefined) {
-                if (
-                    motion.inertiaOrientation !== undefined &&
-                    !quat.exactEquals(motion.inertiaOrientation, quat.create())
-                ) {
-                    //TODO diagonalize inertia tensor with given rotation
-                }
-                const inertia = new this.PhysX.PxVec3(...motion.inertiaDiagonal);
-                actor.setMassSpaceInertiaTensor(inertia);
-                this.PhysX.destroy(inertia);
-            } else {
-                if (motion.mass === undefined) {
-                    this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, pos);
-                } else {
-                    this.PhysX.PxRigidBodyExt.prototype.setMassAndUpdateInertia(
-                        actor,
-                        motion.mass,
-                        pos
-                    );
-                }
-            }
-
-            const pose = new this.PhysX.PxTransform(pos, rot);
-            actor.setCMassLocalPose(pose);
-            this.PhysX.destroy(pos);
-            this.PhysX.destroy(rot);
-            this.PhysX.destroy(pose);
+            this.calculateMassAndInertia(motion, actor);
         }
         if (motion.animatedPropertyObjects.gravityFactor.dirty) {
             actor.setActorFlag(
@@ -1347,44 +1387,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     actor.setMass(motion.mass);
                 }
 
-                const com = new this.PhysX.PxVec3(0, 0, 0);
-                const inertiaRotation = new this.PhysX.PxQuat(this.PhysX.PxIDENTITYEnum.PxIdentity);
-                if (motion.centerOfMass !== undefined) {
-                    com.x = motion.centerOfMass[0];
-                    com.y = motion.centerOfMass[1];
-                    com.z = motion.centerOfMass[2];
-                }
-                if (motion.inertiaDiagonal !== undefined) {
-                    if (
-                        motion.inertiaOrientation !== undefined &&
-                        !quat.exactEquals(motion.inertiaOrientation, quat.create())
-                    ) {
-                        // TODO diagonalize inertia tensor
-                    } else {
-                        const inertia = new this.PhysX.PxVec3(...motion.inertiaDiagonal);
-                        actor.setMassSpaceInertiaTensor(inertia);
-                        this.PhysX.destroy(inertia);
-                    }
-                }
-
-                const comTransform = new this.PhysX.PxTransform(com, inertiaRotation);
-                actor.setCMassLocalPose(comTransform);
-
-                // Let the engine compute mass and inertia if not all parameters are specified
-                if (motion.inertiaDiagonal === undefined) {
-                    if (motion.mass === undefined) {
-                        this.PhysX.PxRigidBodyExt.prototype.updateMassAndInertia(actor, 1.0, com);
-                    } else {
-                        this.PhysX.PxRigidBodyExt.prototype.setMassAndUpdateInertia(
-                            actor,
-                            motion.mass,
-                            com
-                        );
-                    }
-                }
-                this.PhysX.destroy(com);
-                this.PhysX.destroy(inertiaRotation);
-                this.PhysX.destroy(comTransform);
+                this.calculateMassAndInertia(motion, actor);
 
                 if (motion.gravityFactor !== 1.0) {
                     actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_GRAVITY, true);
