@@ -1205,20 +1205,20 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     collidesWith(filterA, filterB) {
-        if (filterA.collideWithSystems.length > 0) {
-            for (const system of filterA.collideWithSystems) {
-                if (filterB.collisionSystems.includes(system)) {
+        if (filterB.collideWithSystems.length > 0) {
+            for (const system of filterB.collideWithSystems) {
+                if (filterA.collisionSystems.includes(system)) {
                     return true;
                 }
             }
             return false;
-        } else if (filterA.notCollideWithSystems.length > 0) {
-            for (const system of filterA.notCollideWithSystems) {
-                if (filterB.collisionSystems.includes(system)) {
+        } else if (filterB.notCollideWithSystems.length > 0) {
+            for (const system of filterB.notCollideWithSystems) {
+                if (filterA.collisionSystems.includes(system)) {
                     return false;
                 }
-                return true;
             }
+            return true;
         }
         return true;
     }
@@ -1239,7 +1239,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         for (let i = 0; i < filterCount; i++) {
             let bitMask = 0;
             for (let j = 0; j < filterCount; j++) {
-                if (this.collidesWith(filters[i], filters[j])) {
+                if (
+                    this.collidesWith(filters[i], filters[j]) &&
+                    this.collidesWith(filters[j], filters[i])
+                ) {
                     bitMask |= 1 << j;
                 }
             }
@@ -1426,13 +1429,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
 
             const materialIndex = collider?.physicsMaterial;
-            const material = materialIndex
-                ? this.physXMaterials[materialIndex]
-                : this.defaultMaterial;
+            const material =
+                materialIndex !== undefined
+                    ? this.physXMaterials[materialIndex]
+                    : this.defaultMaterial;
 
-            const physXFilterData = collider?.collisionFilter
-                ? this.physXFilterData[collider.collisionFilter]
-                : this.physXFilterData[this.physXFilterData.length - 1];
+            const physXFilterData =
+                collider?.collisionFilter !== undefined
+                    ? this.physXFilterData[collider.collisionFilter]
+                    : this.physXFilterData[this.physXFilterData.length - 1];
 
             const shape = this.createShape(
                 gltf,
