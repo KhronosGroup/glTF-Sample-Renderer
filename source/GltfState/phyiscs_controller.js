@@ -171,7 +171,7 @@ class PhysicsController {
         this.simulationStepTime = 1 / 60;
         this.timeAccumulator = 0;
         this.pauseTime = undefined;
-        this.skipFrames = 2; // Skip the first two simulation frames to allow engine to initialize
+        this.skipFrames = 0; // Skip the first two simulation frames to allow engine to initialize
 
         //TODO PxShape needs to be recreated if collisionFilter differs
         //TODO Cache geometries for faster computation
@@ -484,6 +484,14 @@ class PhysicsController {
         }*/
     }
 
+    enableDebugColliders(enable) {
+        this.engine.enableDebugColliders(enable);
+    }
+
+    enableDebugJoints(enable) {
+        this.engine.enableDebugJoints(enable);
+    }
+
     getDebugLineData() {
         if (this.engine) {
             return this.engine.getDebugLineData();
@@ -512,6 +520,8 @@ class PhysicsInterface {
     resumeSimulation() {}
     resetSimulation() {}
     stopSimulation() {}
+    enableDebugColliders(enable) {}
+    enableDebugJoints(enable) {}
 
     generateBox(x, y, z, scale, scaleAxis, reference) {}
     generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis, reference) {}
@@ -620,6 +630,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         // Need for memory management
         this.convexMeshes = [];
         this.triangleMeshes = [];
+
+        // Debug
+        this.debugColliders = true;
+        this.debugJoints = true;
+        this.debugStateChanged = true;
 
         this.MAX_FLOAT = 3.4028234663852885981170418348452e38;
     }
@@ -1848,6 +1863,34 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return physxJoint;
     }
 
+    changeDebugVisualization() {
+        if (!this.scene || !this.debugStateChanged) {
+            return;
+        }
+        this.debugStateChanged = false;
+        this.scene.setVisualizationParameter(
+            this.PhysX.eSCALE,
+            this.debugColliders || this.debugJoints ? 1 : 0
+        );
+        this.scene.setVisualizationParameter(
+            this.PhysX.eWORLD_AXES,
+            this.debugColliders || this.debugJoints ? 1 : 0
+        );
+        this.scene.setVisualizationParameter(
+            this.PhysX.eACTOR_AXES,
+            this.debugColliders || this.debugJoints ? 1 : 0
+        );
+        this.scene.setVisualizationParameter(
+            this.PhysX.eCOLLISION_SHAPES,
+            this.debugColliders ? 1 : 0
+        );
+        this.scene.setVisualizationParameter(
+            this.PhysX.eJOINT_LOCAL_FRAMES,
+            this.debugJoints ? 1 : 0
+        );
+        this.scene.setVisualizationParameter(this.PhysX.eJOINT_LIMITS, this.debugJoints ? 1 : 0);
+    }
+
     initializeSimulation(
         state,
         staticActors,
@@ -1909,12 +1952,19 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(tmpVec);
         this.PhysX.destroy(sceneDesc);
         this.PhysX.destroy(shapeFlags);
-        this.scene.setVisualizationParameter(this.PhysX.eSCALE, 1);
-        this.scene.setVisualizationParameter(this.PhysX.eWORLD_AXES, 1);
-        this.scene.setVisualizationParameter(this.PhysX.eACTOR_AXES, 1);
-        this.scene.setVisualizationParameter(this.PhysX.eCOLLISION_SHAPES, 1);
-        this.scene.setVisualizationParameter(this.PhysX.eJOINT_LOCAL_FRAMES, 1);
-        this.scene.setVisualizationParameter(this.PhysX.eJOINT_LIMITS, 1);
+
+        this.debugStateChanged = true;
+        this.changeDebugVisualization();
+    }
+
+    enableDebugColliders(enable) {
+        this.debugColliders = enable;
+        this.debugStateChanged = true;
+    }
+
+    enableDebugJoints(enable) {
+        this.debugJoints = enable;
+        this.debugStateChanged = true;
     }
 
     applyTransformRecursively(gltf, node, parentTransform) {
@@ -1941,6 +1991,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.reset = false;
             return;
         }
+
+        this.changeDebugVisualization();
 
         for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];
