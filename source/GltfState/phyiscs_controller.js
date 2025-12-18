@@ -1258,7 +1258,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             gltfPhysicsMaterial.restitution
         );
         if (gltfPhysicsMaterial.frictionCombine !== undefined) {
-            physxMaterial.setFrictionCombine(
+            physxMaterial.setFrictionCombineMode(
                 this.mapCombineMode(gltfPhysicsMaterial.frictionCombine)
             );
         }
