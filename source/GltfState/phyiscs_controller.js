@@ -775,6 +775,14 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 motion.gravityFactor !== 1.0
             );
         }
+        if (motion.animatedPropertyObjects.linearVelocity.dirty) {
+            const pxVelocity = new this.PhysX.PxVec3(...motion.linearVelocity);
+            actor.setLinearVelocity(pxVelocity);
+        }
+        if (motion.animatedPropertyObjects.angularVelocity.dirty) {
+            const pxVelocity = new this.PhysX.PxVec3(...motion.angularVelocity);
+            actor.setAngularVelocity(pxVelocity);
+        }
     }
 
     updateCollider(
