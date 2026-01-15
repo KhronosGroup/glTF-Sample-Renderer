@@ -415,7 +415,7 @@ class PhysicsController {
     }
 
     updateColliders(state, node) {
-        this.engine.animateActorTransform(node); //TODO
+        this.engine.updateActorTransform(node);
         const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
 
         if (collider?.geometry?.node !== undefined) {
@@ -607,6 +607,8 @@ class PhysicsInterface {
             }
         }
     }
+
+    updateActorTransform(node) {}
 }
 
 class NvidiaPhysicsInterface extends PhysicsInterface {
@@ -677,6 +679,30 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 physXMaterial.setDynamicFriction(material.dynamicFriction);
                 physXMaterial.setRestitution(material.restitution);
             }
+        }
+    }
+
+    updateActorTransform(node) {
+        if (node.dirtyTransform) {
+            const actor = this.nodeToActor.get(node.gltfObjectIndex)?.actor;
+            if (actor === undefined) {
+                return;
+            }
+            const pxPos = new this.PhysX.PxVec3(
+                node.worldTransform[12],
+                node.worldTransform[13],
+                node.worldTransform[14]
+            );
+            const pxRot = new this.PhysX.PxQuat(...node.worldQuaternion);
+            const pxTransform = new this.PhysX.PxTransform(pxPos, pxRot);
+            if (node?.extensions?.KHR_physics_rigid_bodies?.motion?.isKinematic) {
+                actor.setKinematicTarget(pxTransform);
+            } else {
+                actor.setGlobalPos(pxTransform);
+            }
+            this.PhysX.destroy(pxPos);
+            this.PhysX.destroy(pxRot);
+            this.PhysX.destroy(pxTransform);
         }
     }
 
@@ -2027,8 +2053,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];
+            if (node.dirtyTransform) {
+                // Node transform is currently animated
+                continue;
+            }
             const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
-            // TODO ignore if animated
             if (motion && motion.isKinematic) {
                 const worldTransform = node.physicsTransform ?? node.worldTransform;
                 const targetPosition = vec3.create();

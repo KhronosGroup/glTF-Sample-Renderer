@@ -38,6 +38,8 @@ class gltfNode extends GltfObject {
         this.scene = undefined;
         this.physicsTransform = undefined;
         this.scaledPhysicsTransform = undefined;
+
+        // These are set if this or any parent transform changed
         this.dirtyTransform = true;
         this.dirtyScale = true;
     }
