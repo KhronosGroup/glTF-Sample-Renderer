@@ -800,14 +800,26 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             // Simple shapes need to be recreated if scale changed
             // If properties changed we also need to recreate the mesh colliders
             const dirty = this.simpleShapes[shapeIndex].isDirty();
-            if (scaleChanged && !dirty && currentColliderType === "eCONVEXMESH") {
+            if (
+                scaleChanged &&
+                !dirty &&
+                currentColliderType === this.PhysX.PxGeometryTypeEnum.eCONVEXMESH
+            ) {
                 // Update convex mesh scale
+                currentGeometry = this.PhysX.castObject(
+                    currentGeometry,
+                    this.PhysX.PxConvexMeshGeometry
+                );
                 const result = PhysicsUtils.calculateScaleAndAxis(node, referencingNode);
                 scale = result.scale;
                 scaleAxis = result.scaleAxis;
                 currentGeometry.scale.scale = scale;
                 currentGeometry.scale.rotation = scaleAxis;
-            } else if (!scaleChanged && dirty && currentColliderType !== "eCONVEXMESH") {
+            } else if (
+                !scaleChanged &&
+                dirty &&
+                currentColliderType !== this.PhysX.PxGeometryTypeEnum.eCONVEXMESH
+            ) {
                 // Use geometry from array, if this is a reference we do not need to do anything here since we already updated the array
             } else {
                 // Recreate simple shape collider
@@ -838,6 +850,17 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const weights = node.animatedPropertyObjects.weights.value()
                 ? node.animatedPropertyObjects.weights
                 : gltf.meshes[node.mesh].animatedPropertyObjects.weights;
+            if (currentColliderType === this.PhysX.PxGeometryTypeEnum.eCONVEXMESH) {
+                currentGeometry = this.PhysX.castObject(
+                    currentGeometry,
+                    this.PhysX.PxConvexMeshGeometry
+                );
+            } else if (currentColliderType === this.PhysX.PxGeometryTypeEnum.eTRIANGLEMESH) {
+                currentGeometry = this.PhysX.castObject(
+                    currentGeometry,
+                    this.PhysX.PxTriangleMeshGeometry
+                );
+            }
             if (weights.value() !== undefined && weights.dirty) {
                 if (actorType === "dynamic") {
                     //recreate convex hull from morphed mesh
