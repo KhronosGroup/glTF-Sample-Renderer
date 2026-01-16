@@ -1,3 +1,4 @@
+import { AnimatableProperty } from "../gltf/animatable_property.js";
 import { GltfState } from "../GltfState/gltf_state.js";
 import { gltfRenderer } from "../Renderer/renderer.js";
 import { GL } from "../Renderer/webgl.js";
@@ -89,7 +90,7 @@ class GltfView {
         }
 
         this.renderer.drawScene(state, scene);
-        scene.resetHierarchyDirtyFlags(state.gltf);
+        AnimatableProperty.resetAllDirtyFlags();
     }
 
     /**

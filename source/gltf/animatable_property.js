@@ -1,23 +1,41 @@
 class AnimatableProperty {
+    static dirtyFlagList = []; // Collect all animatable properties with dirty flags set to true
+    static resetAllDirtyFlags() {
+        for (const prop of this.dirtyFlagList) {
+            prop.dirty = false;
+        }
+        this.dirtyFlagList = [];
+    }
+
     constructor(value) {
         this.restValue = value;
         this.animatedValue = null;
         this.dirty = true;
+        AnimatableProperty.dirtyFlagList.push(this);
     }
 
     restAt(value) {
-        this.dirty = true;
+        if (!this.dirty) {
+            this.dirty = true;
+            AnimatableProperty.dirtyFlagList.push(this);
+        }
         this.restValue = value;
     }
 
     animate(value) {
-        this.dirty = true;
+        if (!this.dirty) {
+            this.dirty = true;
+            AnimatableProperty.dirtyFlagList.push(this);
+        }
         this.animatedValue = value;
     }
 
     rest() {
         if (this.animatedValue !== null) {
-            this.dirty = true;
+            if (!this.dirty) {
+                this.dirty = true;
+                AnimatableProperty.dirtyFlagList.push(this);
+            }
             this.animatedValue = null;
         }
     }
