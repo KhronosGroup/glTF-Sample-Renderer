@@ -290,8 +290,8 @@ class KHR_physics_rigid_bodies_motion extends GltfObject {
         "isKinematic",
         "mass",
         "centerOfMass",
-        "inertialDiagonal",
-        "inertialOrientation",
+        "inertiaDiagonal",
+        "inertiaOrientation",
         "linearVelocity",
         "angularVelocity",
         "gravityFactor"
@@ -301,8 +301,8 @@ class KHR_physics_rigid_bodies_motion extends GltfObject {
         this.isKinematic = false;
         this.mass = undefined;
         this.centerOfMass = undefined;
-        this.inertialDiagonal = undefined;
-        this.inertialOrientation = undefined;
+        this.inertiaDiagonal = undefined;
+        this.inertiaOrientation = undefined;
         this.linearVelocity = [0, 0, 0];
         this.angularVelocity = [0, 0, 0];
         this.gravityFactor = 1;
