@@ -28,15 +28,50 @@ class gltfAccessor extends GltfObject {
 
     // getTypedView provides a view to the accessors data in form of
     // a TypedArray. This data can directly be passed to vertexAttribPointer
+    decodeMeshoptBuffer(gltf, bufferView) {
+        const moptDecoder = gltf.moptDecoder;
+        const filter = bufferView.filter || "NONE";
+        const buffer = gltf.buffers[bufferView.buffer];
+        const byteLength = bufferView.byteLength;
+        const byteStride = bufferView.byteStride;
+        const componentSize = this.getComponentSize(this.componentType);
+        //const componentCount = this.getComponentCount(this.type);
+        const componentCount = byteStride / componentSize;
+        const viewArrayLength = bufferView.count * componentCount * componentSize;
+        const bytes = (view) => new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+
+        const encoded = new Uint8Array(buffer.buffer, bufferView.byteOffset, byteLength);
+        const decoded = new Uint8Array(viewArrayLength);
+
+        moptDecoder.decodeGltfBuffer(
+            bytes(decoded),
+            bufferView.count,
+            byteStride,
+            encoded,
+            bufferView.mode,
+            filter
+        );
+        return { buffer: decoded.buffer };
+    }
+
+    // getTypedView provides a view to the accessors data in form of
+    // a TypedArray. This data can directly be passed to vertexAttribPointer
     getTypedView(gltf) {
         if (this.typedView !== undefined) {
             return this.typedView;
         }
 
         if (this.bufferView !== undefined) {
-            const bufferView = gltf.bufferViews[this.bufferView];
-            const buffer = gltf.buffers[bufferView.buffer];
-            const byteOffset = this.byteOffset + bufferView.byteOffset;
+            const isMeshOptCompressed =
+                gltf.bufferViews[this.bufferView].extensions !== undefined &&
+                gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression !== undefined;
+            const bufferView = !isMeshOptCompressed
+                ? gltf.bufferViews[this.bufferView]
+                : gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression;
+            const buffer = !isMeshOptCompressed
+                ? gltf.buffers[bufferView.buffer]
+                : this.decodeMeshoptBuffer(gltf, bufferView);
+            const byteOffset = this.byteOffset + (!isMeshOptCompressed ? bufferView.byteOffset : 0);
 
             const componentSize = this.getComponentSize(this.componentType);
             let componentCount = this.getComponentCount(this.type);
@@ -118,8 +153,17 @@ class gltfAccessor extends GltfObject {
         }
 
         if (this.bufferView !== undefined) {
-            const bufferView = gltf.bufferViews[this.bufferView];
-            const buffer = gltf.buffers[bufferView.buffer];
+            const isMeshOptCompressed =
+                gltf.bufferViews[this.bufferView].extensions !== undefined &&
+                gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression !== undefined;
+            const bufferView = !isMeshOptCompressed
+                ? gltf.bufferViews[this.bufferView]
+                : gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression;
+            const buffer = !isMeshOptCompressed
+                ? gltf.buffers[bufferView.buffer]
+                : this.decodeMeshoptBuffer(gltf, bufferView);
+            const byteOffset =
+                this.byteOffset + +(!isMeshOptCompressed ? bufferView.byteOffset : 0);
 
             const componentSize = this.getComponentSize(this.componentType); // E.g. GL.FLOAT -> 4
             const componentCount = this.getComponentCount(this.type); // E.g. Vec3 -> 3
@@ -130,11 +174,7 @@ class gltfAccessor extends GltfObject {
                     ? bufferView.byteStride
                     : componentCount * componentSize;
 
-            let bufferViewData = new DataView(
-                buffer.buffer,
-                bufferView.byteOffset,
-                bufferView.byteLength
-            );
+            let bufferViewData = new DataView(buffer.buffer, byteOffset, this.count * stride);
 
             let func = "getFloat32";
             switch (this.componentType) {
@@ -164,11 +204,15 @@ class gltfAccessor extends GltfObject {
                     break;
             }
 
-            for (let i = 0; i < arrayLength; ++i) {
-                const vertexIndex = Math.floor(i / componentCount);
-                const componentIndex = (i % componentCount) * componentSize;
-                const offset = vertexIndex * stride + componentIndex + this.byteOffset; // Add Accessor byte offset
-                this.filteredView[i] = bufferViewData[func](offset, true);
+            try {
+                for (let i = 0; i < arrayLength; ++i) {
+                    const vertexIndex = Math.floor(i / componentCount);
+                    const componentIndex = (i % componentCount) * componentSize;
+                    const offset = vertexIndex * stride + componentIndex;
+                    this.filteredView[i] = bufferViewData[func](offset, true);
+                }
+            } catch (e) {
+                console.error("Error while creating deinterlaced view for accessor", this, e);
             }
         } else {
             this.filteredView = this.createView();

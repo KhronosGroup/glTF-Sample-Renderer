@@ -25,7 +25,17 @@ class gltfBuffer extends GltfObject {
                 !self.setBufferFromFiles(additionalFiles, resolve) &&
                 !self.setBufferFromUri(gltf, resolve, reject)
             ) {
-                reject("Buffer data missing for '" + self.name + "' in " + gltf.path);
+                /* Handle fallback buffer case for EXT_meshopt_compression */
+                if (
+                    self.extensions === undefined &&
+                    self.extensions.EXT_meshopt_compression === undefined
+                ) {
+                    console.error("Was not able to resolve buffer with uri '%s'", self.uri);
+                    reject("Buffer data missing for '" + self.name + "' in " + gltf.path);
+                } else {
+                    // buffer will be loaded by EXT_meshopt_compression
+                    resolve();
+                }
             }
         });
     }
