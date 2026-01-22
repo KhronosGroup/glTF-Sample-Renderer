@@ -381,7 +381,6 @@ class PhysicsController {
     }
 
     applyAnimations(state) {
-        /*
         this.engine.updateSimpleShapes(state.gltf);
         this.engine.updatePhysicMaterials(state.gltf);
 
@@ -390,7 +389,7 @@ class PhysicsController {
         }
 
         for (const actorNode of this.kinematicActors) {
-            this.engine.updateMotion(actorNode); //TODO
+            this.engine.updateMotion(actorNode);
             this.updateColliders(state, actorNode);
         }
 
@@ -401,7 +400,7 @@ class PhysicsController {
 
         for (const jointNode of this.jointNodes) {
             this.engine.updatePhysicsJoint(state, jointNode); //TODO
-        }*/
+        }
     }
 
     enableDebugColliders(enable) {
@@ -529,6 +528,7 @@ class PhysicsInterface {
     }
 
     updateActorTransform(node) {}
+    updatePhysicsJoint(state, jointNode) {}
 }
 
 class NvidiaPhysicsInterface extends PhysicsInterface {
@@ -835,6 +835,47 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const PxRotation = new this.PhysX.PxQuat(...rotation);
             const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
             currentShape.setLocalPose(pose);
+        }
+    }
+
+    updatePhysicsJoint(state, jointNode) {
+        const pxJoint = this.nodeToJoint.get(jointNode.gltfObjectIndex);
+        if (pxJoint === undefined) {
+            return;
+        }
+        const jointIndex = jointNode.extensions?.KHR_physics_rigid_bodies?.joint?.joint;
+        const gltfJoint = state.gltf.extensions.KHR_physics_rigid_bodies.physicsJoints[jointIndex];
+        if (
+            jointNode.extensions.KHR_physics_rigid_bodies.joint.animatedPropertyObjects
+                .enableCollision.dirty
+        ) {
+            pxJoint.setConstraintFlag(
+                this.PhysX.PxConstraintFlagEnum.eCOLLISION_ENABLED,
+                jointNode.extensions.KHR_physics_rigid_bodies.joint.enableCollision
+            );
+        }
+        for (const limit of gltfJoint.limits) {
+            if (limit.animatedPropertyObjects.min.dirty) {
+            }
+            if (limit.animatedPropertyObjects.max.dirty) {
+            }
+            if (limit.animatedPropertyObjects.stiffness.dirty) {
+            }
+            if (limit.animatedPropertyObjects.damping.dirty) {
+            }
+        }
+
+        for (const drive of gltfJoint.drives) {
+            if (drive.animatedPropertyObjects.stiffness.dirty) {
+            }
+            if (drive.animatedPropertyObjects.damping.dirty) {
+            }
+            if (drive.animatedPropertyObjects.maxForce.dirty) {
+            }
+            if (drive.animatedPropertyObjects.positionTarget.dirty) {
+            }
+            if (drive.animatedPropertyObjects.velocityTarget.dirty) {
+            }
         }
     }
 
