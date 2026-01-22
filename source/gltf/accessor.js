@@ -2,6 +2,7 @@
 
 import { GL } from "../Renderer/webgl.js";
 import { GltfObject } from "./gltf_object.js";
+import { hasMeshOptCompression, getMeshOptExtensionObject } from "./gltf_utils.js";
 
 class gltfAccessor extends GltfObject {
     static animatedProperties = [];
@@ -62,15 +63,13 @@ class gltfAccessor extends GltfObject {
         }
 
         if (this.bufferView !== undefined) {
-            const isMeshOptCompressed =
-                gltf.bufferViews[this.bufferView].extensions !== undefined &&
-                gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression !== undefined;
-            const bufferView = !isMeshOptCompressed
-                ? gltf.bufferViews[this.bufferView]
-                : gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression;
-            const buffer = !isMeshOptCompressed
-                ? gltf.buffers[bufferView.buffer]
-                : this.decodeMeshoptBuffer(gltf, bufferView);
+            const isMeshOptCompressed = hasMeshOptCompression(gltf.bufferViews[this.bufferView]);
+            const bufferView = isMeshOptCompressed
+                ? getMeshOptExtensionObject(gltf.bufferViews[this.bufferView])
+                : gltf.bufferViews[this.bufferView];
+            const buffer = isMeshOptCompressed
+                ? this.decodeMeshoptBuffer(gltf, bufferView)
+                : gltf.buffers[bufferView.buffer];
             const byteOffset = this.byteOffset + (!isMeshOptCompressed ? bufferView.byteOffset : 0);
 
             const componentSize = this.getComponentSize(this.componentType);
@@ -153,17 +152,14 @@ class gltfAccessor extends GltfObject {
         }
 
         if (this.bufferView !== undefined) {
-            const isMeshOptCompressed =
-                gltf.bufferViews[this.bufferView].extensions !== undefined &&
-                gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression !== undefined;
-            const bufferView = !isMeshOptCompressed
-                ? gltf.bufferViews[this.bufferView]
-                : gltf.bufferViews[this.bufferView].extensions.EXT_meshopt_compression;
-            const buffer = !isMeshOptCompressed
-                ? gltf.buffers[bufferView.buffer]
-                : this.decodeMeshoptBuffer(gltf, bufferView);
-            const byteOffset =
-                this.byteOffset + +(!isMeshOptCompressed ? bufferView.byteOffset : 0);
+            const isMeshOptCompressed = hasMeshOptCompression(gltf.bufferViews[this.bufferView]);
+            const bufferView = isMeshOptCompressed
+                ? getMeshOptExtensionObject(gltf.bufferViews[this.bufferView])
+                : gltf.bufferViews[this.bufferView];
+            const buffer = isMeshOptCompressed
+                ? this.decodeMeshoptBuffer(gltf, bufferView)
+                : gltf.buffers[bufferView.buffer];
+            const byteOffset = this.byteOffset + (isMeshOptCompressed ? 0 : bufferView.byteOffset);
 
             const componentSize = this.getComponentSize(this.componentType); // E.g. GL.FLOAT -> 4
             const componentCount = this.getComponentCount(this.type); // E.g. Vec3 -> 3

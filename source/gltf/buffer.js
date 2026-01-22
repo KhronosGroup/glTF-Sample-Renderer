@@ -1,5 +1,6 @@
 import { getContainingFolder } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
+import { hasMeshOptCompression } from "./gltf_utils.js";
 
 class gltfBuffer extends GltfObject {
     static animatedProperties = [];
@@ -25,16 +26,13 @@ class gltfBuffer extends GltfObject {
                 !self.setBufferFromFiles(additionalFiles, resolve) &&
                 !self.setBufferFromUri(gltf, resolve, reject)
             ) {
-                /* Handle fallback buffer case for EXT_meshopt_compression */
-                if (
-                    self.extensions === undefined &&
-                    self.extensions.EXT_meshopt_compression === undefined
-                ) {
+                if (hasMeshOptCompression(self)) {
+                    // buffer will be loaded by EXT_meshopt_compression or KHR_meshopt_compression
+                    resolve();
+                } else {
+                    // if buffer has no meshopt compression extension AND no uri or files provided, we have an error
                     console.error("Was not able to resolve buffer with uri '%s'", self.uri);
                     reject("Buffer data missing for '" + self.name + "' in " + gltf.path);
-                } else {
-                    // buffer will be loaded by EXT_meshopt_compression
-                    resolve();
                 }
             }
         });
