@@ -38,11 +38,13 @@ const allowedExtensions = [
     "KHR_materials_variants",
     "KHR_materials_volume",
     "KHR_materials_volume_scatter",
+    "KHR_meshopt_compression",
     "KHR_mesh_quantization",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",
     "EXT_mesh_gpu_instancing",
+    "EXT_meshopt_compression",
     "EXT_texture_webp"
 ];
 

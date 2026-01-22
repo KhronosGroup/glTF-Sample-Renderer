@@ -11,6 +11,7 @@ import init from "../libs/mikktspace.js";
 
 import { AsyncFileReader } from "./async_file_reader.js";
 
+import { MeshoptDecoder } from "meshoptimizer";
 import { DracoDecoder } from "./draco.js";
 import { KtxDecoder } from "./ktx.js";
 
@@ -99,6 +100,7 @@ class ResourceLoader {
 
         const gltf = new glTF(filename);
         gltf.ktxDecoder = this.view.ktxDecoder;
+        gltf.moptDecoder = MeshoptDecoder;
         //Make sure draco decoder instance is ready
         gltf.fromJson(json);
 

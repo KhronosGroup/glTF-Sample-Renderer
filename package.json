@@ -1,57 +1,58 @@
 {
-  "name": "@khronosgroup/gltf-viewer",
-  "version": "1.1.0",
-  "description": "The official glTF sample viewer.",
-  "main": "dist/gltf-viewer.js",
-  "module": "dist/gltf-viewer.module.js",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/KhronosGroup/glTF-Sample-Renderer.git"
-  },
-  "scripts": {
-    "build": "rollup -c",
-    "watch": "rollup -cw",
-    "prepublishOnly": "npm run build && npm run build_docs",
-    "build_docs": "jsdoc2md source/gltf-sample-renderer.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js > API.md",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint source/**/*.js",
-    "lint:fix": "eslint --fix source/**/*.js",
-    "prettier": "npx prettier source/**/*.js --check",
-    "prettier:fix": "npm run prettier -- --write",
-    "format": "npm run prettier:fix && npm run lint:fix"
-  },
-  "keywords": [
-    "gltf",
-    "webgl",
-    "pbr"
-  ],
-  "author": "Khronos Group Inc.",
-  "license": "Apache-2.0",
-  "dependencies": {
-    "fast-png": "^6.2.0",
-    "gl-matrix": "^3.2.1",
-    "globals": "^15.5.0",
-    "jpeg-js": "^0.4.3",
-    "json-ptr": "^3.1.0"
-  },
-  "devDependencies": {
-    "@rollup/plugin-commonjs": "^29.0.0",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@rollup/plugin-wasm": "^6.2.2",
-    "concurrently": "^8.2.2",
-    "eslint": "^9.5.0",
-    "eslint-config-prettier": "^10.1.8",
-    "jsdoc-to-markdown": "^8.0.1",
-    "prettier": "3.6.2",
-    "rollup": "^4.23.0",
-    "rollup-plugin-copy": "^3.5.0",
-    "rollup-plugin-glslify": "^1.3.1",
-    "rollup-plugin-license": "^3.5.2",
-    "serve": "^14.2.4"
-  },
-  "bugs": {
-    "url": "https://github.com/KhronosGroup/glTF-Sample-Renderer/issues"
-  },
-  "homepage": "https://github.com/KhronosGroup/glTF-Sample-Renderer/#readme"
+    "name": "@khronosgroup/gltf-viewer",
+    "version": "1.1.0",
+    "description": "The official glTF sample viewer.",
+    "main": "dist/gltf-viewer.js",
+    "module": "dist/gltf-viewer.module.js",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/KhronosGroup/glTF-Sample-Renderer.git"
+    },
+    "scripts": {
+        "build": "rollup -c",
+        "watch": "rollup -cw",
+        "prepublishOnly": "npm run build && npm run build_docs",
+        "build_docs": "jsdoc2md source/gltf-sample-renderer.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js > API.md",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "lint": "eslint source/**/*.js",
+        "lint:fix": "eslint --fix source/**/*.js",
+        "prettier": "npx prettier source/**/*.js --check",
+        "prettier:fix": "npm run prettier -- --write",
+        "format": "npm run prettier:fix && npm run lint:fix"
+    },
+    "keywords": [
+        "gltf",
+        "webgl",
+        "pbr"
+    ],
+    "author": "Khronos Group Inc.",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "fast-png": "^6.2.0",
+        "gl-matrix": "^3.2.1",
+        "globals": "^15.5.0",
+        "jpeg-js": "^0.4.3",
+        "json-ptr": "^3.1.0",
+        "meshoptimizer": "^1.0.1"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^29.0.0",
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-wasm": "^6.2.2",
+        "concurrently": "^8.2.2",
+        "eslint": "^9.5.0",
+        "eslint-config-prettier": "^10.1.8",
+        "jsdoc-to-markdown": "^8.0.1",
+        "prettier": "3.6.2",
+        "rollup": "^4.23.0",
+        "rollup-plugin-copy": "^3.5.0",
+        "rollup-plugin-glslify": "^1.3.1",
+        "rollup-plugin-license": "^3.5.2",
+        "serve": "^14.2.4"
+    },
+    "bugs": {
+        "url": "https://github.com/KhronosGroup/glTF-Sample-Renderer/issues"
+    },
+    "homepage": "https://github.com/KhronosGroup/glTF-Sample-Renderer/#readme"
 }
