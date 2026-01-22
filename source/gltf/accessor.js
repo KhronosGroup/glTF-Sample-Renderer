@@ -36,7 +36,6 @@ class gltfAccessor extends GltfObject {
         const byteLength = bufferView.byteLength;
         const byteStride = bufferView.byteStride;
         const componentSize = this.getComponentSize(this.componentType);
-        //const componentCount = this.getComponentCount(this.type);
         const componentCount = byteStride / componentSize;
         const viewArrayLength = bufferView.count * componentCount * componentSize;
         const bytes = (view) => new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
@@ -70,7 +69,9 @@ class gltfAccessor extends GltfObject {
             const buffer = isMeshOptCompressed
                 ? this.decodeMeshoptBuffer(gltf, bufferView)
                 : gltf.buffers[bufferView.buffer];
-            const byteOffset = this.byteOffset + (!isMeshOptCompressed ? bufferView.byteOffset : 0);
+            // use zero as byteoffset when using meshopt
+            // at this point the buffer view is already decoded and starts at offset 0
+            const byteOffset = this.byteOffset + (isMeshOptCompressed ? 0 : bufferView.byteOffset);
 
             const componentSize = this.getComponentSize(this.componentType);
             let componentCount = this.getComponentCount(this.type);
@@ -159,6 +160,8 @@ class gltfAccessor extends GltfObject {
             const buffer = isMeshOptCompressed
                 ? this.decodeMeshoptBuffer(gltf, bufferView)
                 : gltf.buffers[bufferView.buffer];
+            // use zero as byteoffset when using meshopt
+            // at this point the buffer view is already decoded and starts at offset 0
             const byteOffset = this.byteOffset + (isMeshOptCompressed ? 0 : bufferView.byteOffset);
 
             const componentSize = this.getComponentSize(this.componentType); // E.g. GL.FLOAT -> 4
@@ -204,7 +207,12 @@ class gltfAccessor extends GltfObject {
                 for (let i = 0; i < arrayLength; ++i) {
                     const vertexIndex = Math.floor(i / componentCount);
                     const componentIndex = (i % componentCount) * componentSize;
-                    const offset = vertexIndex * stride + componentIndex;
+                    // use zero as byteoffset when using meshopt
+                    // at this point the buffer view is already decoded and starts at offset 0
+                    const offset =
+                        vertexIndex * stride +
+                        componentIndex +
+                        (isMeshOptCompressed ? 0 : this.byteOffset);
                     this.filteredView[i] = bufferViewData[func](offset, true);
                 }
             } catch (e) {
