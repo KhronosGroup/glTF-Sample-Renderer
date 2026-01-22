@@ -281,7 +281,7 @@ class KHR_physics_rigid_bodies_geometry extends GltfObject {
         super();
         this.convexHull = false;
         this.shape = undefined;
-        this.node = undefined;
+        this.mesh = undefined;
     }
 }
 
