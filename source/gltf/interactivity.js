@@ -214,6 +214,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.registerBehaveEngineNode("event/onSelect", interactivity.OnSelect);
         this.registerBehaveEngineNode("event/onHoverIn", interactivity.OnHoverIn);
         this.registerBehaveEngineNode("event/onHoverOut", interactivity.OnHoverOut);
+        this.registerRigidBodyNodes();
     }
 
     dispatchCustomEvent(eventName, data) {
@@ -872,6 +873,18 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         animation.speed = speed;
         animation.endCallback = callback;
         animation.createdTimestamp = this.world.animationTimer.elapsedSec();
+    }
+
+    rayCastRigidBodies(rayStart, rayEnd) {
+        return this.world.physicsController.rayCast(rayStart, rayEnd);
+    }
+
+    applyImpulseToRigidBody(nodeIndex, linearImpulse, angularImpulse) {
+        this.world.physicsController.applyImpulse(nodeIndex, linearImpulse, angularImpulse);
+    }
+
+    applyPointImpulseToRigidBody(nodeIndex, impulse, position) {
+        this.world.physicsController.applyPointImpulse(nodeIndex, impulse, position);
     }
 }
 

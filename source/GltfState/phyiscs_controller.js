@@ -417,6 +417,18 @@ class PhysicsController {
         }
         return [];
     }
+
+    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {
+        this.engine.applyImpulse(nodeIndex, linearImpulse, angularImpulse);
+    }
+
+    applyPointImpulse(nodeIndex, impulse, position) {
+        this.engine.applyPointImpulse(nodeIndex, impulse, position);
+    }
+
+    rayCast(rayStart, rayEnd) {
+        this.engine.rayCast(rayStart, rayEnd);
+    }
 }
 
 class PhysicsInterface {
@@ -441,6 +453,10 @@ class PhysicsInterface {
     stopSimulation() {}
     enableDebugColliders(enable) {}
     enableDebugJoints(enable) {}
+
+    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {}
+    applyPointImpulse(nodeIndex, impulse, position) {}
+    rayCast(rayStart, rayEnd) {}
 
     generateBox(x, y, z, scale, scaleAxis, reference) {}
     generateCapsule(height, radiusTop, radiusBottom, scale, scaleAxis, reference) {}
@@ -545,6 +561,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.scene = undefined;
         this.nodeToActor = new Map();
         this.nodeToJoint = new Map();
+        this.shapeToNode = new Map();
         this.filterData = [];
         this.physXFilterData = [];
         this.physXMaterials = [];
@@ -1277,13 +1294,16 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             return undefined;
         }
 
-        return this.createShapeFromGeometry(
+        const shape = this.createShapeFromGeometry(
             geometry,
             physXMaterial,
             physXFilterData,
             shapeFlags,
             collider
         );
+
+        this.shapeToNode.set(shape.ptr, node.gltfObjectIndex);
+        return shape;
     }
 
     createActor(gltf, node, shapeFlags, type, noMeshShapes = false) {
@@ -2067,6 +2087,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (scenePointer) {
             scenePointer.release();
         }
+
+        this.shapeToNode.clear();
     }
 
     getDebugLineData() {
@@ -2086,6 +2108,71 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             result.push(line.pos1.z);
         }
         return result;
+    }
+
+    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {
+        this.engine.applyImpulse(nodeIndex, linearImpulse, angularImpulse);
+    }
+
+    applyPointImpulse(nodeIndex, impulse, position) {
+        this.engine.applyPointImpulse(nodeIndex, impulse, position);
+    }
+
+    rayCast(rayStart, rayEnd) {
+        const result = {};
+        result.hitNodeIndex = -1;
+        if (!this.scene) {
+            return result;
+        }
+        const origin = new this.PhysX.PxVec3(...rayStart);
+        const directionVec = vec3.create();
+        vec3.subtract(directionVec, rayEnd, rayStart);
+        vec3.normalize(directionVec, directionVec);
+        const direction = new this.PhysX.PxVec3(...directionVec);
+        const maxDistance = vec3.distance(rayStart, rayEnd);
+
+        const hitBuffer = new this.PhysX.PxRaycastBuffer10();
+        const hitFlags = new this.PhysX.PxHitFlags(this.PhysX.PxHitFlagEnum.eDEFAULT);
+
+        const queryFilterData = new this.PhysX.PxQueryFilterData();
+        queryFilterData.set_flags(
+            this.PhysX.PxQueryFlagEnum.eSTATIC | this.PhysX.PxQueryFlagEnum.eDYNAMIC
+        );
+
+        const hasHit = this.scene.raycast(
+            origin,
+            direction,
+            maxDistance,
+            hitBuffer,
+            hitFlags,
+            queryFilterData
+        );
+
+        this.PhysX.destroy(origin);
+        this.PhysX.destroy(direction);
+        this.PhysX.destroy(hitFlags);
+        this.PhysX.destroy(queryFilterData);
+
+        if (hasHit) {
+            const hitCount = hit.getNbAnyHits();
+            if (hitCount > 1) {
+                console.warn("Raycast hit multiple objects, only the first hit is returned.");
+            }
+            const hit = hitBuffer.getAnyHit(0);
+            const fraction = hit.distance / maxDistance;
+            const hitNormal = vec3.fromValues(hit.normal.x, hit.normal.y, hit.normal.z);
+            const hitNodeIndex = this.shapeToNode.get(hit.shape.ptr);
+            if (hitNodeIndex === undefined) {
+                return result;
+            }
+            return {
+                hitNodeIndex: hitNodeIndex,
+                hitFraction: fraction,
+                hitNormal: hitNormal
+            };
+        } else {
+            return result;
+        }
     }
 }
 
