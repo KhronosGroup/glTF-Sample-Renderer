@@ -95,6 +95,8 @@ class PhysicsController {
         this.staticActors = [];
         this.kinematicActors = [];
         this.dynamicActors = [];
+        this.triggerNodes = [];
+        this.compoundTriggerNodes = [];
         this.jointNodes = [];
         this.morphedColliders = [];
         this.skinnedColliders = [];
@@ -257,6 +259,13 @@ class PhysicsController {
                 if (rigidBody.joint !== undefined) {
                     this.jointNodes.push(node);
                 }
+                if (rigidBody.trigger !== undefined) {
+                    if (rigidBody.trigger.nodes !== undefined) {
+                        this.compoundTriggerNodes.push(node);
+                    } else {
+                        this.triggerNodes.push(node);
+                    }
+                }
             }
             for (const childIndex of node.children) {
                 gatherRigidBodies(childIndex, parentRigidBody);
@@ -270,7 +279,8 @@ class PhysicsController {
             !this.engine ||
             (this.staticActors.length === 0 &&
                 this.kinematicActors.length === 0 &&
-                this.dynamicActors.length === 0)
+                this.dynamicActors.length === 0 &&
+                this.triggerNodes.length === 0)
         ) {
             return;
         }
@@ -280,6 +290,7 @@ class PhysicsController {
             this.kinematicActors,
             this.dynamicActors,
             this.jointNodes,
+            this.triggerNodes,
             this.hasRuntimeAnimationTargets,
             staticMeshColliderCount,
             dynamicMeshColliderCount
@@ -291,6 +302,8 @@ class PhysicsController {
         this.kinematicActors = [];
         this.dynamicActors = [];
         this.jointNodes = [];
+        this.triggerNodes = [];
+        this.compoundTriggerNodes = [];
         this.morphedColliders = [];
         this.skinnedColliders = [];
         this.hasRuntimeAnimationTargets = false;
@@ -398,6 +411,10 @@ class PhysicsController {
             this.updateColliders(state, actorNode);
         }
 
+        for (const node of this.triggerNodes) {
+            this.updateColliders(state, node);
+        }
+
         for (const jointNode of this.jointNodes) {
             this.engine.updatePhysicsJoint(state, jointNode); //TODO
         }
@@ -443,6 +460,7 @@ class PhysicsInterface {
         kinematicActors,
         dynamicActors,
         jointNodes,
+        triggerNodes,
         hasRuntimeAnimationTargets,
         staticMeshColliderCount,
         dynamicMeshColliderCount
@@ -1264,6 +1282,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     createShape(
         gltf,
         node,
+        collider,
         shapeFlags,
         physXMaterial,
         physXFilterData,
@@ -1271,7 +1290,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         scale = vec3.fromValues(1, 1, 1),
         scaleAxis = quat.create()
     ) {
-        const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
         let geometry = undefined;
         if (collider?.geometry?.shape !== undefined) {
             if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
@@ -1321,6 +1339,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const pxShapeMap = new Map();
         if (type === "static") {
             actor = this.physics.createRigidStatic(pose);
+        } else if (type === "trigger") {
+            actor = this.physics.createRigidStatic(pose);
+            actor.setActorFlag(this.PhysX.PxActorFlagEnum.eTRIGGER_ENABLE, true);
         } else {
             actor = this.physics.createRigidDynamic(pose);
             if (type === "kinematic") {
@@ -1387,6 +1408,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const shape = this.createShape(
                 gltf,
                 node,
+                collider,
                 shapeFlags,
                 material,
                 physXFilterData,
@@ -1409,7 +1431,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             }
         };
 
-        const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+        let collider = undefined;
+        if (type === "trigger") {
+            collider = node.extensions?.KHR_physics_rigid_bodies?.trigger;
+        } else {
+            collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+        }
+
         createAndAddShape(gltf, node, collider, node, worldTransform);
 
         for (const childIndex of node.children) {
@@ -1809,6 +1837,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         kinematicActors,
         dynamicActors,
         jointNodes,
+        triggerNodes,
         hasRuntimeAnimationTargets,
         staticMeshColliderCount,
         dynamicMeshColliderCount
@@ -1844,6 +1873,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 this.PhysX.PxShapeFlagEnum.eVISUALIZATION
         );
 
+        const triggerFlags = new this.PhysX.PxShapeFlags(this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE);
+
         const alwaysConvexMeshes =
             dynamicMeshColliderCount > 1 ||
             (staticMeshColliderCount > 0 && dynamicMeshColliderCount > 0);
@@ -1856,6 +1887,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         for (const node of dynamicActors) {
             this.createActor(state.gltf, node, shapeFlags, "dynamic", true);
+        }
+        for (const node of triggerNodes) {
+            this.createActor(state.gltf, node, triggerFlags, "trigger");
         }
         for (const node of jointNodes) {
             this.createJoint(state.gltf, node);
@@ -2110,13 +2144,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return result;
     }
 
-    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {
-        this.engine.applyImpulse(nodeIndex, linearImpulse, angularImpulse);
-    }
+    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {}
 
-    applyPointImpulse(nodeIndex, impulse, position) {
-        this.engine.applyPointImpulse(nodeIndex, impulse, position);
-    }
+    applyPointImpulse(nodeIndex, impulse, position) {}
 
     rayCast(rayStart, rayEnd) {
         const result = {};
