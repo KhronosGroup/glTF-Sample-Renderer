@@ -2178,9 +2178,53 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return result;
     }
 
-    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {}
+    applyImpulse(nodeIndex, linearImpulse, angularImpulse) {
+        if (!this.scene) {
+            return;
+        }
+        const motionNode = this.nodeToMotion.get(nodeIndex);
+        if (!motionNode) {
+            return;
+        }
+        const actorEntry = this.nodeToActor.get(nodeIndex);
+        if (!actorEntry) {
+            return;
+        }
+        const actor = actorEntry.actor;
 
-    applyPointImpulse(nodeIndex, impulse, position) {}
+        const linImpulse = new this.PhysX.PxVec3(...linearImpulse);
+        const angImpulse = new this.PhysX.PxVec3(...angularImpulse);
+        actor.addForce(linImpulse, this.PhysX.PxForceModeEnum.eIMPULSE);
+        actor.addTorque(angImpulse, this.PhysX.PxForceModeEnum.eIMPULSE);
+        this.PhysX.destroy(linImpulse);
+        this.PhysX.destroy(angImpulse);
+    }
+
+    applyPointImpulse(nodeIndex, impulse, position) {
+        if (!this.scene) {
+            return;
+        }
+        const motionNode = this.nodeToMotion.get(nodeIndex);
+        if (!motionNode) {
+            return;
+        }
+        const actorEntry = this.nodeToActor.get(nodeIndex);
+        if (!actorEntry) {
+            return;
+        }
+        const actor = actorEntry.actor;
+
+        const pxImpulse = new this.PhysX.PxVec3(...impulse);
+        const pxPosition = new this.PhysX.PxVec3(...position);
+        this.PhysX.PxRigidBodyExt.prototype.addForceAtPos(
+            actor,
+            pxImpulse,
+            pxPosition,
+            this.PhysX.PxForceModeEnum.eIMPULSE
+        );
+        this.PhysX.destroy(pxImpulse);
+        this.PhysX.destroy(pxPosition);
+    }
 
     rayCast(rayStart, rayEnd) {
         const result = {};
