@@ -97,6 +97,7 @@ class PhysicsController {
         this.dynamicActors = [];
         this.triggerNodes = [];
         this.compoundTriggerNodes = [];
+        this.nodeToMotion = new Map();
         this.jointNodes = [];
         this.morphedColliders = [];
         this.skinnedColliders = [];
@@ -267,6 +268,10 @@ class PhysicsController {
                     }
                 }
             }
+
+            if (parentRigidBody !== undefined) {
+                this.nodeToMotion.set(node.gltfObjectIndex, parentRigidBody.gltfObjectIndex);
+            }
             for (const childIndex of node.children) {
                 gatherRigidBodies(childIndex, parentRigidBody);
             }
@@ -291,6 +296,7 @@ class PhysicsController {
             this.dynamicActors,
             this.jointNodes,
             this.triggerNodes,
+            this.nodeToMotion,
             this.hasRuntimeAnimationTargets,
             staticMeshColliderCount,
             dynamicMeshColliderCount
@@ -303,6 +309,7 @@ class PhysicsController {
         this.dynamicActors = [];
         this.jointNodes = [];
         this.triggerNodes = [];
+        this.nodeToMotion.clear();
         this.compoundTriggerNodes = [];
         this.morphedColliders = [];
         this.skinnedColliders = [];
@@ -362,15 +369,21 @@ class PhysicsController {
         }
     }
 
-    updateColliders(state, node) {
+    updateColliders(state, node, isTrigger = false) {
         this.engine.updateActorTransform(node);
-        const collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+
+        let collider = undefined;
+        if (isTrigger) {
+            collider = node.extensions?.KHR_physics_rigid_bodies?.trigger;
+        } else {
+            collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
+        }
 
         if (collider?.geometry?.shape !== undefined || collider?.geometry?.mesh !== undefined) {
             this.engine.updateCollider(
                 state.gltf,
                 node,
-                node.extensions?.KHR_physics_rigid_bodies?.collider,
+                collider,
                 node,
                 node.worldTransform,
                 undefined,
@@ -379,17 +392,24 @@ class PhysicsController {
             );
         }
 
-        for (const childIndex of node.children) {
-            const childNode = state.gltf.nodes[childIndex];
-            PhysicsUtils.recurseCollider(
-                state.gltf,
-                childNode,
-                undefined,
-                node,
-                node.dirtyScale,
-                node.dirtyScale,
-                this.engine.updateCollider.bind(this.engine)
-            );
+        if (!isTrigger) {
+            for (const childIndex of node.children) {
+                const childNode = state.gltf.nodes[childIndex];
+                if (isTrigger) {
+                    collider = childNode.extensions?.KHR_physics_rigid_bodies?.trigger;
+                } else {
+                    collider = childNode.extensions?.KHR_physics_rigid_bodies?.collider;
+                }
+                PhysicsUtils.recurseCollider(
+                    state.gltf,
+                    childNode,
+                    collider,
+                    node,
+                    node.dirtyScale,
+                    node.dirtyScale,
+                    this.engine.updateCollider.bind(this.engine)
+                );
+            }
         }
     }
 
@@ -412,7 +432,7 @@ class PhysicsController {
         }
 
         for (const node of this.triggerNodes) {
-            this.updateColliders(state, node);
+            this.updateColliders(state, node, true);
         }
 
         for (const jointNode of this.jointNodes) {
@@ -461,6 +481,7 @@ class PhysicsInterface {
         dynamicActors,
         jointNodes,
         triggerNodes,
+        nodeToMotion,
         hasRuntimeAnimationTargets,
         staticMeshColliderCount,
         dynamicMeshColliderCount
@@ -578,7 +599,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         // Needs to be reset for each scene
         this.scene = undefined;
         this.nodeToActor = new Map();
+        this.nodeToMotion = new Map();
         this.nodeToJoint = new Map();
+        this.nodeToTrigger = new Map();
         this.shapeToNode = new Map();
         this.filterData = [];
         this.physXFilterData = [];
@@ -767,12 +790,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     updateCollider(gltf, node, collider, actorNode, worldTransform, offsetChanged, scaleChanged) {
-        const glTFCollider = node.extensions?.KHR_physics_rigid_bodies?.collider;
         const { actor, pxShapeMap } = this.nodeToActor.get(actorNode.gltfObjectIndex);
         const currentShape = pxShapeMap.get(node.gltfObjectIndex);
         let currentGeometry = currentShape.getGeometry();
         const currentColliderType = currentGeometry.getType();
-        const shapeIndex = glTFCollider?.shape;
+        const shapeIndex = collider?.shape;
         let scale = vec3.fromValues(1, 1, 1);
         let scaleAxis = quat.create();
         if (shapeIndex !== undefined) {
@@ -815,7 +837,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         undefined,
                         undefined,
                         undefined /*TODO*/,
-                        glTFCollider
+                        collider
                     );
                     pxShapeMap.set(node.gltfObjectIndex, shape);
                     actor.detachShape(currentShape);
@@ -1341,7 +1363,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             actor = this.physics.createRigidStatic(pose);
         } else if (type === "trigger") {
             actor = this.physics.createRigidStatic(pose);
-            actor.setActorFlag(this.PhysX.PxActorFlagEnum.eTRIGGER_ENABLE, true);
+            actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_SIMULATION, true);
         } else {
             actor = this.physics.createRigidDynamic(pose);
             if (type === "kinematic") {
@@ -1440,17 +1462,19 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         createAndAddShape(gltf, node, collider, node, worldTransform);
 
-        for (const childIndex of node.children) {
-            const childNode = gltf.nodes[childIndex];
-            PhysicsUtils.recurseCollider(
-                gltf,
-                childNode,
-                undefined,
-                node,
-                node.dirtyScale,
-                node.dirtyScale,
-                createAndAddShape
-            );
+        if (type !== "trigger") {
+            for (const childIndex of node.children) {
+                const childNode = gltf.nodes[childIndex];
+                PhysicsUtils.recurseCollider(
+                    gltf,
+                    childNode,
+                    undefined,
+                    node,
+                    node.dirtyScale,
+                    node.dirtyScale,
+                    createAndAddShape
+                );
+            }
         }
 
         this.PhysX.destroy(pos);
@@ -1458,7 +1482,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.PhysX.destroy(pose);
 
         this.scene.addActor(actor);
-        this.nodeToActor.set(node.gltfObjectIndex, { actor, pxShapeMap: pxShapeMap });
+        if (type === "trigger") {
+            this.nodeToTrigger.set(node.gltfObjectIndex, actor);
+        } else {
+            this.nodeToActor.set(node.gltfObjectIndex, { actor, pxShapeMap: pxShapeMap });
+        }
     }
 
     computeJointOffsetAndActor(node) {
@@ -1838,6 +1866,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         dynamicActors,
         jointNodes,
         triggerNodes,
+        nodeToMotion,
         hasRuntimeAnimationTargets,
         staticMeshColliderCount,
         dynamicMeshColliderCount
@@ -1845,6 +1874,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (!this.PhysX) {
             return;
         }
+        this.nodeToMotion = nodeToMotion;
         this.generateSimpleShapes(state.gltf);
         this.computeFilterData(state.gltf);
         for (let i = 0; i < this.filterData.length; i++) {
@@ -1889,7 +1919,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             this.createActor(state.gltf, node, shapeFlags, "dynamic", true);
         }
         for (const node of triggerNodes) {
-            this.createActor(state.gltf, node, triggerFlags, "trigger");
+            this.createActor(state.gltf, node, triggerFlags, "trigger", true);
         }
         for (const node of jointNodes) {
             this.createJoint(state.gltf, node);
@@ -2115,6 +2145,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         for (const actor of this.nodeToActor.values()) {
             actor.actor.release();
+        }
+
+        for (const trigger of this.nodeToTrigger.values()) {
+            trigger.release();
         }
 
         this.nodeToActor.clear();
