@@ -253,7 +253,7 @@ class KHR_physics_rigid_bodies_trigger extends GltfObject {
     constructor() {
         super();
         this.geometry = undefined;
-        this.nodes = [];
+        this.nodes = undefined;
         this.collisionFilter = undefined;
     }
 }

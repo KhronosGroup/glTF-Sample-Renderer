@@ -225,14 +225,14 @@ class PhysicsController {
                         this.dynamicActors.push(node);
                     }
                     parentRigidBody = node;
-                } else if (currentRigidBody === undefined) {
+                } else if (currentRigidBody === undefined && rigidBody.collider !== undefined) {
                     if (animatedNodeIndices.has(node.gltfObjectIndex)) {
                         this.kinematicActors.push(node);
                     } else {
                         this.staticActors.push(node);
                     }
                 }
-                if (rigidBody.collider?.geometry?.node !== undefined) {
+                if (rigidBody.collider?.geometry?.mesh !== undefined) {
                     if (!rigidBody.collider.geometry.convexHull) {
                         if (
                             parentRigidBody === undefined ||
@@ -247,14 +247,6 @@ class PhysicsController {
                                 dynamicMeshColliderCount++;
                             }
                         }
-                    }
-                    const colliderNodeIndex = rigidBody.collider.geometry.node;
-                    const colliderNode = state.gltf.nodes[colliderNodeIndex];
-                    if (colliderNode.skin !== undefined) {
-                        this.skinnedColliders.push(colliderNode);
-                    }
-                    if (morphedNodeIndices.has(colliderNodeIndex)) {
-                        this.morphedColliders.push(colliderNode);
                     }
                 }
                 if (rigidBody.joint !== undefined) {
@@ -370,7 +362,7 @@ class PhysicsController {
     }
 
     updateColliders(state, node, isTrigger = false) {
-        this.engine.updateActorTransform(node);
+        this.engine.updateActorTransform(node, isTrigger);
 
         let collider = undefined;
         if (isTrigger) {
@@ -386,9 +378,9 @@ class PhysicsController {
                 collider,
                 node,
                 node.worldTransform,
-                undefined,
                 false,
-                node.dirtyScale
+                node.dirtyScale,
+                isTrigger
             );
         }
 
@@ -660,9 +652,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
     }
 
-    updateActorTransform(node) {
+    updateActorTransform(node, isTrigger = false) {
         if (node.dirtyTransform) {
-            const actor = this.nodeToActor.get(node.gltfObjectIndex)?.actor;
+            const actor = isTrigger
+                ? this.nodeToTrigger.get(node.gltfObjectIndex)?.actor
+                : this.nodeToActor.get(node.gltfObjectIndex)?.actor;
             if (actor === undefined) {
                 return;
             }
@@ -789,9 +783,22 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
     }
 
-    updateCollider(gltf, node, collider, actorNode, worldTransform, offsetChanged, scaleChanged) {
-        const { actor, pxShapeMap } = this.nodeToActor.get(actorNode.gltfObjectIndex);
-        const currentShape = pxShapeMap.get(node.gltfObjectIndex);
+    updateCollider(
+        gltf,
+        node,
+        collider,
+        actorNode,
+        worldTransform,
+        offsetChanged,
+        scaleChanged,
+        isTrigger = false
+    ) {
+        const lookup = isTrigger ? this.nodeToTrigger : this.nodeToActor;
+
+        const result = lookup.get(actorNode.gltfObjectIndex);
+        const actor = result?.actor;
+        const currentShape = result?.pxShapeMap.get(node.gltfObjectIndex);
+
         let currentGeometry = currentShape.getGeometry();
         const currentColliderType = currentGeometry.getType();
         const shapeIndex = collider?.shape;
@@ -1483,7 +1490,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         this.scene.addActor(actor);
         if (type === "trigger") {
-            this.nodeToTrigger.set(node.gltfObjectIndex, actor);
+            this.nodeToTrigger.set(node.gltfObjectIndex, {
+                actor,
+                pxShapeMap: pxShapeMap
+            });
         } else {
             this.nodeToActor.set(node.gltfObjectIndex, { actor, pxShapeMap: pxShapeMap });
         }
@@ -1896,6 +1906,34 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         sceneDesc.set_cpuDispatcher(this.PhysX.DefaultCpuDispatcherCreate(0));
         sceneDesc.set_filterShader(this.PhysX.DefaultFilterShader());
         this.scene = this.physics.createScene(sceneDesc);
+
+        if (triggerNodes.length > 0) {
+            console.log("Enabling trigger report callback");
+            const triggerCallback = new this.PhysX.PxSimulationEventCallbackImpl();
+            triggerCallback.onTrigger = (pairs, count) => {
+                for (let i = 0; i < count; i++) {
+                    const pair = this.PhysX.NativeArrayHelpers.prototype.getTriggerPairAt(pairs, i);
+                    const triggerShape = pair.triggerShape;
+                    const otherShape = pair.otherShape;
+                    const triggerNodeIndex = this.shapeToNode.get(triggerShape.ptr);
+                    const otherNodeIndex = this.shapeToNode.get(otherShape.ptr);
+                    const triggerNode = state.gltf.nodes[triggerNodeIndex];
+                    const otherNode = state.gltf.nodes[otherNodeIndex];
+                    console.log(
+                        "Trigger event:",
+                        pair.status,
+                        "Trigger:",
+                        triggerNodeIndex,
+                        "Other:",
+                        otherNodeIndex,
+                        "Flags:",
+                        pair.flags
+                    );
+                }
+            };
+            this.scene.setSimulationEventCallback(triggerCallback);
+        }
+
         console.log("Created scene");
         const shapeFlags = new this.PhysX.PxShapeFlags(
             this.PhysX.PxShapeFlagEnum.eSCENE_QUERY_SHAPE |
@@ -2148,7 +2186,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
 
         for (const trigger of this.nodeToTrigger.values()) {
-            trigger.release();
+            trigger.actor.release();
         }
 
         this.nodeToActor.clear();
