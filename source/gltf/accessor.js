@@ -2,7 +2,7 @@
 
 import { GL } from "../Renderer/webgl.js";
 import { GltfObject } from "./gltf_object.js";
-import { hasMeshOptCompression, getMeshOptExtensionObject } from "./gltf_utils.js";
+import { hasMeshOptCompression, getMeshOptExtensionObject } from "./extension_utils.js";
 
 class gltfAccessor extends GltfObject {
     static animatedProperties = [];
@@ -173,7 +173,16 @@ class gltfAccessor extends GltfObject {
                     ? bufferView.byteStride
                     : componentCount * componentSize;
 
-            let bufferViewData = new DataView(buffer.buffer, byteOffset, this.count * stride);
+            let bufferViewData;
+            if (isMeshOptCompressed) {
+                bufferViewData = new DataView(buffer.buffer, byteOffset, this.count * stride);
+            } else {
+                bufferViewData = new DataView(
+                    buffer.buffer,
+                    bufferView.byteOffset,
+                    bufferView.byteLength
+                );
+            }
 
             let func = "getFloat32";
             switch (this.componentType) {
