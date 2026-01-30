@@ -173,7 +173,16 @@ class gltfAccessor extends GltfObject {
                     ? bufferView.byteStride
                     : componentCount * componentSize;
 
-            let bufferViewData = new DataView(buffer.buffer, byteOffset, this.count * stride);
+            let bufferViewData;
+            if (isMeshOptCompressed) {
+                bufferViewData = new DataView(buffer.buffer, byteOffset, this.count * stride);
+            } else {
+                bufferViewData = new DataView(
+                    buffer.buffer,
+                    bufferView.byteOffset,
+                    bufferView.byteLength
+                );
+            }
 
             let func = "getFloat32";
             switch (this.componentType) {
