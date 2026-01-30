@@ -2,7 +2,7 @@
 
 import { GL } from "../Renderer/webgl.js";
 import { GltfObject } from "./gltf_object.js";
-import { hasMeshOptCompression, getMeshOptExtensionObject } from "./gltf_utils.js";
+import { hasMeshOptCompression, getMeshOptExtensionObject } from "./extension_utils.js";
 
 class gltfAccessor extends GltfObject {
     static animatedProperties = [];

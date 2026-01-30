@@ -1,6 +1,6 @@
 import { getContainingFolder } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
-import { hasMeshOptCompression } from "./gltf_utils.js";
+import { hasMeshOptCompression } from "./extension_utils.js";
 
 class gltfBuffer extends GltfObject {
     static animatedProperties = [];
