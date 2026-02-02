@@ -33,6 +33,9 @@ uniform float u_IridescenceThicknessMaximum;
 uniform float u_DiffuseTransmissionFactor;
 uniform vec3 u_DiffuseTransmissionColorFactor;
 
+// Volume Scatter
+uniform vec3 u_MultiScatterColor;
+
 // Emissive Strength
 uniform float u_EmissiveStrength;
 
@@ -112,6 +115,9 @@ struct MaterialInfo
 
     // KHR_materials_dispersion
     float dispersion;
+
+    // KHR_materials_volume_scatter
+    vec3 multiscatterColor;
 };
 
 
@@ -342,7 +348,18 @@ MaterialInfo getDiffuseTransmissionInfo(MaterialInfo info)
     #ifdef HAS_DIFFUSE_TRANSMISSION_COLOR_MAP
         info.diffuseTransmissionColorFactor *= texture(u_DiffuseTransmissionColorSampler, getDiffuseTransmissionColorUV()).rgb;
     #endif
+#ifdef MATERIAL_VOLUME_SCATTER
+MaterialInfo getVolumeScatterInfo(MaterialInfo info)
+{
+    info.multiscatterColor = vec3(0.0);
 
+
+
+#ifdef HAS_MULTISCATTER_COLOR_MAP
+    info.multiscatterColor = texture(u_MultiscatterColorSampler, getMultiScatterColorUV()).rgb;
+#else
+    info.multiscatterColor = u_MultiScatterColor;
+#endif
     return info;
 }
 #endif

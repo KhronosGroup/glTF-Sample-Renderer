@@ -27,7 +27,6 @@ uniform Light u_Lights[LIGHT_COUNT + 1]; //Array [0] is not allowed
 
 #ifdef MATERIAL_VOLUME_SCATTER
 uniform vec3 u_ScatterSamples[SCATTER_SAMPLES_COUNT];
-uniform vec3 u_MultiScatterColor;
 uniform float u_MinRadius;
 uniform ivec2 u_FramebufferSize;
 #endif
@@ -148,8 +147,8 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
 // Subsurface scattering based on the blender implementation of the Burley model.
 #ifdef MATERIAL_VOLUME_SCATTER
 // glTF specification for converting multi-scatter color to single scatter color.
-vec3 multiToSingleScatter() {
-    vec3 s = 4.09712 + 4.20863 * u_MultiScatterColor - sqrt(9.59217 + 41.6808 * u_MultiScatterColor + 17.7126 * u_MultiScatterColor * u_MultiScatterColor);
+vec3 multiToSingleScatter(vec3 multiScatterColor) {
+    vec3 s = 4.09712 + 4.20863 * multiScatterColor - sqrt(9.59217 + 41.6808 * multiScatterColor + 17.7126 * multiScatterColor * multiScatterColor);
     return 1.0 - s*s;
 }
 
@@ -168,8 +167,8 @@ vec3 burley_eval(vec3 d, float r)
 }
 
 
-vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor) {
-    vec3 scatterDistance = attenuationDistance * u_MultiScatterColor; // Scale the attenuation distance by the multi-scatter color
+vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor, vec3 multiscatterColor) {
+    vec3 scatterDistance = attenuationDistance * multiscatterColor; // Scale the attenuation distance by the multi-scatter color
     float maxColor = max3(scatterDistance);
     vec3 vMaxColor = max(vec3(maxColor), vec3(0.00001));
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));

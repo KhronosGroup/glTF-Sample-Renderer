@@ -427,10 +427,20 @@ class gltfMaterial extends GltfObject {
             }
 
             if (this.extensions.KHR_materials_volume_scatter !== undefined) {
+                const extension = this.extensions.KHR_materials_volume_scatter;
                 this.hasVolumeScatter = true;
                 this.defines.push("HAS_VOLUME_SCATTER 1");
                 if (!gltfMaterial.scatterSamples) {
                     gltfMaterial.scatterSamples = gltfMaterial.computeScatterSamples();
+                }
+                if (extension.multiscatterColorTexture !== undefined) {
+                    extension.multiscatterColorTexture.samplerName = "u_MultiscatterColorSampler";
+                    this.parseTextureInfoExtensions(
+                        extension.multiscatterColorTexture,
+                        "MultiscatterColor"
+                    );
+                    this.textures.push(extension.multiscatterColorTexture);
+                    this.defines.push("HAS_MULTISCATTER_COLOR_MAP 1");
                 }
             }
 
@@ -919,7 +929,17 @@ class KHR_materials_volume_scatter extends GltfObject {
     constructor() {
         super();
         this.multiscatterColor = vec3.fromValues(0, 0, 0);
+        this.multiscatterColorTexture = undefined;
         this.scatterAnisotropy = 0;
+    }
+
+    fromJson(jsonVolumeScatter) {
+        super.fromJson(jsonVolumeScatter);
+        if (jsonVolumeScatter.multiscatterColorTexture !== undefined) {
+            const multiscatterColorTexture = new gltfTextureInfo(undefined, 0, false);
+            multiscatterColorTexture.fromJson(jsonVolumeScatter.multiscatterColorTexture);
+            this.multiscatterColorTexture = multiscatterColorTexture;
+        }
     }
 }
 

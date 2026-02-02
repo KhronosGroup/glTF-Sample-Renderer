@@ -21,10 +21,6 @@ uniform int u_MaterialID;
 void main()
 {
     frontColor = vec4(0.0, 0.0, 0.0, float(u_MaterialID) / 255.0);
-#ifdef MATERIAL_VOLUME_SCATTER
-    // The single scatter color defines the ratio of scattering. 1 - singleScatter is the ratio of absorption.
-    vec3 singleScatter = multiToSingleScatter();
-#endif
     vec4 baseColor = getBaseColor();
     baseColor.a = 1.0;
     vec3 color = vec3(0);
@@ -76,6 +72,13 @@ void main()
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
     materialInfo = getDiffuseTransmissionInfo(materialInfo);
+#endif
+
+    materialInfo = getVolumeScatterInfo(materialInfo);
+
+#ifdef MATERIAL_VOLUME_SCATTER
+    // The single scatter color defines the ratio of scattering. 1 - singleScatter is the ratio of absorption.
+    vec3 singleScatter = multiToSingleScatter(materialInfo.multiscatterColor);
 #endif
 
     materialInfo.perceptualRoughness = clamp(materialInfo.perceptualRoughness, 0.0, 1.0);

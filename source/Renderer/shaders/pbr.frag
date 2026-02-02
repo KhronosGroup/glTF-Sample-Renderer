@@ -100,6 +100,10 @@ void main()
     materialInfo = getDiffuseTransmissionInfo(materialInfo);
 #endif
 
+#ifdef MATERIAL_VOLUME_SCATTER
+    materialInfo = getVolumeScatterInfo(materialInfo);
+#endif
+
 #ifdef MATERIAL_ANISOTROPY
     materialInfo = getAnisotropyInfo(materialInfo, normalInfo);
 #endif
@@ -149,7 +153,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
     // Used for weighting absorption and scattering
-    vec3 singleScatter = multiToSingleScatter();
+    vec3 singleScatter = multiToSingleScatter(materialInfo.multiscatterColor);
 #endif
 
 #ifdef MATERIAL_CLEARCOAT
@@ -351,7 +355,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
         // Subsurface scattering is calculated based on fresnel weighted diffuse terms. 
-        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor);
+        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor, materialInfo.multiscatterColor);
         color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor) * (1.0 - materialInfo.transmissionFactor);
 #endif // MATERIAL_VOLUME_SCATTER
 
@@ -542,6 +546,11 @@ vec3 specularTexture = vec3(1.0);
 #ifdef MATERIAL_VOLUME_SCATTER
 #if DEBUG == DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR
     g_finalColor.rgb = u_MultiScatterColor;
+#ifdef HAS_MULTISCATTER_COLOR_MAP
+    g_finalColor.rgb = linearTosRGB(materialInfo.multiscatterColor);
+#else
+    g_finalColor.rgb = materialInfo.multiscatterColor;
+#endif
 #endif
 #if DEBUG == DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR
     g_finalColor.rgb = singleScatter;

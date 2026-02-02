@@ -315,6 +315,20 @@ vec2 getThicknessUV()
 #ifdef MATERIAL_VOLUME_SCATTER
 uniform sampler2D u_ScatterFramebufferSampler;
 uniform sampler2D u_ScatterDepthFramebufferSampler;
+
+uniform sampler2D u_MultiscatterColorSampler;
+uniform int u_MultiScatterColorUVSet;
+uniform mat3 u_MultiScatterColorUVTransform;
+
+vec2 getMultiScatterColorUV()
+{
+    vec3 uv = vec3(u_MultiScatterColorUVSet < 1 ? v_texcoord_0 : v_texcoord_1, 1.0);
+#ifdef HAS_MULTISCATTER_COLOR_UV_TRANSFORM
+    uv = u_MultiScatterColorUVTransform * uv;
+#endif
+    return uv.xy;
+}
+
 #endif
 
 
