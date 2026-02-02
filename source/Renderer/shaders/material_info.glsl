@@ -348,17 +348,17 @@ MaterialInfo getDiffuseTransmissionInfo(MaterialInfo info)
     #ifdef HAS_DIFFUSE_TRANSMISSION_COLOR_MAP
         info.diffuseTransmissionColorFactor *= texture(u_DiffuseTransmissionColorSampler, getDiffuseTransmissionColorUV()).rgb;
     #endif
+    return info;
+}
+#endif
+
 #ifdef MATERIAL_VOLUME_SCATTER
 MaterialInfo getVolumeScatterInfo(MaterialInfo info)
 {
-    info.multiscatterColor = vec3(0.0);
-
-
+    info.multiscatterColor = u_MultiScatterColor;
 
 #ifdef HAS_MULTISCATTER_COLOR_MAP
-    info.multiscatterColor = texture(u_MultiscatterColorSampler, getMultiScatterColorUV()).rgb;
-#else
-    info.multiscatterColor = u_MultiScatterColor;
+    info.multiscatterColor *= texture(u_MultiscatterColorSampler, getMultiScatterColorUV()).rgb;
 #endif
     return info;
 }
