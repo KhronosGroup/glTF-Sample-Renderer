@@ -96,7 +96,8 @@ class PhysicsController {
         this.kinematicActors = [];
         this.dynamicActors = [];
         this.triggerNodes = [];
-        this.compoundTriggerNodes = [];
+        this.compoundTriggerNodes = new Map(); // Map of compound trigger node index to set of included colliders
+        this.triggerToCompound = new Map(); // Map of trigger node index to compound trigger node index
         this.nodeToMotion = new Map();
         this.jointNodes = [];
         this.morphedColliders = [];
@@ -254,7 +255,14 @@ class PhysicsController {
                 }
                 if (rigidBody.trigger !== undefined) {
                     if (rigidBody.trigger.nodes !== undefined) {
-                        this.compoundTriggerNodes.push(node);
+                        this.compoundTriggerNodes.set(node.gltfObjectIndex, {
+                            previous: new Set(),
+                            added: new Set(),
+                            removed: new Set()
+                        });
+                        for (const triggerNodeIndex of rigidBody.trigger.nodes) {
+                            this.triggerToCompound.set(triggerNodeIndex, node.gltfObjectIndex);
+                        }
                     } else {
                         this.triggerNodes.push(node);
                     }
@@ -302,7 +310,8 @@ class PhysicsController {
         this.jointNodes = [];
         this.triggerNodes = [];
         this.nodeToMotion.clear();
-        this.compoundTriggerNodes = [];
+        this.compoundTriggerNodes.clear();
+        this.triggerToCompound.clear();
         this.morphedColliders = [];
         this.skinnedColliders = [];
         this.hasRuntimeAnimationTargets = false;
@@ -1270,7 +1279,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         return physxMaterial;
     }
 
-    createPhysXCollisionFilter(collisionFilter) {
+    createPhysXCollisionFilter(collisionFilter, additionalFlags = 0) {
         let word0 = null;
         let word1 = null;
         if (collisionFilter !== undefined && collisionFilter < this.filterData.length - 1) {
@@ -1282,7 +1291,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             word1 = Math.pow(2, 32) - 1;
         }
 
-        const additionalFlags = 0;
         return new this.PhysX.PxFilterData(word0, word1, additionalFlags, 0);
     }
 
@@ -1366,11 +1374,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const pose = new this.PhysX.PxTransform(pos, rotation);
         let actor = null;
         const pxShapeMap = new Map();
-        if (type === "static") {
+        if (type === "static" || type === "trigger") {
             actor = this.physics.createRigidStatic(pose);
-        } else if (type === "trigger") {
-            actor = this.physics.createRigidStatic(pose);
-            actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_SIMULATION, true);
         } else {
             actor = this.physics.createRigidDynamic(pose);
             if (type === "kinematic") {
@@ -1906,33 +1911,92 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         sceneDesc.set_cpuDispatcher(this.PhysX.DefaultCpuDispatcherCreate(0));
         sceneDesc.set_filterShader(this.PhysX.DefaultFilterShader());
         this.scene = this.physics.createScene(sceneDesc);
+        let triggerCallback = undefined;
 
         if (triggerNodes.length > 0) {
             console.log("Enabling trigger report callback");
-            const triggerCallback = new this.PhysX.PxSimulationEventCallbackImpl();
+            triggerCallback = new this.PhysX.PxSimulationEventCallbackImpl();
             triggerCallback.onTrigger = (pairs, count) => {
+                for (const compoundTrigger of state.physicsController.compoundTriggerNodes.values()) {
+                    compoundTrigger.added.clear();
+                    compoundTrigger.removed.clear();
+                }
+                console.log("Trigger callback called with", count, "pairs");
                 for (let i = 0; i < count; i++) {
                     const pair = this.PhysX.NativeArrayHelpers.prototype.getTriggerPairAt(pairs, i);
                     const triggerShape = pair.triggerShape;
                     const otherShape = pair.otherShape;
                     const triggerNodeIndex = this.shapeToNode.get(triggerShape.ptr);
                     const otherNodeIndex = this.shapeToNode.get(otherShape.ptr);
-                    const triggerNode = state.gltf.nodes[triggerNodeIndex];
-                    const otherNode = state.gltf.nodes[otherNodeIndex];
-                    console.log(
-                        "Trigger event:",
-                        pair.status,
-                        "Trigger:",
-                        triggerNodeIndex,
-                        "Other:",
-                        otherNodeIndex,
-                        "Flags:",
-                        pair.flags
-                    );
+                    if (pair.status === this.PhysX.PxPairFlagEnum.eNOTIFY_TOUCH_FOUND) {
+                        state.graphController.rigidBodyTriggerEntered(
+                            triggerNodeIndex,
+                            otherNodeIndex,
+                            nodeToMotion.get(otherNodeIndex),
+                            true
+                        );
+                    } else if (pair.status === this.PhysX.PxPairFlagEnum.eNOTIFY_TOUCH_LOST) {
+                        state.graphController.rigidBodyTriggerExited(
+                            triggerNodeIndex,
+                            otherNodeIndex,
+                            nodeToMotion.get(otherNodeIndex),
+                            false
+                        );
+                    }
+                    const compoundTriggers =
+                        state.physicsController.triggerToCompoundTrigger.get(triggerNodeIndex);
+                    if (compoundTriggers !== undefined) {
+                        for (const compoundTriggerIndex of compoundTriggers) {
+                            const compoundTriggerInfo =
+                                this.compoundTriggerNodes.get(compoundTriggerIndex);
+                            if (pair.status === this.PhysX.PxPairFlagEnum.eNOTIFY_TOUCH_FOUND) {
+                                compoundTriggerInfo.added.add(otherNodeIndex);
+                            } else if (
+                                pair.status === this.PhysX.PxPairFlagEnum.eNOTIFY_TOUCH_LOST
+                            ) {
+                                compoundTriggerInfo.removed.add(otherNodeIndex);
+                            }
+                        }
+                    }
+                }
+
+                for (const [
+                    idx,
+                    compoundTrigger
+                ] of state.physicsController.compoundTriggerNodes.entries()) {
+                    for (const addedNodeIndex of compoundTrigger.added) {
+                        if (!compoundTrigger.previous.has(addedNodeIndex)) {
+                            state.graphController.rigidBodyTriggerEntered(
+                                idx,
+                                addedNodeIndex,
+                                nodeToMotion.get(addedNodeIndex),
+                                true
+                            );
+                        }
+                    }
+                    for (const removedNodeIndex of compoundTrigger.removed) {
+                        if (
+                            compoundTrigger.previous.has(removedNodeIndex) &&
+                            !compoundTrigger.added.has(removedNodeIndex)
+                        ) {
+                            state.graphController.rigidBodyTriggerEntered(
+                                idx,
+                                removedNodeIndex,
+                                nodeToMotion.get(removedNodeIndex),
+                                false
+                            );
+                        }
+                    }
                 }
             };
-            this.scene.setSimulationEventCallback(triggerCallback);
+            triggerCallback.onConstraintBreak = (constraints, count) => {};
+            triggerCallback.onWake = (actors, count) => {};
+            triggerCallback.onSleep = (actors, count) => {};
+            triggerCallback.onContact = (pairHeaders, pairs, count) => {};
+            sceneDesc.simulationEventCallback = triggerCallback;
         }
+
+        this.scene = this.physics.createScene(sceneDesc);
 
         console.log("Created scene");
         const shapeFlags = new this.PhysX.PxShapeFlags(
@@ -1941,7 +2005,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 this.PhysX.PxShapeFlagEnum.eVISUALIZATION
         );
 
-        const triggerFlags = new this.PhysX.PxShapeFlags(this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE);
+        const triggerFlags = new this.PhysX.PxShapeFlags(
+            this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE | this.PhysX.PxShapeFlagEnum.eVISUALIZATION
+        );
 
         const alwaysConvexMeshes =
             dynamicMeshColliderCount > 1 ||
@@ -2077,7 +2143,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
 
         this.scene.simulate(deltaTime);
-        this.scene.fetchResults(true);
+        if (!this.scene.fetchResults(true)) {
+            console.warn("PhysX: fetchResults failed");
+        }
 
         for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             const node = state.gltf.nodes[nodeIndex];

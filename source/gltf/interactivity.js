@@ -65,6 +65,28 @@ class GraphController {
         }
     }
 
+    rigidBodyTriggerEntered(triggerNodeIndex, colliderNodeIndex, motionNodeIndex) {
+        if (this.graphIndex === undefined) {
+            return;
+        }
+        this.decorator.rigidBodyTriggerEntered(
+            triggerNodeIndex,
+            colliderNodeIndex,
+            motionNodeIndex ?? -1
+        );
+    }
+
+    rigidBodyTriggerExited(triggerNodeIndex, colliderNodeIndex, motionNodeIndex) {
+        if (this.graphIndex === undefined) {
+            return;
+        }
+        this.decorator.rigidBodyTriggerExited(
+            triggerNodeIndex,
+            colliderNodeIndex,
+            motionNodeIndex ?? -1
+        );
+    }
+
     /**
      * Initialize the graph controller with the given state.
      * This needs to be called every time a glTF assets is loaded.
