@@ -261,7 +261,16 @@ class PhysicsController {
                             removed: new Set()
                         });
                         for (const triggerNodeIndex of rigidBody.trigger.nodes) {
-                            this.triggerToCompound.set(triggerNodeIndex, node.gltfObjectIndex);
+                            if (this.triggerToCompound.has(triggerNodeIndex)) {
+                                this.triggerToCompound
+                                    .get(triggerNodeIndex)
+                                    .add(node.gltfObjectIndex);
+                            } else {
+                                this.triggerToCompound.set(
+                                    triggerNodeIndex,
+                                    new Set([node.gltfObjectIndex])
+                                );
+                            }
                         }
                     } else {
                         this.triggerNodes.push(node);
@@ -1944,11 +1953,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         );
                     }
                     const compoundTriggers =
-                        state.physicsController.triggerToCompoundTrigger.get(triggerNodeIndex);
+                        state.physicsController.triggerToCompound.get(triggerNodeIndex);
                     if (compoundTriggers !== undefined) {
                         for (const compoundTriggerIndex of compoundTriggers) {
                             const compoundTriggerInfo =
-                                this.compoundTriggerNodes.get(compoundTriggerIndex);
+                                state.physicsController.compoundTriggerNodes.get(
+                                    compoundTriggerIndex
+                                );
                             if (pair.status === this.PhysX.PxPairFlagEnum.eNOTIFY_TOUCH_FOUND) {
                                 compoundTriggerInfo.added.add(otherNodeIndex);
                             } else if (
