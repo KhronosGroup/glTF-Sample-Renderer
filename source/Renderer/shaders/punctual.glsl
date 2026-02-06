@@ -167,10 +167,9 @@ vec3 burley_eval(vec3 d, float r)
 }
 
 
-vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor, vec3 multiscatterColor) {
-    vec3 scatterDistance = attenuationDistance * multiscatterColor; // Scale the attenuation distance by the multi-scatter color
+vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, vec3 attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor, vec3 multiscatterColor) {
+    vec3 scatterDistance = attenuationDistance; // Scale the attenuation distance by the multi-scatter color
     float maxColor = max3(scatterDistance);
-    vec3 vMaxColor = max(vec3(maxColor), vec3(0.00001));
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
     mat4 inverseProjectionMatrix = inverse(projectionMatrix);
     vec2 uv = gl_FragCoord.xy * (1.0 / vec2(u_FramebufferSize));

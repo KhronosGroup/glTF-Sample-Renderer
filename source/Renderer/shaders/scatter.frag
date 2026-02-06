@@ -108,7 +108,7 @@ void main()
 #if defined(USE_IBL) || defined(MATERIAL_TRANSMISSION)
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-    f_diffuse = getDiffuseLight(n) * materialInfo.diffuseTransmissionColorFactor * singleScatter;
+    f_diffuse = getDiffuseLight(n) * materialInfo.diffuseTransmissionColorFactor;
     vec3 diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
@@ -123,7 +123,7 @@ void main()
     // Calculate fresnel mix for IBL  
  
     vec3 f_dielectric_fresnel_ibl = getIBLGGXFresnel(n, v, materialInfo.perceptualRoughness, materialInfo.f0_dielectric, materialInfo.specularWeight);
-    frontColor += vec4(mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl), 0.0) * albedoSheenScaling;
+    frontColor += vec4(mix(f_diffuse, f_specular_dielectric,  f_dielectric_fresnel_ibl), 0.0) * albedoSheenScaling * materialInfo.multiscatterColor;
 
 #endif //end USE_IBL
 
@@ -161,7 +161,7 @@ void main()
 
         
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
-        l_diffuse = lightIntensity * NdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor) * singleScatter;
+        l_diffuse = lightIntensity * NdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
         if (dot(n, l) < 0.0) {
             float diffuseNdotL = clampedDot(-n, l);
             vec3 diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
@@ -189,6 +189,6 @@ void main()
         color += l_dielectric_brdf * albedoSheenScaling;
     }
     
-    frontColor += vec4(color.rgb, 0.0);
+    frontColor += vec4(color.rgb * materialInfo.multiscatterColor, 0.0);
 #endif // USE_PUNCTUAL
 }

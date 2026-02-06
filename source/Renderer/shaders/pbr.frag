@@ -355,7 +355,7 @@ void main()
 
 #ifdef MATERIAL_VOLUME_SCATTER
         // Subsurface scattering is calculated based on fresnel weighted diffuse terms. 
-        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor, materialInfo.multiscatterColor);
+        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance * materialInfo.attenuationColor, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor, materialInfo.multiscatterColor);
         color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor) * (1.0 - materialInfo.transmissionFactor);
 #endif // MATERIAL_VOLUME_SCATTER
 
