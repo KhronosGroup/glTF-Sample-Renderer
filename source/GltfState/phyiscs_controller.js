@@ -256,7 +256,7 @@ class PhysicsController {
                 if (rigidBody.trigger !== undefined) {
                     if (rigidBody.trigger.nodes !== undefined) {
                         this.compoundTriggerNodes.set(node.gltfObjectIndex, {
-                            previous: new Set(),
+                            previous: new Map(), //ref counting
                             added: new Set(),
                             removed: new Set()
                         });
@@ -1941,15 +1941,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         state.graphController.rigidBodyTriggerEntered(
                             triggerNodeIndex,
                             otherNodeIndex,
-                            nodeToMotion.get(otherNodeIndex),
-                            true
+                            nodeToMotion.get(otherNodeIndex)
                         );
                     } else if (pair.status === this.PhysX.PxPairFlagEnum.eNOTIFY_TOUCH_LOST) {
                         state.graphController.rigidBodyTriggerExited(
                             triggerNodeIndex,
                             otherNodeIndex,
-                            nodeToMotion.get(otherNodeIndex),
-                            false
+                            nodeToMotion.get(otherNodeIndex)
                         );
                     }
                     const compoundTriggers =
@@ -1977,24 +1975,27 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 ] of state.physicsController.compoundTriggerNodes.entries()) {
                     for (const addedNodeIndex of compoundTrigger.added) {
                         if (!compoundTrigger.previous.has(addedNodeIndex)) {
+                            compoundTrigger.previous.set(addedNodeIndex, 1);
                             state.graphController.rigidBodyTriggerEntered(
                                 idx,
                                 addedNodeIndex,
-                                nodeToMotion.get(addedNodeIndex),
-                                true
+                                nodeToMotion.get(addedNodeIndex)
                             );
+                        } else {
+                            const currentCount = compoundTrigger.previous.get(addedNodeIndex);
+                            compoundTrigger.previous.set(addedNodeIndex, currentCount + 1);
                         }
                     }
                     for (const removedNodeIndex of compoundTrigger.removed) {
-                        if (
-                            compoundTrigger.previous.has(removedNodeIndex) &&
-                            !compoundTrigger.added.has(removedNodeIndex)
-                        ) {
-                            state.graphController.rigidBodyTriggerEntered(
+                        const currentCount = compoundTrigger.previous.get(removedNodeIndex);
+                        if (currentCount > 1) {
+                            compoundTrigger.previous.set(removedNodeIndex, currentCount - 1);
+                        } else {
+                            compoundTrigger.previous.delete(removedNodeIndex);
+                            state.graphController.rigidBodyTriggerExited(
                                 idx,
                                 removedNodeIndex,
-                                nodeToMotion.get(removedNodeIndex),
-                                false
+                                nodeToMotion.get(removedNodeIndex)
                             );
                         }
                     }
