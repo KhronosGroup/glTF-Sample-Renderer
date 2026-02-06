@@ -194,7 +194,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     vec3 totalDiffuse = vec3(0.0);
 
     vec3 clampedScatterDistance = max(vec3(u_MinRadius), scatterDistance / maxColor) * maxColor;
-    vec3 d = burley_setup(clampedScatterDistance, vec3(1.0)); // Setup the Burley model parameters
+    vec3 d = burley_setup(clampedScatterDistance, diffuseColor); // Setup the Burley model parameters
 
     for (int i = 0; i < SCATTER_SAMPLES_COUNT; i++) {
         vec3 scatterSample = u_ScatterSamples[i];
