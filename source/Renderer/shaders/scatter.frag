@@ -109,11 +109,6 @@ void main()
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
     f_diffuse = getDiffuseLight(n) * materialInfo.diffuseTransmissionColorFactor;
-    vec3 diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
-#ifdef MATERIAL_VOLUME
-        diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
-#endif
-    f_diffuse += diffuseTransmissionIBL * (1.0 -singleScatter) * singleScatter;
     f_diffuse *= materialInfo.diffuseTransmissionFactor;
 #endif
 
@@ -162,19 +157,6 @@ void main()
         
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
         l_diffuse = lightIntensity * NdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
-        if (dot(n, l) < 0.0) {
-            float diffuseNdotL = clampedDot(-n, l);
-            vec3 diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
-
-            vec3 l_mirror = normalize(l + 2.0 * n * dot(-l, n)); // Mirror light reflection vector on surface
-            float diffuseVdotH = clampedDot(v, normalize(l_mirror + v));
-            dielectric_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(diffuseVdotH));
-
-#ifdef MATERIAL_VOLUME
-            diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
-#endif
-            l_diffuse += diffuse_btdf * (1.0 - singleScatter) * singleScatter;
-        }
         l_diffuse *= materialInfo.diffuseTransmissionFactor;
         
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
