@@ -1882,6 +1882,9 @@ class gltfRenderer {
         this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
         this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
 
+        this.shader.updateUniform("u_RetroreflectionFactor", material.extensions?.KHR_materials_retroreflection?.retroreflectionFactor);
+        this.shader.updateUniform("u_RetroreflectionUVSet", material.extensions?.KHR_materials_retroreflection?.retroreflectionTexture?.texCoord);
+
         this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
         this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
         this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
@@ -2220,6 +2223,11 @@ class gltfRenderer {
             {
                 debugOutput: GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS,
                 shaderDefine: "DEBUG_IRIDESCENCE_THICKNESS"
+            },
+
+            {
+                debugOutput: GltfState.DebugOutput.retroreflection.RETROREFLECTION_FACTOR,
+                shaderDefine: "DEBUG_RETROREFLECTION_FACTOR"
             },
 
             {

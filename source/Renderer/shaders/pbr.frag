@@ -115,6 +115,10 @@ void main()
     materialInfo = getIridescenceInfo(materialInfo);
 #endif
 
+#ifdef MATERIAL_RETROREFLECTION
+    materialInfo = getRetroreflectionInfo(materialInfo);
+#endif
+
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
     materialInfo = getDiffuseTransmissionInfo(materialInfo);
 #endif
@@ -157,6 +161,14 @@ void main()
     if (materialInfo.iridescenceThickness == 0.0) {
         materialInfo.iridescenceFactor = 0.0;
     }
+#endif
+
+#ifdef MATERIAL_RETROREFLECTION
+    // Reflection of v about n (MRM model). Other extensions that modify the metallic/dielectric
+    // BRDF's specular direction or Fresnel color (anisotropy, iridescence) are re-applied below
+    // using v_retro, so the retroreflective lobe stays consistent with those extensions instead
+    // of silently reverting to the isotropic, non-iridescent base BRDF.
+    vec3 v_retro = normalize(reflect(-v, n));
 #endif
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
@@ -222,6 +234,29 @@ void main()
 #ifdef MATERIAL_IRIDESCENCE
     f_metal_brdf_ibl = mix(f_metal_brdf_ibl, f_specular_metal * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);
     f_dielectric_brdf_ibl = mix(f_dielectric_brdf_ibl, rgb_mix(f_diffuse, f_specular_dielectric, iridescenceFresnel_dielectric), materialInfo.iridescenceFactor);
+#endif
+
+#ifdef MATERIAL_RETROREFLECTION
+    // Retroreflective variant of the metallic and dielectric BRDFs (MRM model): the specular
+    // lobe's view direction is substituted with v_retro. The Fresnel mix weight is unchanged
+    // because NdotV is invariant under the v -> v_retro substitution. Anisotropy's bent-normal
+    // reflection and iridescence's Fresnel tint are re-applied with v_retro so they compose
+    // correctly with retroreflection instead of being silently dropped from the retro lobe.
+#ifdef MATERIAL_ANISOTROPY
+    vec3 f_specular_retro = getIBLRadianceAnisotropy(n, v_retro, materialInfo.perceptualRoughness, materialInfo.anisotropyStrength, materialInfo.anisotropicB);
+#else
+    vec3 f_specular_retro = getIBLRadianceGGX(n, v_retro, materialInfo.perceptualRoughness);
+#endif
+    vec3 f_metal_brdf_retro = f_metal_fresnel_ibl * f_specular_retro;
+    vec3 f_dielectric_brdf_retro = mix(f_diffuse, f_specular_retro, f_dielectric_fresnel_ibl);
+
+#ifdef MATERIAL_IRIDESCENCE
+    f_metal_brdf_retro = mix(f_metal_brdf_retro, f_specular_retro * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);
+    f_dielectric_brdf_retro = mix(f_dielectric_brdf_retro, rgb_mix(f_diffuse, f_specular_retro, iridescenceFresnel_dielectric), materialInfo.iridescenceFactor);
+#endif
+
+    f_metal_brdf_ibl = mix(f_metal_brdf_ibl, f_metal_brdf_retro, materialInfo.retroreflectionFactor);
+    f_dielectric_brdf_ibl = mix(f_dielectric_brdf_ibl, f_dielectric_brdf_retro, materialInfo.retroreflectionFactor);
 #endif
 
 
@@ -348,6 +383,35 @@ void main()
 #ifdef MATERIAL_IRIDESCENCE
         l_metal_brdf = mix(l_metal_brdf, l_specular_metal * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);
         l_dielectric_brdf = mix(l_dielectric_brdf, rgb_mix(l_diffuse, l_specular_dielectric, iridescenceFresnel_dielectric), materialInfo.iridescenceFactor);
+#endif
+
+#ifdef MATERIAL_RETROREFLECTION
+        // NdotV_retro == NdotV, so only the half vector (and thus NdotH/VdotH) needs
+        // recomputing for the retroreflective specular lobe. Anisotropy and iridescence are
+        // re-applied with v_retro/h_retro so they compose correctly with retroreflection
+        // instead of being silently dropped from the retro lobe.
+        vec3 h_retro = normalize(l + v_retro);
+        float NdotH_retro = clampedDot(n, h_retro);
+        float VdotH_retro = clampedDot(v_retro, h_retro);
+
+        vec3 dielectric_fresnel_retro = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(VdotH_retro));
+        vec3 metal_fresnel_retro = F_Schlick(baseColor.rgb, vec3(1.0), abs(VdotH_retro));
+
+#ifdef MATERIAL_ANISOTROPY
+        vec3 l_specular_retro = intensity * NdotL * BRDF_specularGGXAnisotropy(materialInfo.alphaRoughness, materialInfo.anisotropyStrength, n, v_retro, l, h_retro, materialInfo.anisotropicT, materialInfo.anisotropicB);
+#else
+        vec3 l_specular_retro = intensity * NdotL * BRDF_specularGGX(materialInfo.alphaRoughness, NdotL, NdotV, NdotH_retro);
+#endif
+        vec3 l_metal_brdf_retro = metal_fresnel_retro * l_specular_retro;
+        vec3 l_dielectric_brdf_retro = mix(l_diffuse, l_specular_retro, dielectric_fresnel_retro);
+
+#ifdef MATERIAL_IRIDESCENCE
+        l_metal_brdf_retro = mix(l_metal_brdf_retro, l_specular_retro * iridescenceFresnel_metallic, materialInfo.iridescenceFactor);
+        l_dielectric_brdf_retro = mix(l_dielectric_brdf_retro, rgb_mix(l_diffuse, l_specular_retro, iridescenceFresnel_dielectric), materialInfo.iridescenceFactor);
+#endif
+
+        l_metal_brdf = mix(l_metal_brdf, l_metal_brdf_retro, materialInfo.retroreflectionFactor);
+        l_dielectric_brdf = mix(l_dielectric_brdf, l_dielectric_brdf_retro, materialInfo.retroreflectionFactor);
 #endif
 
 #ifdef MATERIAL_CLEARCOAT
@@ -524,6 +588,13 @@ vec3 specularTexture = vec3(1.0);
 #endif
 #if DEBUG == DEBUG_IRIDESCENCE_THICKNESS
     g_finalColor.rgb = vec3(materialInfo.iridescenceThickness / 1200.0);
+#endif
+#endif
+
+    // Retroreflection:
+#ifdef MATERIAL_RETROREFLECTION
+#if DEBUG == DEBUG_RETROREFLECTION_FACTOR
+    g_finalColor.rgb = vec3(materialInfo.retroreflectionFactor);
 #endif
 #endif
 

@@ -39,6 +39,7 @@ const allowedExtensions = [
     "KHR_materials_ior",
     "KHR_materials_iridescence",
     "KHR_materials_pbrSpecularGlossiness",
+    "KHR_materials_retroreflection",
     "KHR_materials_sheen",
     "KHR_materials_specular",
     "KHR_materials_transmission",

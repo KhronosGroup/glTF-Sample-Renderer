@@ -353,6 +353,28 @@ vec2 getIridescenceThicknessUV()
 #endif
 
 
+// Retroreflection
+
+
+#ifdef MATERIAL_RETROREFLECTION
+
+uniform sampler2D u_RetroreflectionSampler;
+uniform int u_RetroreflectionUVSet;
+uniform mat3 u_RetroreflectionUVTransform;
+
+
+vec2 getRetroreflectionUV()
+{
+    vec3 uv = vec3(u_RetroreflectionUVSet < 1 ? v_texcoord_0 : v_texcoord_1, 1.0);
+#ifdef HAS_RETROREFLECTION_UV_TRANSFORM
+    uv = u_RetroreflectionUVTransform * uv;
+#endif
+    return uv.xy;
+}
+
+#endif
+
+
 // Diffuse Transmission
 
 #ifdef MATERIAL_DIFFUSE_TRANSMISSION
