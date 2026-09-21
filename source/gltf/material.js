@@ -33,6 +33,7 @@ class gltfMaterial extends GltfObject {
         this.hasIridescence = false;
         this.hasAnisotropy = false;
         this.hasDispersion = false;
+        this.hasRetroreflection = false;
 
         // non gltf properties
         this.type = "unlit";
@@ -105,6 +106,12 @@ class gltfMaterial extends GltfObject {
         }
         if (this.hasDispersion && renderingParameters.enabledExtensions.KHR_materials_dispersion) {
             defines.push("MATERIAL_DISPERSION 1");
+        }
+        if (
+            this.hasRetroreflection &&
+            renderingParameters.enabledExtensions.KHR_materials_retroreflection
+        ) {
+            defines.push("MATERIAL_RETROREFLECTION 1");
         }
 
         return defines;
@@ -482,6 +489,22 @@ class gltfMaterial extends GltfObject {
             if (this.extensions.KHR_materials_dispersion !== undefined) {
                 this.hasDispersion = true;
             }
+
+            // KHR Extension: Retroreflection
+            // See https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_retroreflection
+            if (this.extensions.KHR_materials_retroreflection !== undefined) {
+                this.hasRetroreflection = true;
+
+                const retroreflectionTexture =
+                    this.extensions.KHR_materials_retroreflection.retroreflectionTexture;
+
+                if (retroreflectionTexture !== undefined) {
+                    retroreflectionTexture.samplerName = "u_RetroreflectionSampler";
+                    this.parseTextureInfoExtensions(retroreflectionTexture, "Retroreflection");
+                    this.textures.push(retroreflectionTexture);
+                    this.defines.push("HAS_RETROREFLECTION_MAP 1");
+                }
+            }
         }
 
         initGlForMembers(this, gltf, webGlContext);
@@ -686,6 +709,13 @@ class gltfMaterial extends GltfObject {
             this.extensions.KHR_materials_ior = new KHR_materials_ior();
             this.extensions.KHR_materials_ior.fromJson(jsonExtensions.KHR_materials_ior);
         }
+
+        if (jsonExtensions.KHR_materials_retroreflection !== undefined) {
+            this.extensions.KHR_materials_retroreflection = new KHR_materials_retroreflection();
+            this.extensions.KHR_materials_retroreflection.fromJson(
+                jsonExtensions.KHR_materials_retroreflection
+            );
+        }
     }
 }
 
@@ -821,6 +851,24 @@ class KHR_materials_iridescence extends GltfObject {
             const iridescenceThicknessTexture = new gltfTextureInfo();
             iridescenceThicknessTexture.fromJson(jsonIridescence.iridescenceThicknessTexture);
             this.iridescenceThicknessTexture = iridescenceThicknessTexture;
+        }
+    }
+}
+
+class KHR_materials_retroreflection extends GltfObject {
+    static animatedProperties = ["retroreflectionFactor"];
+    constructor() {
+        super();
+        this.retroreflectionFactor = 0;
+        this.retroreflectionTexture = undefined;
+    }
+
+    fromJson(jsonRetroreflection) {
+        super.fromJson(jsonRetroreflection);
+        if (jsonRetroreflection.retroreflectionTexture !== undefined) {
+            const retroreflectionTexture = new gltfTextureInfo();
+            retroreflectionTexture.fromJson(jsonRetroreflection.retroreflectionTexture);
+            this.retroreflectionTexture = retroreflectionTexture;
         }
     }
 }

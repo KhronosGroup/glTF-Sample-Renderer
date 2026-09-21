@@ -29,6 +29,9 @@ uniform float u_IridescenceIor;
 uniform float u_IridescenceThicknessMinimum;
 uniform float u_IridescenceThicknessMaximum;
 
+// Retroreflection
+uniform float u_RetroreflectionFactor;
+
 // Diffuse Transmission
 uniform float u_DiffuseTransmissionFactor;
 uniform vec3 u_DiffuseTransmissionColorFactor;
@@ -101,6 +104,9 @@ struct MaterialInfo
     float iridescenceFactor;
     float iridescenceIor;
     float iridescenceThickness;
+
+    // KHR_materials_retroreflection
+    float retroreflectionFactor;
 
     float diffuseTransmissionFactor;
     vec3 diffuseTransmissionColorFactor;
@@ -322,6 +328,20 @@ MaterialInfo getIridescenceInfo(MaterialInfo info)
         float thicknessSampled = texture(u_IridescenceThicknessSampler, getIridescenceThicknessUV()).g;
         float thickness = mix(u_IridescenceThicknessMinimum, u_IridescenceThicknessMaximum, thicknessSampled);
         info.iridescenceThickness = thickness;
+    #endif
+
+    return info;
+}
+#endif
+
+
+#ifdef MATERIAL_RETROREFLECTION
+MaterialInfo getRetroreflectionInfo(MaterialInfo info)
+{
+    info.retroreflectionFactor = u_RetroreflectionFactor;
+
+    #ifdef HAS_RETROREFLECTION_MAP
+        info.retroreflectionFactor *= texture(u_RetroreflectionSampler, getRetroreflectionUV()).r;
     #endif
 
     return info;

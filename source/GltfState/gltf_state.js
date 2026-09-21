@@ -95,6 +95,8 @@ class GltfState {
                 KHR_materials_dispersion: true,
                 /** KHR_materials_emissive_strength enables emissive factors larger than 1.0 */
                 KHR_materials_emissive_strength: true,
+                /** KHR_materials_retroreflection adds a retroreflective response to the metallic and dielectric BRDFs */
+                KHR_materials_retroreflection: true,
                 /** KHR_interactivity enables execution of a behavior graph */
                 KHR_interactivity: true,
                 /** KHR_node_hoverability enables hovering over nodes */
@@ -255,6 +257,12 @@ GltfState.DebugOutput = {
         IRIDESCENCE_FACTOR: "Iridescence Strength",
         /** output the iridescence thickness*/
         IRIDESCENCE_THICKNESS: "Iridescence Thickness"
+    },
+
+    /** KHR_materials_retroreflection */
+    retroreflection: {
+        /** output the retroreflection strength*/
+        RETROREFLECTION_FACTOR: "Retroreflection Strength"
     },
 
     /** KHR_materials_anisotropy */
