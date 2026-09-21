@@ -8,6 +8,11 @@ import license from "rollup-plugin-license";
 
 export default {
     strictDeprecations: true,
+    onwarn(warning, warn) {
+        // Harmless: third-party CJS deps reference top-level `this`, which Rollup rewrites to `undefined`.
+        if (warning.code === 'THIS_IS_UNDEFINED') return;
+        warn(warning);
+    },
     input: ['source/gltf-sample-renderer.js'],
     output: [
         {
