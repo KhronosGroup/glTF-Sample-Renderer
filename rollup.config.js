@@ -14,6 +14,7 @@ export default {
         warn(warning);
     },
     input: ['source/gltf-sample-renderer.js'],
+    external: ['gl-matrix'],
     output: [
         {
             file: 'dist/gltf-viewer.js',
