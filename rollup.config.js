@@ -33,7 +33,7 @@ export default {
         resolve({
             browser: true,
             preferBuiltins: false,
-            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png', '@khronosgroup/khr_interactivity_authoring_engine']
+            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png', '@khronosgroup/gltf-interactivity-engine']
         }),
         copy({
             targets: [
