@@ -540,19 +540,20 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             true
         );
 
-        this.registerJsonPointer(
-            `/extensions/KHR_implicit_shapes/shapes.length`,
-            (_path) => {
-                const shapes = this.world.gltf.extensions?.KHR_implicit_shapes?.shapes;
-                if (shapes === undefined) {
-                    return [0];
-                }
-                return [shapes.length];
-            },
-            (_path, _value) => {},
-            "int",
-            true
-        );
+        // Shapes moved from KHR_implicit_shapes to the core `shapes` array in glTF 2.1.
+        // Both pointers resolve to the same array so existing graphs keep working.
+        for (const pointer of [
+            `/shapes.length`,
+            `/extensions/KHR_implicit_shapes/shapes.length`
+        ]) {
+            this.registerJsonPointer(
+                pointer,
+                (_path) => [this.world.gltf.shapes?.length ?? 0],
+                (_path, _value) => {},
+                "int",
+                true
+            );
+        }
 
         this.registerJsonPointer(
             `/materials.length`,

@@ -1,6 +1,7 @@
 import { mat4, quat, vec3 } from "gl-matrix";
 import { jsToGl, jsToGlSlice } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
+import { gltfBoundingVolume } from "./bounding_volume.js";
 import { linkPromotedProperty } from "./animatable_property.js";
 import { GL } from "../Renderer/webgl.js";
 
@@ -25,6 +26,7 @@ class gltfNode extends GltfObject {
         this.mesh = undefined;
         this.skin = undefined;
         this.weights = undefined;
+        this.boundingVolume = undefined;
 
         // non gltf
         this.worldTransform = mat4.create();
@@ -112,6 +114,10 @@ class gltfNode extends GltfObject {
         super.fromJson(jsonNode);
         if (jsonNode.matrix !== undefined) {
             this.applyMatrix(jsonNode.matrix);
+        }
+        if (jsonNode.boundingVolume !== undefined) {
+            this.boundingVolume = new gltfBoundingVolume();
+            this.boundingVolume.fromJson(jsonNode.boundingVolume);
         }
         if (jsonNode.extensions?.KHR_node_visibility !== undefined) {
             this.extensions.KHR_node_visibility = new KHR_node_visibility();

@@ -897,7 +897,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (shapeIndex !== undefined) {
             // Simple shapes need to be recreated if scale changed
             // If properties changed we also need to recreate the mesh colliders
-            const dirty = gltf.extensions.KHR_implicit_shapes.shapes[shapeIndex].isDirty();
+            const dirty = gltf.shapes[shapeIndex].isDirty();
             if (
                 scaleChanged &&
                 !dirty &&
@@ -920,7 +920,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             } else if (dirty || scaleChanged) {
                 // Recreate simple shape collider
                 const newGeometry = this.generateSimpleShape(
-                    gltf.extensions.KHR_implicit_shapes.shapes[shapeIndex],
+                    gltf.shapes[shapeIndex],
                     scale,
                     scaleAxis
                 );
@@ -1688,8 +1688,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let geometry = undefined;
         if (collider?.geometry?.shape !== undefined) {
             if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
-                const simpleShape =
-                    gltf.extensions.KHR_implicit_shapes.shapes[collider.geometry.shape];
+                const simpleShape = gltf.shapes[collider.geometry.shape];
                 geometry = this.generateSimpleShape(simpleShape, scale, scaleAxis);
             } else {
                 geometry = this.simpleShapes[collider.geometry.shape];

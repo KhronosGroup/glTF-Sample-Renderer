@@ -4,7 +4,7 @@ import { gltfBufferView } from "./buffer_view.js";
 import { gltfCamera } from "./camera.js";
 import { gltfImage } from "./image.js";
 import { gltfLight } from "./light.js";
-import { gltfImplicitShape } from "./implicit_shape.js";
+import { gltfShape } from "./shape.js";
 import { gltfMaterial } from "./material.js";
 import { gltfMesh } from "./mesh.js";
 import { gltfNode } from "./node.js";
@@ -138,10 +138,7 @@ class glTF extends GltfObject {
         this.skins = objectsFromJsons(json.skins, gltfSkin);
         this.files = objectsFromJsons(json.files, gltfFile);
         this.externalAssets = objectsFromJsons(json.externalAssets, gltfExternalAsset);
-        // Parsed but not yet consumed. Unifying this with the KHR_implicit_shapes array
-        // below is deferred, because concatenating the two would shift the indices that
-        // existing physics colliders use.
-        this.shapes = objectsFromJsons(json.shapes, gltfImplicitShape);
+        this.shapes = objectsFromJsons(json.shapes, gltfShape);
 
         if (json.extensions?.KHR_lights_punctual !== undefined) {
             this.extensions.KHR_lights_punctual = new GltfObject([]);
@@ -170,11 +167,19 @@ class glTF extends GltfObject {
         }
 
         if (json.extensions?.KHR_implicit_shapes !== undefined) {
-            this.extensions.KHR_implicit_shapes = new GltfObject([]);
-            this.extensions.KHR_implicit_shapes.shapes = objectsFromJsons(
-                json.extensions.KHR_implicit_shapes.shapes,
-                gltfImplicitShape
-            );
+            // KHR_implicit_shapes becomes the core `shapes` array in glTF 2.1. An asset
+            // cannot sensibly use both spellings, because collider shape indices would be
+            // ambiguous, so the extension array simply becomes the core array.
+            if (this.shapes.length > 0) {
+                console.warn(
+                    "Asset defines both shapes and KHR_implicit_shapes; ignoring the extension"
+                );
+            } else {
+                this.shapes = objectsFromJsons(
+                    json.extensions.KHR_implicit_shapes.shapes,
+                    gltfShape
+                );
+            }
         }
 
         if (json.extensions?.KHR_physics_rigid_bodies !== undefined) {

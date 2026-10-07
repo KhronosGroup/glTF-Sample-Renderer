@@ -52,21 +52,18 @@ class PhysicsInterface {
 
     generateSimpleShapes(gltf) {
         this.simpleShapes = [];
-        if (gltf?.extensions?.KHR_implicit_shapes === undefined) {
-            return;
-        }
-        for (const shape of gltf.extensions.KHR_implicit_shapes.shapes) {
+        for (const shape of gltf?.shapes ?? []) {
             this.simpleShapes.push(this.generateSimpleShape(shape));
         }
     }
 
     /**
-     * Generates a simple physics shape based on the provided gltfImplicitShape.
+     * Generates a simple physics shape based on the provided gltfShape.
      * The scale and scaleAxis parameters should be used to apply additional scaling to the shape.
      * The reference parameter can be used to update an already existing shape instead of creating a new one,
      * if the physics engine supports it.
      *
-     * @param {gltfImplicitShape} shape
+     * @param {gltfShape} shape
      * @param {vec3} scale
      * @param {quat} scaleAxis
      * @param {any | undefined} reference
