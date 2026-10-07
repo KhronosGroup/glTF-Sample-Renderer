@@ -300,8 +300,6 @@ class gltfPrimitive extends GltfObject {
 
         initGlForMembers(this, gltf, webGlContext);
 
-        this.assignIndexedAttributeSlots();
-
         const maxAttributes = webGlContext.getParameter(GL.MAX_VERTEX_ATTRIBS);
 
         // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#meshes
@@ -324,18 +322,22 @@ class gltfPrimitive extends GltfObject {
             }
         }
 
+        // Must run after Draco decoding, which is what adds the decompressed attributes.
+        this.assignIndexedAttributeSlots();
+
         // Generate tangents with Mikktspace which needs normals and texcoords as inputs for triangles
+        const primaryTexCoord = this.primaryTexCoordAttribute();
         if (
             this.attributes.TANGENT === undefined &&
             this.attributes.NORMAL !== undefined &&
-            this.attributes.TEXCOORD_0 !== undefined &&
+            primaryTexCoord !== undefined &&
             this.mode > 3
         ) {
             console.info("Generating tangents using the MikkTSpace algorithm.");
             console.time("Tangent generation");
-            const tangentHash = `${this.indices}_${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes.TEXCOORD_0}`;
+            const tangentHash = `${this.indices}_${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes[primaryTexCoord]}`;
             this.unweld(gltf);
-            this.generateTangents(gltf, tangentHash);
+            this.generateTangents(gltf, tangentHash, primaryTexCoord);
             console.timeEnd("Tangent generation");
         }
 
@@ -1437,6 +1439,20 @@ class gltfPrimitive extends GltfObject {
     }
 
     /**
+     * The semantic carrying this primitive's primary texture coordinates, i.e. whichever
+     * set landed in shader slot 0. Under glTF 2.0 that is always TEXCOORD_0, but 2.1
+     * lets the lowest set be any index.
+     */
+    primaryTexCoordAttribute() {
+        for (const [setIndex, slot] of this.texCoordSlots) {
+            if (slot === 0) {
+                return `TEXCOORD_${setIndex}`;
+            }
+        }
+        return undefined;
+    }
+
+    /**
      * Maps a glTF attribute semantic onto the name the shaders use for it. Only the
      * indexed semantics differ, and only when the file's set indices are not already
      * contiguous from zero.
@@ -1540,8 +1556,11 @@ class gltfPrimitive extends GltfObject {
         return gltf.accessors.length - 1;
     }
 
-    generateTangents(gltf, tangentHash) {
-        if (this.attributes.NORMAL === undefined || this.attributes.TEXCOORD_0 === undefined) {
+    generateTangents(gltf, tangentHash, texCoordAttribute = "TEXCOORD_0") {
+        if (
+            this.attributes.NORMAL === undefined ||
+            this.attributes[texCoordAttribute] === undefined
+        ) {
             return;
         }
         if (gltf.tangentCache[tangentHash] !== undefined) {
@@ -1554,7 +1573,7 @@ class gltfPrimitive extends GltfObject {
             gltf.accessors[this.attributes.POSITION].getNormalizedDeinterlacedView(gltf);
         const normals = gltf.accessors[this.attributes.NORMAL].getNormalizedDeinterlacedView(gltf);
         let texcoords =
-            gltf.accessors[this.attributes.TEXCOORD_0].getNormalizedDeinterlacedView(gltf);
+            gltf.accessors[this.attributes[texCoordAttribute]].getNormalizedDeinterlacedView(gltf);
 
         if (positions instanceof Float64Array) {
             console.warn(

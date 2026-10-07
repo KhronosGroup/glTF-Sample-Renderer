@@ -96,6 +96,28 @@ describe("vertex colour slot assignment", () => {
     });
 });
 
+describe("primaryTexCoordAttribute", () => {
+    // Tangent generation needs the primary set. Under glTF 2.0 that was always
+    // TEXCOORD_0, so consumers hardcoded the name; under 2.1 it can be any index.
+    it("is TEXCOORD_0 for a conventional primitive", () => {
+        const primitive = primitiveWith({ POSITION: 0, TEXCOORD_0: 1, TEXCOORD_1: 2 });
+
+        expect(primitive.primaryTexCoordAttribute()).toBe("TEXCOORD_0");
+    });
+
+    it("is the lowest set when the indices do not start at zero", () => {
+        const primitive = primitiveWith({ POSITION: 0, TEXCOORD_3: 1, TEXCOORD_7: 2 });
+
+        expect(primitive.primaryTexCoordAttribute()).toBe("TEXCOORD_3");
+    });
+
+    it("is undefined when the primitive has no texture coordinates", () => {
+        const primitive = primitiveWith({ POSITION: 0, NORMAL: 1 });
+
+        expect(primitive.primaryTexCoordAttribute()).toBeUndefined();
+    });
+});
+
 describe("shaderAttributeName", () => {
     it("renames indexed semantics to their slot", () => {
         const primitive = primitiveWith({ POSITION: 0, TEXCOORD_3: 1, COLOR_2: 2 });
