@@ -18,6 +18,7 @@ import { loadHDR } from "../libs/hdrpng.js";
 
 import { ResourceLoaderUtils } from "./loader_utils.js";
 import { FileResolver } from "./file_resolver.js";
+import { ExternalAssetLoader } from "./external_asset_loader.js";
 import { loadThumbnail } from "./thumbnail_loader.js";
 
 /**
@@ -107,12 +108,6 @@ class ResourceLoader {
             appendix = { glb: { ...glb, parser: glbParser } };
         }
 
-        const gltf = new glTF(filename);
-        gltf.ktxDecoder = this.view.ktxDecoder;
-        gltf.moptDecoder = MeshoptDecoder;
-        //Make sure draco decoder instance is ready
-        gltf.fromJson(json);
-
         const resolver = new FileResolver({
             baseUri: ResourceLoaderUtils.getContainingFolder(filename),
             droppedFiles: externalFiles,
@@ -120,8 +115,42 @@ class ResourceLoader {
         });
 
         await init(`${this.libPath}mikktspace_bg.wasm`);
-        await gltfLoader.load(gltf, this.view.context, appendix, resolver);
 
+        const externalAssets = new ExternalAssetLoader({
+            createDocument: (options) => this.buildDocument(options, externalAssets)
+        });
+
+        const gltf = await this.buildDocument(
+            {
+                json,
+                glb: appendix?.glb,
+                path: filename,
+                resolver,
+                ancestry: new Set([filename]),
+                depth: 0
+            },
+            externalAssets
+        );
+
+        return gltf;
+    }
+
+    /**
+     * Parses one glTF document, loads its resources, then recurses into the assets it
+     * references. Buffers have to land before the recursion, because a referenced asset
+     * may live in a bufferView of this one.
+     */
+    async buildDocument({ json, glb, path, resolver, ancestry, depth }, externalAssets) {
+        const gltf = new glTF(path);
+        gltf.ktxDecoder = this.view.ktxDecoder;
+        gltf.moptDecoder = MeshoptDecoder;
+        gltf.fromJson(json);
+
+        await gltfLoader.loadBuffers(gltf, glb, resolver);
+        await externalAssets.loadFor(gltf, resolver, ancestry, depth);
+        await gltfLoader.loadImages(gltf, resolver);
+
+        gltf.initGl(this.view.context);
         return gltf;
     }
 
