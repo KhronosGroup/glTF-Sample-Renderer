@@ -45,7 +45,7 @@ class ResourceLoader {
      */
     async loadGltf(gltfFile, externalFiles, allowResourceAbsolutePath = true) {
         let isGlb = undefined;
-        let buffers = undefined;
+        let appendix = undefined;
         let json = undefined;
         let data = undefined;
         let filename = "";
@@ -83,7 +83,7 @@ class ResourceLoader {
             } else {
                 data = await AsyncFileReader.readAsText(fileContent);
                 json = JSON.parse(data);
-                buffers = externalFiles;
+                appendix = externalFiles;
             }
         } else {
             // Load empty glTF
@@ -96,8 +96,13 @@ class ResourceLoader {
         if (isGlb) {
             const glbParser = new GlbParser(data);
             const glb = glbParser.extractGlbData();
+            if (glb === undefined) {
+                throw new Error(`Could not read the GLB container of ${filename}`);
+            }
             json = glb.json;
-            buffers = glb.buffers;
+            // Buffers bind to chunks by index, so the loader needs the whole chunk table
+            // and the parser that can slice it, not just a list of binary payloads.
+            appendix = { glb: { ...glb, parser: glbParser } };
         }
 
         const gltf = new glTF(filename);
@@ -107,7 +112,7 @@ class ResourceLoader {
         gltf.fromJson(json);
 
         await init(`${this.libPath}mikktspace_bg.wasm`);
-        await gltfLoader.load(gltf, this.view.context, buffers, allowResourceAbsolutePath);
+        await gltfLoader.load(gltf, this.view.context, appendix, allowResourceAbsolutePath);
 
         return gltf;
     }

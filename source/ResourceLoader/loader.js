@@ -1,11 +1,13 @@
+import { CHUNK_TYPE_BIN, CHUNK_ENCODING_PLAIN } from "./glb_parser.js";
+
 class gltfLoader {
     static async load(gltf, webGlContext, appendix = undefined, allowResourceAbsolutePath = true) {
-        const buffers = gltfLoader.getBuffers(appendix);
+        const glb = gltfLoader.getGlbContainer(appendix);
         const additionalFiles = gltfLoader.getAdditionalFiles(appendix);
 
         const buffersPromise = gltfLoader.loadBuffers(
             gltf,
-            buffers,
+            glb,
             additionalFiles,
             allowResourceAbsolutePath
         );
@@ -39,8 +41,8 @@ class gltfLoader {
         gltf.accessors = [];
     }
 
-    static getBuffers(appendix) {
-        return gltfLoader.getTypedAppendix(appendix, ArrayBuffer);
+    static getGlbContainer(appendix) {
+        return appendix?.glb;
     }
 
     static getAdditionalFiles(appendix) {
@@ -59,28 +61,80 @@ class gltfLoader {
         }
     }
 
-    static loadBuffers(gltf, buffers, additionalFiles, allowResourceAbsolutePath) {
+    // Binds a buffer to the GLB chunk that holds its data.
+    //
+    // glTF 2.1 lets a buffer name its chunk explicitly, which is what makes multiple
+    // binary chunks usable. glTF 2.0 had no such property and relied on buffer 0
+    // implicitly meaning chunk 1; that stays supported, but only for the exact layout
+    // 2.0 could produce, so it cannot be mistaken for a 2.1 buffer that forgot its
+    // `chunk` property.
+    static resolveBufferChunk(gltf, buffer, bufferIndex, glb) {
+        if (glb === undefined) {
+            return undefined;
+        }
+
+        let chunk = undefined;
+        if (buffer.chunk !== undefined) {
+            chunk = glb.chunks[buffer.chunk];
+            if (chunk === undefined) {
+                console.error(
+                    `Buffer ${bufferIndex} references GLB chunk ${buffer.chunk}, ` +
+                        `but the file only has ${glb.chunks.length} chunks`
+                );
+                return undefined;
+            }
+        } else if (
+            bufferIndex === 0 &&
+            buffer.uri === undefined &&
+            glb.jsonChunkIndex === 0 &&
+            glb.chunks[1]?.type === CHUNK_TYPE_BIN
+        ) {
+            chunk = glb.chunks[1];
+        }
+
+        if (chunk === undefined) {
+            return undefined;
+        }
+
+        if (chunk.type !== CHUNK_TYPE_BIN) {
+            console.error(
+                `Buffer ${bufferIndex} references GLB chunk ${chunk.index}, ` +
+                    `which is not a binary chunk`
+            );
+            return undefined;
+        }
+        if (chunk.encoding !== CHUNK_ENCODING_PLAIN) {
+            console.error(
+                `Buffer ${bufferIndex} references GLB chunk ${chunk.index}, which uses ` +
+                    `unsupported encoding 0x${chunk.encoding.toString(16)}`
+            );
+            return undefined;
+        }
+        // The spec requires the chunk to be at least as large as the buffer rather than
+        // exactly equal, so that GLB padding does not force byteLength to be rewritten.
+        if (buffer.byteLength !== undefined && chunk.length < buffer.byteLength) {
+            console.error(
+                `Buffer ${bufferIndex} declares ${buffer.byteLength} bytes but GLB chunk ` +
+                    `${chunk.index} only holds ${chunk.length}`
+            );
+            return undefined;
+        }
+
+        return chunk;
+    }
+
+    static loadBuffers(gltf, glb, additionalFiles, allowResourceAbsolutePath) {
         const promises = [];
 
-        if (buffers !== undefined && buffers[0] !== undefined) {
-            //GLB
-            //There is only one buffer for the glb binary data
-            //see https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#glb-file-format-specification
-            if (buffers.length > 1) {
-                console.warn("Too many buffer chunks in GLB file. Only one or zero allowed");
+        for (const [index, buffer] of gltf.buffers.entries()) {
+            const chunk = gltfLoader.resolveBufferChunk(gltf, buffer, index, glb);
+            if (chunk !== undefined) {
+                buffer.buffer = glb.parser.getBufferFromChunk(chunk);
+                continue;
             }
-
-            gltf.buffers[0].buffer = buffers[0];
-            for (let i = 1; i < gltf.buffers.length; ++i) {
-                promises.push(
-                    gltf.buffers[i].load(gltf, additionalFiles, allowResourceAbsolutePath)
-                );
-            }
-        } else {
-            for (const buffer of gltf.buffers) {
-                promises.push(buffer.load(gltf, additionalFiles, allowResourceAbsolutePath));
-            }
+            promises.push(buffer.load(gltf, additionalFiles, allowResourceAbsolutePath));
         }
+
         return Promise.all(promises);
     }
 

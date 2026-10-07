@@ -8,6 +8,7 @@ class gltfBuffer extends GltfObject {
         super();
         this.uri = undefined;
         this.byteLength = undefined;
+        this.chunk = undefined;
         this.name = undefined;
 
         // non gltf
