@@ -17,6 +17,7 @@ import { KtxDecoder } from "./ktx.js";
 import { loadHDR } from "../libs/hdrpng.js";
 
 import { ResourceLoaderUtils } from "./loader_utils.js";
+import { FileResolver } from "./file_resolver.js";
 import { loadThumbnail } from "./thumbnail_loader.js";
 
 /**
@@ -112,8 +113,14 @@ class ResourceLoader {
         //Make sure draco decoder instance is ready
         gltf.fromJson(json);
 
+        const resolver = new FileResolver({
+            baseUri: ResourceLoaderUtils.getContainingFolder(filename),
+            droppedFiles: externalFiles,
+            allowAbsolutePath: allowResourceAbsolutePath
+        });
+
         await init(`${this.libPath}mikktspace_bg.wasm`);
-        await gltfLoader.load(gltf, this.view.context, appendix, allowResourceAbsolutePath);
+        await gltfLoader.load(gltf, this.view.context, appendix, resolver);
 
         return gltf;
     }
@@ -408,7 +415,9 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
     environment.sheenELUT = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.sheenELUT.generateMips = false;
 
-    await gltfLoader.loadImages(environment);
+    // The environment's images are the LUTs, whose paths are already relative to the
+    // page rather than to any glTF asset, so this resolver has an empty base.
+    await gltfLoader.loadImages(environment, new FileResolver());
 
     environment.initGl(view.context);
 

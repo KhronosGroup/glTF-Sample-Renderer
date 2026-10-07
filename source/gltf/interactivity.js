@@ -542,10 +542,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
         // Shapes moved from KHR_implicit_shapes to the core `shapes` array in glTF 2.1.
         // Both pointers resolve to the same array so existing graphs keep working.
-        for (const pointer of [
-            `/shapes.length`,
-            `/extensions/KHR_implicit_shapes/shapes.length`
-        ]) {
+        for (const pointer of [`/shapes.length`, `/extensions/KHR_implicit_shapes/shapes.length`]) {
             this.registerJsonPointer(
                 pointer,
                 (_path) => [this.world.gltf.shapes?.length ?? 0],
@@ -568,7 +565,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
         const nodeCount = this.world.gltf.nodes.length;
         const meshCount = this.world.gltf.meshes.length;
-        const primitiveCount = Math.max(...this.world.gltf.meshes.map(mesh => mesh.primitives.length));
+        const primitiveCount = Math.max(
+            ...this.world.gltf.meshes.map((mesh) => mesh.primitives.length)
+        );
 
         // Returns the currently computed global matrix of the node
         this.registerJsonPointer(
@@ -641,7 +640,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "int",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/children/${nodeCount}`,
             (path) => {
@@ -659,7 +658,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "ref",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/camera`,
             (path) => {
@@ -676,7 +675,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "ref",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/mesh`,
             (path) => {
@@ -693,7 +692,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "ref",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/skin`,
             (path) => {
@@ -719,7 +718,11 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const meshIndex = parseInt(pathParts[2]);
                 const primitiveIndex = parseInt(pathParts[4]);
                 const mesh = this.world.gltf.meshes[meshIndex];
-                if (mesh === undefined || mesh.primitives === undefined || primitiveIndex >= mesh.primitives.length) {
+                if (
+                    mesh === undefined ||
+                    mesh.primitives === undefined ||
+                    primitiveIndex >= mesh.primitives.length
+                ) {
                     return [undefined];
                 }
                 const materialIndex = mesh.primitives[primitiveIndex].material;

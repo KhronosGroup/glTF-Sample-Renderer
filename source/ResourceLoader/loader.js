@@ -1,27 +1,14 @@
 import { CHUNK_TYPE_BIN, CHUNK_ENCODING_PLAIN } from "./glb_parser.js";
 
 class gltfLoader {
-    static async load(gltf, webGlContext, appendix = undefined, allowResourceAbsolutePath = true) {
+    static async load(gltf, webGlContext, appendix = undefined, resolver = undefined) {
         const glb = gltfLoader.getGlbContainer(appendix);
-        const additionalFiles = gltfLoader.getAdditionalFiles(appendix);
 
-        const buffersPromise = gltfLoader.loadBuffers(
-            gltf,
-            glb,
-            additionalFiles,
-            allowResourceAbsolutePath
-        );
+        // Images may live inside a buffer, so buffers have to land first.
+        await gltfLoader.loadBuffers(gltf, glb, resolver);
+        await gltfLoader.loadImages(gltf, resolver);
 
-        await buffersPromise; // images might be stored in the buffers
-        const imagesPromise = gltfLoader.loadImages(
-            gltf,
-            additionalFiles,
-            allowResourceAbsolutePath
-        );
-
-        return await Promise.all([buffersPromise, imagesPromise]).then(() =>
-            gltf.initGl(webGlContext)
-        );
+        return gltf.initGl(webGlContext);
     }
 
     static unload(gltf) {
@@ -43,22 +30,6 @@ class gltfLoader {
 
     static getGlbContainer(appendix) {
         return appendix?.glb;
-    }
-
-    static getAdditionalFiles(appendix) {
-        if (typeof File !== "undefined") {
-            return gltfLoader.getTypedAppendix(appendix, File);
-        } else {
-            return;
-        }
-    }
-
-    static getTypedAppendix(appendix, Type) {
-        if (appendix && appendix.length > 0) {
-            if (appendix[0] instanceof Type || appendix[0][1] instanceof Type) {
-                return appendix;
-            }
-        }
     }
 
     // Binds a buffer to the GLB chunk that holds its data.
@@ -123,7 +94,7 @@ class gltfLoader {
         return chunk;
     }
 
-    static loadBuffers(gltf, glb, additionalFiles, allowResourceAbsolutePath) {
+    static loadBuffers(gltf, glb, resolver) {
         const promises = [];
 
         for (const [index, buffer] of gltf.buffers.entries()) {
@@ -132,19 +103,19 @@ class gltfLoader {
                 buffer.buffer = glb.parser.getBufferFromChunk(chunk);
                 continue;
             }
-            promises.push(buffer.load(gltf, additionalFiles, allowResourceAbsolutePath));
+            promises.push(buffer.load(gltf, resolver));
         }
 
         return Promise.all(promises);
     }
 
-    static loadImages(gltf, additionalFiles, allowResourceAbsolutePath) {
+    static loadImages(gltf, resolver) {
         const imagePromises = [];
         for (let image of gltf.images) {
             if (image.isThumbnail && !image.usedByTexture) {
                 continue;
             }
-            imagePromises.push(image.load(gltf, additionalFiles, allowResourceAbsolutePath));
+            imagePromises.push(image.load(gltf, resolver));
         }
         return Promise.all(imagePromises);
     }
