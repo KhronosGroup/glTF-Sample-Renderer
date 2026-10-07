@@ -197,6 +197,25 @@ class glTF extends GltfObject {
 
         this.computeDisjointAnimations();
         this.addNodeMetaInformation();
+        this.markThumbnailImage();
+    }
+
+    // glTF 2.1 thumbnails exist so an application can preview an asset without loading
+    // the scene. A thumbnail that no texture uses is therefore dead weight during a
+    // normal load, and is skipped; ResourceLoader.loadThumbnail fetches it on its own.
+    markThumbnailImage() {
+        const index = this.asset?.thumbnail;
+        if (index === undefined) {
+            return;
+        }
+        const image = this.images[index];
+        if (image === undefined) {
+            console.warn(`asset.thumbnail refers to image ${index}, which does not exist`);
+            this.asset.thumbnail = undefined;
+            return;
+        }
+        image.isThumbnail = true;
+        image.usedByTexture = this.textures.some((texture) => texture.source === index);
     }
 
     // Adds parent and scene information to each node

@@ -25,6 +25,8 @@ class gltfImage extends GltfObject {
         this.name = name;
         this.type = type; // nonstandard
         this.miplevel = miplevel; // nonstandard
+        this.isThumbnail = false; // nonstandard
+        this.usedByTexture = true; // nonstandard
     }
 
     async load(gltf, additionalFiles = undefined, allowResourceAbsolutePath) {

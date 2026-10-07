@@ -141,6 +141,9 @@ class gltfLoader {
     static loadImages(gltf, additionalFiles, allowResourceAbsolutePath) {
         const imagePromises = [];
         for (let image of gltf.images) {
+            if (image.isThumbnail && !image.usedByTexture) {
+                continue;
+            }
             imagePromises.push(image.load(gltf, additionalFiles, allowResourceAbsolutePath));
         }
         return Promise.all(imagePromises);

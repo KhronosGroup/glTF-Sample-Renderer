@@ -17,6 +17,7 @@ import { KtxDecoder } from "./ktx.js";
 import { loadHDR } from "../libs/hdrpng.js";
 
 import { ResourceLoaderUtils } from "./loader_utils.js";
+import { loadThumbnail } from "./thumbnail_loader.js";
 
 /**
  * ResourceLoader can be used to load resources for the GltfState
@@ -115,6 +116,18 @@ class ResourceLoader {
         await gltfLoader.load(gltf, this.view.context, appendix, allowResourceAbsolutePath);
 
         return gltf;
+    }
+
+    /**
+     * loadThumbnail reads only the `asset.thumbnail` image of a glTF 2.1 asset, without
+     * building a glTF document or touching WebGL. Use it to preview an asset cheaply.
+     * @param {(String | ArrayBuffer | Blob)} gltfFile the .gltf or .glb file
+     * @param {String} [path] used to resolve relative URIs when gltfFile is not a path
+     * @returns {Promise<Object|undefined>} `{ url, mimeType }`, or undefined when the
+     *   asset declares no thumbnail. The caller owns `url` and must revoke it.
+     */
+    async loadThumbnail(gltfFile, path = undefined) {
+        return loadThumbnail(gltfFile, path);
     }
 
     /**

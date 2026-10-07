@@ -9,6 +9,7 @@ class gltfAsset extends GltfObject {
         this.generator = undefined;
         this.version = undefined;
         this.minVersion = undefined;
+        this.thumbnail = undefined;
 
         // non gltf
         this.majorVersion = 2;
