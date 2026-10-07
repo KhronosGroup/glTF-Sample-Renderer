@@ -18,6 +18,8 @@ import { gltfAnimation } from "./animation.js";
 import { gltfSkin } from "./skin.js";
 import { gltfVariant } from "./variant.js";
 import { gltfGraph } from "./interactivity.js";
+import { gltfFile } from "./file.js";
+import { gltfExternalAsset } from "./external_asset.js";
 import { KHR_physics_rigid_bodies } from "./rigid_bodies.js";
 import { recurseAllAnimatedProperties } from "./gltf_utils.js";
 import { AnimatableProperty } from "./animatable_property.js";
@@ -94,6 +96,9 @@ class glTF extends GltfObject {
         this.materials = [];
         this.animations = [];
         this.skins = [];
+        this.shapes = [];
+        this.files = [];
+        this.externalAssets = [];
         this.path = file;
 
         // Generated tangent cache
@@ -131,6 +136,12 @@ class glTF extends GltfObject {
         this.images = objectsFromJsons(json.images, gltfImage);
         this.animations = objectsFromJsons(json.animations, gltfAnimation);
         this.skins = objectsFromJsons(json.skins, gltfSkin);
+        this.files = objectsFromJsons(json.files, gltfFile);
+        this.externalAssets = objectsFromJsons(json.externalAssets, gltfExternalAsset);
+        // Parsed but not yet consumed. Unifying this with the KHR_implicit_shapes array
+        // below is deferred, because concatenating the two would shift the indices that
+        // existing physics colliders use.
+        this.shapes = objectsFromJsons(json.shapes, gltfImplicitShape);
 
         if (json.extensions?.KHR_lights_punctual !== undefined) {
             this.extensions.KHR_lights_punctual = new GltfObject([]);
