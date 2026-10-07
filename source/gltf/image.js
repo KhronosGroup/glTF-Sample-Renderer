@@ -74,7 +74,35 @@ class gltfImage extends GltfObject {
         }
     }
 
+    static sniffMimeType(array) {
+        const startsWith = (offset, ...bytes) =>
+            array.length >= offset + bytes.length &&
+            bytes.every((byte, i) => array[offset + i] === byte);
+
+        // "RIFF" .... "WEBP"
+        if (startsWith(0, 0x52, 0x49, 0x46, 0x46) && startsWith(8, 0x57, 0x45, 0x42, 0x50)) {
+            return ImageMimeType.WEBP;
+        }
+        if (startsWith(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) {
+            return ImageMimeType.PNG;
+        }
+        if (startsWith(0, 0xff, 0xd8, 0xff)) {
+            return ImageMimeType.JPEG;
+        }
+        if (startsWith(0, 0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb)) {
+            return ImageMimeType.KTX2;
+        }
+        return undefined;
+    }
+
     async setImageFromBytes(gltf, array) {
+        if (this.mimeType === undefined) {
+            this.mimeType = gltfImage.sniffMimeType(array);
+            if (this.mimeType === undefined) {
+                console.error(`Could not determine the media type of image "${this.name}"`);
+                return false;
+            }
+        }
         if (this.mimeType === ImageMimeType.KTX2) {
             if (gltf.ktxDecoder !== undefined) {
                 this.image = await gltf.ktxDecoder.loadKtxFromBuffer(array);
@@ -126,8 +154,8 @@ class gltfImage extends GltfObject {
                     this.mimeType = ImageMimeType.KTX2;
                     break;
                 default:
-                    console.warn(`Data URI ${parts[0]} not supported`);
-                    return false;
+                    // Left undefined so setImageFromBytes can sniff the payload.
+                    break;
             }
         }
         const res = await fetch(this.uri);

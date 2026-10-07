@@ -76,10 +76,7 @@ class gltfScene extends GltfObject {
 
         function gatherNode(nodeIndex, visible, selectable, hoverable) {
             const node = gltf.nodes[nodeIndex];
-            if (
-                !enabledExtensions.KHR_node_visibility ||
-                (node.extensions?.KHR_node_visibility?.visible !== false && visible)
-            ) {
+            if (!enabledExtensions.KHR_node_visibility || (node.visible !== false && visible)) {
                 nodes.push(node);
             } else {
                 visible = false;

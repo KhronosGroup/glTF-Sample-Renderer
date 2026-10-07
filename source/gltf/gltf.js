@@ -22,6 +22,9 @@ import { KHR_physics_rigid_bodies } from "./rigid_bodies.js";
 import { recurseAllAnimatedProperties } from "./gltf_utils.js";
 import { AnimatableProperty } from "./animatable_property.js";
 
+// Extensions still accepted in `extensionsRequired`. The four marked "2.1 core" were
+// promoted into the core specification in glTF 2.1 and are also supported without being
+// declared at all; they remain listed so glTF 2.0 assets that require them keep loading.
 const allowedExtensions = [
     "KHR_accessor_float64",
     "KHR_animation_pointer",
@@ -35,7 +38,7 @@ const allowedExtensions = [
     "KHR_materials_clearcoat",
     "KHR_materials_diffuse_transmission",
     "KHR_materials_dispersion",
-    "KHR_materials_emissive_strength",
+    "KHR_materials_emissive_strength", // 2.1 core
     "KHR_materials_ior",
     "KHR_materials_iridescence",
     "KHR_materials_pbrSpecularGlossiness",
@@ -48,17 +51,17 @@ const allowedExtensions = [
     "KHR_materials_volume",
     "KHR_materials_volume_scatter",
     "KHR_meshopt_compression",
-    "KHR_mesh_quantization",
+    "KHR_mesh_quantization", // 2.1 core
     "KHR_node_hoverability",
     "KHR_node_selectability",
-    "KHR_node_visibility",
+    "KHR_node_visibility", // 2.1 core
     "KHR_physics_rigid_bodies",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",
     "EXT_mesh_gpu_instancing",
     "EXT_meshopt_compression",
-    "EXT_texture_webp"
+    "EXT_texture_webp" // 2.1 core
 ];
 
 class glTF extends GltfObject {
@@ -99,6 +102,10 @@ class glTF extends GltfObject {
 
     initGl(webGlContext) {
         initGlForMembers(this, this, webGlContext);
+    }
+
+    isAtLeast(major, minor) {
+        return this.asset?.isAtLeast(major, minor) ?? false;
     }
 
     fromJson(json) {
