@@ -15,6 +15,9 @@ import { generateTangents } from "../libs/mikktspace.js";
 class gltfPrimitive extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["material"];
+    // The shaders declare this many varyings per indexed semantic.
+    static maxTexCoordSlots = 2;
+    static maxColorSlots = 1;
     constructor() {
         super();
         this.attributes = {};
@@ -34,6 +37,10 @@ class gltfPrimitive extends GltfObject {
         this.hasTangents = false;
         this.hasTexcoord = false;
         this.hasColor = false;
+        // glTF set index -> shader slot, since 2.1 allows non-sequential set indices.
+        this.texCoordSlots = new Map();
+        this.colorSlots = new Map();
+        this.warnedMissingTexCoords = new Set();
 
         // Gaussian Splatting
         this.hasDegree1 = false;
@@ -293,6 +300,8 @@ class gltfPrimitive extends GltfObject {
 
         initGlForMembers(this, gltf, webGlContext);
 
+        this.assignIndexedAttributeSlots();
+
         const maxAttributes = webGlContext.getParameter(GL.MAX_VERTEX_ATTRIBS);
 
         // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#meshes
@@ -340,6 +349,35 @@ class gltfPrimitive extends GltfObject {
             }
             let knownAttribute = true;
             let isTexture = false;
+            const indexedAttribute = /^(TEXCOORD|COLOR)_(\d+)$/.exec(attribute);
+            if (indexedAttribute !== null) {
+                // glTF 2.1 no longer requires these to start at 0 or be consecutive, so
+                // the set index in the file is mapped onto a shader slot instead of
+                // being used directly.
+                const slot =
+                    indexedAttribute[1] === "TEXCOORD"
+                        ? this.texCoordSlots.get(Number(indexedAttribute[2]))
+                        : this.colorSlots.get(Number(indexedAttribute[2]));
+                if (slot === undefined) {
+                    continue;
+                }
+                const idx = this.attributes[attribute];
+                const name = `${indexedAttribute[1].toLowerCase()}_${slot}`;
+                this.glAttributes.push({
+                    attribute,
+                    name: `a_${name}`,
+                    accessor: idx
+                });
+                this.defines.push(
+                    `HAS_${indexedAttribute[1]}_${slot}_${gltf.accessors[idx].type} 1`
+                );
+                if (indexedAttribute[1] === "TEXCOORD") {
+                    this.hasTexcoord = true;
+                } else {
+                    this.hasColor = true;
+                }
+                continue;
+            }
             switch (attribute) {
                 case "POSITION":
                     this.skip = false;
@@ -349,15 +387,6 @@ class gltfPrimitive extends GltfObject {
                     break;
                 case "TANGENT":
                     this.hasTangents = true;
-                    break;
-                case "TEXCOORD_0":
-                    this.hasTexcoord = true;
-                    break;
-                case "TEXCOORD_1":
-                    this.hasTexcoord = true;
-                    break;
-                case "COLOR_0":
-                    this.hasColor = true;
                     break;
                 case "JOINTS_0":
                     this.hasJoints = true;
@@ -598,9 +627,13 @@ class gltfPrimitive extends GltfObject {
             }
 
             for (const attribute of attributes) {
+                // Morph target semantics are remapped onto shader slots the same way the
+                // primitive's own attributes are, otherwise a displacement on, say,
+                // TEXCOORD_3 would emit a define no shader knows about.
+                const shaderName = this.shaderAttributeName(attribute);
                 // Add morph target defines
-                this.defines.push(`HAS_MORPH_TARGET_${attribute} 1`);
-                this.defines.push(`MORPH_TARGET_${attribute}_OFFSET ${attributeOffset}`);
+                this.defines.push(`HAS_MORPH_TARGET_${shaderName} 1`);
+                this.defines.push(`MORPH_TARGET_${shaderName}_OFFSET ${attributeOffset}`);
                 // Store the attribute offset so that later the
                 // morph target texture can be assembled.
                 attributeOffsets[attribute] = attributeOffset;
@@ -1334,6 +1367,88 @@ class gltfPrimitive extends GltfObject {
             itemSize: numComponents,
             componentType: attributeType
         };
+    }
+
+    /**
+     * Maps the TEXCOORD_n and COLOR_n set indices present on this primitive onto the
+     * contiguous shader slots the shaders declare varyings for.
+     *
+     * glTF 2.0 required these to start at 0 and be consecutive, so the file index and
+     * the shader slot were always the same. glTF 2.1 relaxes that, so a primitive may
+     * carry TEXCOORD_1 and TEXCOORD_3 and nothing else. Sets are assigned to slots in
+     * ascending index order, which keeps the lowest-numbered set primary as the spec
+     * recommends.
+     */
+    assignIndexedAttributeSlots() {
+        const collect = (semantic) =>
+            Object.keys(this.attributes)
+                .map((name) => new RegExp(`^${semantic}_(\\d+)$`).exec(name))
+                .filter((match) => match !== null)
+                .map((match) => Number(match[1]))
+                .sort((a, b) => a - b);
+
+        const assign = (indices, limit, semantic) => {
+            const slots = new Map();
+            indices.forEach((index, position) => {
+                if (position < limit) {
+                    slots.set(index, position);
+                }
+            });
+            if (indices.length > limit) {
+                console.warn(
+                    `Primitive has ${indices.length} ${semantic} sets but only ${limit} ` +
+                        `can be used; ignoring ${indices
+                            .slice(limit)
+                            .map((i) => `${semantic}_${i}`)
+                            .join(", ")}`
+                );
+            }
+            return slots;
+        };
+
+        this.texCoordSlots = assign(
+            collect("TEXCOORD"),
+            gltfPrimitive.maxTexCoordSlots,
+            "TEXCOORD"
+        );
+        this.colorSlots = assign(collect("COLOR"), gltfPrimitive.maxColorSlots, "COLOR");
+    }
+
+    /**
+     * Translates a material's `texCoord` set index into the shader slot carrying it.
+     * Returns undefined for an undefined input so callers can leave the uniform unset.
+     */
+    mapTexCoord(texCoord) {
+        if (texCoord === undefined) {
+            return undefined;
+        }
+        const slot = this.texCoordSlots.get(texCoord);
+        if (slot !== undefined) {
+            return slot;
+        }
+        if (!this.warnedMissingTexCoords.has(texCoord)) {
+            this.warnedMissingTexCoords.add(texCoord);
+            console.warn(
+                `Material references TEXCOORD_${texCoord}, which this primitive does not ` +
+                    `provide; falling back to the first available set`
+            );
+        }
+        return 0;
+    }
+
+    /**
+     * Maps a glTF attribute semantic onto the name the shaders use for it. Only the
+     * indexed semantics differ, and only when the file's set indices are not already
+     * contiguous from zero.
+     */
+    shaderAttributeName(semantic) {
+        const match = /^(TEXCOORD|COLOR)_(\d+)$/.exec(semantic);
+        if (match === null) {
+            return semantic;
+        }
+        const slots = match[1] === "TEXCOORD" ? this.texCoordSlots : this.colorSlots;
+        const slot = slots.get(Number(match[2]));
+        return slot === undefined ? semantic : `${match[1]}_${slot}`;
     }
 
     /**

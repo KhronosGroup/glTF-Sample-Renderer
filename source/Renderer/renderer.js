@@ -1837,25 +1837,30 @@ class gltfRenderer {
         // Update material uniforms
         material.updateTextureTransforms(this.shader);
 
+        // glTF 2.1 texture coordinate sets need not start at 0 or be consecutive, so a
+        // material's texCoord index is translated into the shader slot this primitive
+        // actually carries it in.
+        const uvSet = (textureInfo) => primitive.mapTexCoord(textureInfo?.texCoord);
+
         this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
         this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
 
         this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale);
-        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord);
+        this.shader.updateUniform("u_NormalUVSet", uvSet(material.normalTexture));
 
         this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength);
-        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord);
+        this.shader.updateUniform("u_OcclusionUVSet", uvSet(material.occlusionTexture));
 
-        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord);
+        this.shader.updateUniform("u_EmissiveUVSet", uvSet(material.emissiveTexture));
 
-        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord);
+        this.shader.updateUniform("u_BaseColorUVSet", uvSet(material.pbrMetallicRoughness?.baseColorTexture));
         
-        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_MetallicRoughnessUVSet", uvSet(material.pbrMetallicRoughness?.metallicRoughnessTexture));
         this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor);
         this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
         this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
 
-        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
+        this.shader.updateUniform("u_AnisotropyUVSet", uvSet(material.extensions?.KHR_materials_anisotropy?.anisotropyTexture));
 
         const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
         const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
@@ -1864,9 +1869,9 @@ class gltfRenderer {
 
         this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
         this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
-        this.shader.updateUniform("u_ClearcoatUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatTexture?.texCoord);
-        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
-        this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatUVSet", uvSet(material.extensions?.KHR_materials_clearcoat?.clearcoatTexture));
+        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", uvSet(material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture));
+        this.shader.updateUniform("u_ClearcoatNormalUVSet", uvSet(material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture));
         this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
 
         this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
@@ -1878,41 +1883,41 @@ class gltfRenderer {
         this.shader.updateUniform("u_IridescenceFactor", material.extensions?.KHR_materials_iridescence?.iridescenceFactor);
         this.shader.updateUniform("u_IridescenceIor", material.extensions?.KHR_materials_iridescence?.iridescenceIor);
         this.shader.updateUniform("u_IridescenceThicknessMaximum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMaximum);
-        this.shader.updateUniform("u_IridescenceUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceTexture?.texCoord);
-        this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceUVSet", uvSet(material.extensions?.KHR_materials_iridescence?.iridescenceTexture));
+        this.shader.updateUniform("u_IridescenceThicknessUVSet", uvSet(material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture));
         this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
 
         this.shader.updateUniform("u_RetroreflectionFactor", material.extensions?.KHR_materials_retroreflection?.retroreflectionFactor);
-        this.shader.updateUniform("u_RetroreflectionUVSet", material.extensions?.KHR_materials_retroreflection?.retroreflectionTexture?.texCoord);
+        this.shader.updateUniform("u_RetroreflectionUVSet", uvSet(material.extensions?.KHR_materials_retroreflection?.retroreflectionTexture));
 
         this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
         this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
-        this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
-        this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
+        this.shader.updateUniform("u_SheenRoughnessUVSet", uvSet(material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture));
+        this.shader.updateUniform("u_SheenColorUVSet", uvSet(material.extensions?.KHR_materials_sheen?.sheenColorTexture));
         
         this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", jsToGl(material.extensions?.KHR_materials_specular?.specularColorFactor));
         this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
-        this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
-        this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularUVSet", uvSet(material.extensions?.KHR_materials_specular?.specularTexture));
+        this.shader.updateUniform("u_SpecularColorUVSet", uvSet(material.extensions?.KHR_materials_specular?.specularColorTexture));
 
         this.shader.updateUniform("u_TransmissionFactor", material.extensions?.KHR_materials_transmission?.transmissionFactor);
-        this.shader.updateUniform("u_TransmissionUVSet", material.extensions?.KHR_materials_transmission?.transmissionTexture?.texCoord);
+        this.shader.updateUniform("u_TransmissionUVSet", uvSet(material.extensions?.KHR_materials_transmission?.transmissionTexture));
 
         this.shader.updateUniform("u_AttenuationColor", jsToGl(material.extensions?.KHR_materials_volume?.attenuationColor));
         this.shader.updateUniform("u_AttenuationDistance", material.extensions?.KHR_materials_volume?.attenuationDistance);
         this.shader.updateUniform("u_ThicknessFactor", material.extensions?.KHR_materials_volume?.thicknessFactor);
-        this.shader.updateUniform("u_ThicknessUVSet", material.extensions?.KHR_materials_volume?.thicknessTexture?.texCoord);
+        this.shader.updateUniform("u_ThicknessUVSet", uvSet(material.extensions?.KHR_materials_volume?.thicknessTexture));
 
         this.shader.updateUniform("u_DiffuseTransmissionFactor", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionFactor);
         this.shader.updateUniform("u_DiffuseTransmissionColorFactor", jsToGl(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorFactor));
-        this.shader.updateUniform("u_DiffuseTransmissionUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture?.texCoord);
-        this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseTransmissionUVSet", uvSet(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture));
+        this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", uvSet(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture));
 
         this.shader.updateUniform("u_DiffuseFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseFactor));
         this.shader.updateUniform("u_SpecularFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularFactor));
         this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
-        this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
-        this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularGlossinessUVSet", uvSet(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture));
+        this.shader.updateUniform("u_DiffuseUVSet", uvSet(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture));
 
         this.shader.updateUniform("u_MultiScatterColor", jsToGl(material.extensions?.KHR_materials_volume_scatter?.multiscatterColor));
     
