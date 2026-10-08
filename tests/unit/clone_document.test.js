@@ -3,7 +3,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { installWebGlConstants } from "../helpers/webgl_constants.js";
 import {
     cloneDocument,
+    hasInstancedAnimations,
     instantiateExternalAssets,
+    instantiatedDocuments,
     CLONED_ARRAYS,
     MAX_INSTANCES,
     SHARED_ARRAYS
@@ -272,5 +274,55 @@ describe("instantiation", () => {
         parent.initGl({ createTexture: () => ({}) });
 
         expect(touched).toBe(false);
+    });
+});
+
+describe("walking the instantiated tree", () => {
+    function animatedChild() {
+        return documentOf({
+            ...QUAD,
+            animations: [
+                {
+                    samplers: [{ input: 0, output: 0, interpolation: "LINEAR" }],
+                    channels: [{ sampler: 0, target: { node: 0, path: "translation" } }]
+                }
+            ]
+        });
+    }
+
+    function parentOf(child, nodeCount = 1) {
+        const nodes = [];
+        for (let i = 0; i < nodeCount; i++) {
+            nodes.push({ name: `slot${i}`, externalAsset: 0 });
+        }
+        const parent = documentOf({
+            scene: 0,
+            scenes: [{ nodes: nodes.map((_, i) => i) }],
+            nodes,
+            files: [{ uri: "child.gltf", mimeType: "model/gltf+json" }],
+            externalAssets: [{ file: 0 }]
+        });
+        parent.externalAssets[0].document = child;
+        instantiateExternalAssets(parent);
+        return parent;
+    }
+
+    it("yields every instance, including nested ones", () => {
+        const parent = parentOf(parentOf(documentOf(QUAD), 1), 2);
+
+        // Two instances of a child that itself instantiates one grandchild.
+        expect([...instantiatedDocuments(parent)]).toHaveLength(4);
+    });
+
+    it("reports when something below the root animates", () => {
+        expect(hasInstancedAnimations(parentOf(animatedChild(), 1))).toBe(true);
+        expect(hasInstancedAnimations(parentOf(documentOf(QUAD), 1))).toBe(false);
+    });
+
+    it("gives each instance its own animation object", () => {
+        const parent = parentOf(animatedChild(), 2);
+        const [first, second] = [...instantiatedDocuments(parent)];
+
+        expect(first.animations[0]).not.toBe(second.animations[0]);
     });
 });

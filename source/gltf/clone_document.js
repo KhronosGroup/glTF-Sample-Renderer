@@ -164,4 +164,35 @@ function instantiateExternalAssets(gltf, webGlContext, budget = { remaining: MAX
     }
 }
 
-export { cloneDocument, instantiateExternalAssets, CLONED_ARRAYS, MAX_INSTANCES, SHARED_ARRAYS };
+// Every document instantiated below this one, depth first.
+function* instantiatedDocuments(gltf) {
+    for (const node of gltf.nodes) {
+        const instance = node.externalAssetInstance;
+        if (instance === undefined) {
+            continue;
+        }
+        yield instance;
+        yield* instantiatedDocuments(instance);
+    }
+}
+
+// True when any instantiated document declares an animation. Those have no entry in the
+// animation UI, so nothing else tells the viewer it still needs to redraw.
+function hasInstancedAnimations(gltf) {
+    for (const document of instantiatedDocuments(gltf)) {
+        if ((document.animations?.length ?? 0) > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+export {
+    cloneDocument,
+    hasInstancedAnimations,
+    instantiateExternalAssets,
+    instantiatedDocuments,
+    CLONED_ARRAYS,
+    MAX_INSTANCES,
+    SHARED_ARRAYS
+};

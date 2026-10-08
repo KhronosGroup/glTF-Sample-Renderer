@@ -19,7 +19,7 @@ import { loadHDR } from "../libs/hdrpng.js";
 import { ResourceLoaderUtils } from "./loader_utils.js";
 import { FileResolver } from "./file_resolver.js";
 import { ExternalAssetLoader } from "./external_asset_loader.js";
-import { instantiateExternalAssets } from "../gltf/clone_document.js";
+import { instantiateExternalAssets, hasInstancedAnimations } from "../gltf/clone_document.js";
 import { loadThumbnail } from "./thumbnail_loader.js";
 
 /**
@@ -136,6 +136,7 @@ class ResourceLoader {
         // Done once the whole tree is parsed and uploaded, so every instance clones a
         // document whose GPU resources already exist and can simply be shared.
         instantiateExternalAssets(gltf, this.view.context);
+        gltf.hasInstancedAnimations = hasInstancedAnimations(gltf);
 
         return gltf;
     }

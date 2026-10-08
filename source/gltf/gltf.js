@@ -106,6 +106,9 @@ class glTF extends GltfObject {
         // mesh index only mean something together with the document they belong to.
         this.documentId = glTF.nextDocumentId++;
 
+        // Set once the tree is instantiated: something below this document animates.
+        this.hasInstancedAnimations = false;
+
         // Generated tangent cache
         this.tangentCache = new Map();
     }
