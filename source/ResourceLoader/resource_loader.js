@@ -157,13 +157,13 @@ class ResourceLoader {
     /**
      * loadThumbnail reads only the `asset.thumbnail` image of a glTF 2.1 asset, without
      * building a glTF document or touching WebGL. Use it to preview an asset cheaply.
-     * @param {(String | ArrayBuffer | Blob)} gltfFile the .gltf or .glb file
-     * @param {String} [path] used to resolve relative URIs when gltfFile is not a path
+     * @param {(String | ArrayBuffer | File | Array)} gltfFile the .gltf or .glb file
+     * @param {File[]} [externalFiles] files accompanying a dropped asset
      * @returns {Promise<Object|undefined>} `{ url, mimeType }`, or undefined when the
      *   asset declares no thumbnail. The caller owns `url` and must revoke it.
      */
-    async loadThumbnail(gltfFile, path = undefined) {
-        return loadThumbnail(gltfFile, path);
+    async loadThumbnail(gltfFile, externalFiles = undefined) {
+        return loadThumbnail(gltfFile, externalFiles);
     }
 
     /**

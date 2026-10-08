@@ -35,15 +35,6 @@ function decodeDataUri(uri) {
     return { bytes, mimeType };
 }
 
-function readFileAsArrayBuffer(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = (event) => resolve(event.target.result);
-        reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
-        reader.readAsArrayBuffer(file);
-    });
-}
-
 class FileResolver {
     /**
      * @param {object} [options]
@@ -139,8 +130,10 @@ class FileResolver {
     async read(path) {
         const dropped = this.droppedFiles?.find((entry) => entry[0] === path);
         if (dropped !== undefined) {
-            const buffer = await readFileAsArrayBuffer(dropped[1]);
-            return { bytes: new Uint8Array(buffer), mimeType: dropped[1].type || undefined };
+            return {
+                bytes: new Uint8Array(await dropped[1].arrayBuffer()),
+                mimeType: dropped[1].type || undefined
+            };
         }
 
         const response = await fetch(path);

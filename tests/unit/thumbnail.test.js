@@ -93,6 +93,49 @@ describe("loadThumbnail", () => {
         expect(await loadThumbnail(data.buffer)).toBeUndefined();
     });
 
+    // Thumbnails are optional, so a source this cannot read must not raise: whatever is
+    // wrong with it gets reported by the real load instead.
+    it.each([
+        ["undefined", undefined],
+        ["a number", 7],
+        ["an empty array", []],
+        ["an object", {}]
+    ])("yields no thumbnail for %s rather than throwing", async (_label, source) => {
+        await expect(loadThumbnail(source)).resolves.toBeUndefined();
+    });
+
+    it("yields no thumbnail for an unparseable source", async () => {
+        const data = new TextEncoder().encode("not json at all");
+
+        await expect(loadThumbnail(data.buffer)).resolves.toBeUndefined();
+    });
+
+    // The viewer hands dropped files over as [path, File] pairs.
+    it("reads a dropped file given as a [path, File] pair", async () => {
+        const json = JSON.stringify({
+            asset: { version: "2.1", thumbnail: 0 },
+            images: [{ uri: "data:image/png;base64,AAAA", mimeType: "image/png" }]
+        });
+        const file = new Blob([json], { type: "model/gltf+json" });
+
+        const result = await loadThumbnail(["models/suzanne.gltf", file]);
+
+        expect(result.url).toBe("data:image/png;base64,AAAA");
+    });
+
+    it("resolves a thumbnail uri against a dropped sibling file", async () => {
+        const json = JSON.stringify({
+            asset: { version: "2.1", thumbnail: 0 },
+            images: [{ uri: "thumbnail.png", mimeType: "image/png" }]
+        });
+        const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
+        const dropped = [["models/thumbnail.png", new Blob([png])]];
+
+        const result = await loadThumbnail(["models/suzanne.gltf", new Blob([json])], dropped);
+
+        expect(new Uint8Array(await blobs.get(result.url).arrayBuffer())).toEqual(png);
+    });
+
     it("passes a data URI through without creating a blob", async () => {
         const json = {
             asset: { version: "2.1", thumbnail: 0 },
