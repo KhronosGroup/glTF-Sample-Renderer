@@ -34,6 +34,10 @@ const SHARED_ARRAYS = [
 // Guards a diamond of external assets, where each level multiplies the instance count.
 const MAX_INSTANCES = 512;
 
+// Links back up the graph. Following them would clone the whole document from every node
+// that holds one, and they are rebuilt on the clone anyway.
+const BACK_REFERENCES = ["ownerDocument", "parentNode", "scene"];
+
 function cloneValue(value) {
     if (value === null || typeof value !== "object") {
         return value;
@@ -68,7 +72,7 @@ function cloneValue(value) {
 function cloneGltfObject(object) {
     const copy = new object.constructor();
     for (const key of Object.keys(object)) {
-        if (key === "animatedPropertyObjects") {
+        if (key === "animatedPropertyObjects" || BACK_REFERENCES.includes(key)) {
             continue;
         }
         copy[key] = cloneValue(object[key]);

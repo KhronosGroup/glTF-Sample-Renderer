@@ -40,6 +40,7 @@ class gltfNode extends GltfObject {
         this.pickingColor = undefined;
         this.parentNode = undefined;
         this.scene = undefined;
+        this.ownerDocument = undefined;
         this.physicsTransform = undefined;
         this.scaledPhysicsTransform = undefined;
         // The child document instantiated at this node, one clone per referencing node.

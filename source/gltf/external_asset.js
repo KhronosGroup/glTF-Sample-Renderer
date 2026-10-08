@@ -21,6 +21,12 @@ class gltfExternalAsset extends GltfObject {
             console.warn(`External asset "${this.name ?? ""}" is missing its required file index`);
         }
     }
+
+    // The child document uploads itself when it is loaded. The default walk over members
+    // would descend into it and call its initGl with a document where a GL context
+    // belongs, so this stops at the document boundary.
+    // eslint-disable-next-line no-unused-vars
+    initGl(gltf, webGlContext) {}
 }
 
 export { gltfExternalAsset };

@@ -240,6 +240,11 @@ class glTF extends GltfObject {
                 recurseNodes(gltf, child, scene, node);
             }
         }
+        // A node index only resolves against the document that owns it, and a tree of
+        // external assets has several, so every node carries its own.
+        for (const node of this.nodes) {
+            node.ownerDocument = this;
+        }
         for (const scene of this.scenes) {
             for (const nodeIndex of scene.nodes) {
                 recurseNodes(this, nodeIndex, scene, undefined);

@@ -1,6 +1,20 @@
 import { mat4, quat } from "gl-matrix";
 import { GltfObject } from "./gltf_object";
 
+// The roots of the scene an external asset instance contributes at a node, or an empty
+// list when the node instantiates nothing. A child document contributes its default scene.
+function externalAssetRoots(node) {
+    const instance = node.externalAssetInstance;
+    if (instance === undefined) {
+        return [];
+    }
+    const scene = instance.scenes[instance.scene ?? 0];
+    if (scene === undefined) {
+        return [];
+    }
+    return scene.nodes.map((index) => instance.nodes[index]);
+}
+
 class gltfScene extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["nodes"];
@@ -56,6 +70,19 @@ class gltfScene extends GltfObject {
                     node.dirtyScale
                 );
             }
+
+            // An instantiated external asset hangs below the node, so its roots continue
+            // the transform chain from there.
+            for (const root of externalAssetRoots(node)) {
+                applyTransform(
+                    node.externalAssetInstance,
+                    root,
+                    node.worldTransform,
+                    node.worldQuaternion,
+                    nodeDirty,
+                    node.dirtyScale
+                );
+            }
         }
         for (const node of this.nodes) {
             applyTransform(gltf, gltf.nodes[node], rootTransform, quat.create(), false, false);
@@ -76,6 +103,10 @@ class gltfScene extends GltfObject {
 
         function gatherNode(nodeIndex, visible, selectable, hoverable) {
             const node = gltf.nodes[nodeIndex];
+            visitNode(node, visible, selectable, hoverable);
+        }
+
+        function visitNode(node, visible, selectable, hoverable) {
             if (!enabledExtensions.KHR_node_visibility || (node.visible !== false && visible)) {
                 nodes.push(node);
             } else {
@@ -100,7 +131,12 @@ class gltfScene extends GltfObject {
 
             // recurse into children
             for (const child of node.children) {
-                gatherNode(child, visible, selectable, hoverable);
+                visitNode(node.ownerDocument.nodes[child], visible, selectable, hoverable);
+            }
+
+            // An instantiated external asset inherits the state of the node holding it.
+            for (const root of externalAssetRoots(node)) {
+                visitNode(root, visible, selectable, hoverable);
             }
         }
 

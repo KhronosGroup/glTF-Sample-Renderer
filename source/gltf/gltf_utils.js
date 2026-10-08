@@ -11,16 +11,29 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
 
     const scene = gltf.scenes[sceneIndex];
 
-    let nodeIndices = scene.nodes.slice();
-    while (nodeIndices.length > 0) {
-        const node = gltf.nodes[nodeIndices.pop()];
-        nodeIndices = nodeIndices.concat(node.children);
+    // Nodes are visited as objects rather than indices, because an instantiated external
+    // asset brings nodes belonging to a different document and an index would resolve
+    // against the wrong one. Without this the camera frames an empty box and the content
+    // of every external asset sits off screen.
+    let pending = scene.nodes.map((index) => gltf.nodes[index]);
+    while (pending.length > 0) {
+        const node = pending.pop();
+        pending = pending.concat(node.children.map((index) => node.ownerDocument.nodes[index]));
+
+        const instance = node.externalAssetInstance;
+        if (instance !== undefined) {
+            const instanceScene = instance.scenes[instance.scene ?? 0];
+            for (const index of instanceScene?.nodes ?? []) {
+                pending.push(instance.nodes[index]);
+            }
+        }
 
         if (node.mesh === undefined) {
             continue;
         }
 
-        const mesh = gltf.meshes[node.mesh];
+        const owner = node.ownerDocument ?? gltf;
+        const mesh = owner.meshes[node.mesh];
         if (mesh.primitives === undefined) {
             continue;
         }
@@ -31,7 +44,7 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
                 continue;
             }
 
-            const accessor = gltf.accessors[attribute.accessor];
+            const accessor = owner.accessors[attribute.accessor];
             const assetMin = vec3.create();
             const assetMax = vec3.create();
             getExtentsFromAccessor(accessor, node.getRenderedWorldTransform(), assetMin, assetMax);

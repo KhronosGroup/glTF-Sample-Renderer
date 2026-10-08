@@ -625,28 +625,22 @@ class gltfRenderer {
 
     prepareScene(state, scene) {
         const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions);
+
+        // A tree of external assets has one document per instance, and an index only
+        // resolves against the document that owns the node holding it.
+        const documentOf = (node) => node.ownerDocument ?? state.gltf;
+        const materialOf = ({ node, primitive }) => documentOf(node).materials[primitive.material];
+        const primitivesOf = (node) =>
+            documentOf(node).meshes[node.mesh].primitives.map((primitive, index) => {
+                return { node: node, primitive: primitive, primitiveIndex: index };
+            });
+
         this.selectionDrawables = newNodes.selectableNodes
             .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            );
+            .reduce((accumulator, node) => accumulator.concat(primitivesOf(node)), []);
         this.hoverDrawables = newNodes.hoverableNodes
             .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            );
+            .reduce((accumulator, node) => accumulator.concat(primitivesOf(node)), []);
 
         // check if nodes have changed since previous frame to avoid unnecessary updates
         if (
@@ -661,32 +655,23 @@ class gltfRenderer {
         // and nodes for the transform
         const drawables = this.nodes
             .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            )
+            .reduce((accumulator, node) => accumulator.concat(primitivesOf(node)), [])
             .filter(({ primitive }) => primitive.material !== undefined);
         this.drawables = drawables;
 
         // opaque drawables don't need sorting
         this.opaqueDrawables = drawables.filter(
-            ({ primitive }) =>
-                state.gltf.materials[primitive.material].alphaMode !== "BLEND" &&
-                (state.gltf.materials[primitive.material].extensions === undefined ||
-                    state.gltf.materials[primitive.material].extensions
-                        .KHR_materials_transmission === undefined) &&
-                primitive.extensions?.KHR_gaussian_splatting === undefined
+            (drawable) =>
+                materialOf(drawable).alphaMode !== "BLEND" &&
+                (materialOf(drawable).extensions === undefined ||
+                    materialOf(drawable).extensions.KHR_materials_transmission === undefined) &&
+                drawable.primitive.extensions?.KHR_gaussian_splatting === undefined
         );
 
         let counter = 0;
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
             const winding = Math.sign(mat4.determinant(a.node.getRenderedWorldTransform()));
-            const id = `${a.node.mesh}_${winding}_${a.primitiveIndex}`;
+            const id = `${documentOf(a.node).documentId}_${a.node.mesh}_${winding}_${a.primitiveIndex}`;
             // Disable instancing for skins, morph targets and if the GPU attributes limit is reached.
             // Additionally we define a new id for each instance of the EXT_mesh_gpu_instancing extension.
             if (
@@ -711,30 +696,27 @@ class gltfRenderer {
 
         // transparent drawables need sorting before they can be drawn
         this.transparentDrawables = drawables.filter(
-            ({ primitive }) =>
-                (state.gltf.materials[primitive.material].alphaMode === "BLEND" &&
-                    (state.gltf.materials[primitive.material].extensions === undefined ||
-                        state.gltf.materials[primitive.material].extensions
-                            .KHR_materials_transmission === undefined)) ||
-                primitive.extensions?.KHR_gaussian_splatting !== undefined
+            (drawable) =>
+                (materialOf(drawable).alphaMode === "BLEND" &&
+                    (materialOf(drawable).extensions === undefined ||
+                        materialOf(drawable).extensions.KHR_materials_transmission ===
+                            undefined)) ||
+                drawable.primitive.extensions?.KHR_gaussian_splatting !== undefined
         );
 
         this.transmissionDrawables = drawables.filter(
-            ({ primitive }) =>
-                state.gltf.materials[primitive.material].extensions !== undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_transmission !==
-                    undefined &&
-                primitive.extensions?.KHR_gaussian_splatting === undefined
+            (drawable) =>
+                materialOf(drawable).extensions !== undefined &&
+                materialOf(drawable).extensions.KHR_materials_transmission !== undefined &&
+                drawable.primitive.extensions?.KHR_gaussian_splatting === undefined
         );
 
         this.scatterDrawables = drawables.filter(
-            ({ primitive }) =>
-                state.gltf.materials[primitive.material].extensions !== undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_volume_scatter !==
-                    undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_volume !==
-                    undefined &&
-                primitive.extensions?.KHR_gaussian_splatting === undefined
+            (drawable) =>
+                materialOf(drawable).extensions !== undefined &&
+                materialOf(drawable).extensions.KHR_materials_volume_scatter !== undefined &&
+                materialOf(drawable).extensions.KHR_materials_volume !== undefined &&
+                drawable.primitive.extensions?.KHR_gaussian_splatting === undefined
         );
     }
 
@@ -799,8 +781,9 @@ class gltfRenderer {
 
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
 
-        // Update skins.
-        for (const node of state.gltf.nodes) {
+        // Update skins. this.nodes spans the whole tree of external assets, where
+        // state.gltf would only be the root document.
+        for (const node of this.nodes) {
             if (node.mesh !== undefined && node.skin !== undefined) {
                 this.updateSkin(state, node);
             }
@@ -1292,7 +1275,7 @@ class gltfRenderer {
 
             // Search for node with matching picking ID
             let found = false;
-            for (const node of state.gltf.nodes) {
+            for (const node of this.nodes) {
                 if (node.pickingColor === pixels[0]) {
                     found = true;
                     pickingResult.node = node;
@@ -1379,7 +1362,7 @@ class gltfRenderer {
             };
 
             // Search for node with matching picking ID
-            for (const node of state.gltf.nodes) {
+            for (const node of this.nodes) {
                 if (node.pickingColor === pixels[0]) {
                     pickingResult.node = node;
                     break;
@@ -1455,7 +1438,7 @@ class gltfRenderer {
         gl.enableVertexAttribArray(location);
 
         for (const item of items) {
-            const buffers = this.debugShapeBuffers(state.gltf, item.shape);
+            const buffers = this.debugShapeBuffers(item.gltf, item.shape);
             if (buffers === undefined) {
                 continue;
             }
@@ -1492,13 +1475,12 @@ class gltfRenderer {
     // Pairs each shape reference in the scene with the world transform to draw it at.
     collectDebugShapes(state, scene, drawBoundingVolumes) {
         const parameters = state.renderingParameters.debugShapes;
-        const gltf = state.gltf;
         const items = [];
-        if (gltf.shapes === undefined || gltf.shapes.length === 0 || this.nodes === undefined) {
+        if (this.nodes === undefined) {
             return items;
         }
 
-        const depths = this.nodeHierarchyDepths(gltf, scene);
+        const depths = this.nodeHierarchyDepths(state.gltf, scene);
         const colorMode =
             {
                 [GltfState.DebugShapeColor.TYPE]: "type",
@@ -1506,6 +1488,12 @@ class gltfRenderer {
             }[parameters.colorMode] ?? "uniform";
 
         for (const node of this.nodes) {
+            // A shape index belongs to the document declaring it, so an external asset
+            // brings its own shapes along with its nodes.
+            const gltf = node.ownerDocument ?? state.gltf;
+            if (gltf.shapes === undefined || gltf.shapes.length === 0) {
+                continue;
+            }
             const depth = depths.get(node.gltfObjectIndex) ?? 0;
             const add = (shapeIndex, transform, isBoundingVolume) => {
                 const shape = gltf.shapes[shapeIndex];
@@ -1517,6 +1505,7 @@ class gltfRenderer {
                     parameters.highlightNonEnclosing === false ||
                     this.boundingVolumeEncloses(gltf, node, shape, transform);
                 items.push({
+                    gltf,
                     shape,
                     transform,
                     color: encloses ? shapeColor(colorMode, shape, depth) : WARNING_COLOR
@@ -1640,6 +1629,7 @@ class gltfRenderer {
 
     drawSplat(state, primitive, node, projectionMatrix, viewMatrix) {
         if (primitive.skip) return;
+        const gltf = node?.ownerDocument ?? state.gltf;
         // Request an async worker sort each frame (no-op if the previous sort
         // has not yet finished or no worker is available).
         const modelViewMatrix = mat4.multiply(mat4.create(), viewMatrix, node.worldTransform);
@@ -1741,19 +1731,19 @@ class gltfRenderer {
         let textureIndex = 0;
 
         let location = this.shader.getUniformLocation(primitive.positionTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.positionTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.positionTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.rotationTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.rotationTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.rotationTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.scaleTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.scaleTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.scaleTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.opacityTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.opacityTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.opacityTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.shArray.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.shArray, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.shArray, textureIndex++);
 
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, this.splatVBO);
         location = this.shader.getAttributeLocation("a_position");
@@ -1887,10 +1877,14 @@ class gltfRenderer {
     {
         if (primitive.skip) return;
 
+        // Every index below belongs to the document that owns this node, which is not the
+        // root document once external assets are instantiated.
+        const gltf = node?.ownerDocument ?? state.gltf;
+
         let material;
-        if(primitive.mappings !== undefined && state.variant != "default" && state.gltf.extensions?.KHR_materials_variants.variants !== undefined)
+        if(primitive.mappings !== undefined && state.variant != "default" && gltf.extensions?.KHR_materials_variants.variants !== undefined)
         {
-            const names = state.gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
+            const names = gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
             const idx = names.indexOf(state.variant);
             let materialIdx = primitive.material;
             primitive.mappings.forEach(element => {
@@ -1899,11 +1893,11 @@ class gltfRenderer {
                     materialIdx = element.material;
                 }
             });
-            material = state.gltf.materials[materialIdx];
+            material = gltf.materials[materialIdx];
         }
         else
         {
-            material = state.gltf.materials[primitive.material];
+            material = gltf.materials[primitive.material];
         }
 
         //select shader permutation, compile and link program.
@@ -1912,7 +1906,7 @@ class gltfRenderer {
         this.pushVertParameterDefines(
             vertDefines,
             state.renderingParameters,
-            state.gltf,
+            gltf,
             node,
             primitive,
             state.renderingParameters.debugOutput
@@ -2038,7 +2032,7 @@ class gltfRenderer {
         const drawIndexed = primitive.indices !== undefined;
         if (drawIndexed)
         {
-            if (!this.webGl.setIndices(state.gltf, primitive.indices))
+            if (!this.webGl.setIndices(gltf, primitive.indices))
             {
                 return;
             }
@@ -2050,7 +2044,7 @@ class gltfRenderer {
             if (renderpassConfiguration.picking && (attribute.attribute !== "POSITION" || attribute.attribute.startsWith("JOINTS") || attribute.attribute.startsWith("WEIGHTS"))) {
                 continue;
             }
-            const gltfAccessor = state.gltf.accessors[attribute.accessor];
+            const gltfAccessor = gltf.accessors[attribute.accessor];
             vertexCount = gltfAccessor.count;
 
             const location = this.shader.getAttributeLocation(attribute.name);
@@ -2058,7 +2052,7 @@ class gltfRenderer {
             {
                 continue; // only skip this attribute
             }
-            if (!this.webGl.enableAttribute(state.gltf, location, gltfAccessor))
+            if (!this.webGl.enableAttribute(gltf, location, gltfAccessor))
             {
                 return; // skip this primitive
             }
@@ -2186,7 +2180,7 @@ class gltfRenderer {
         {
             let info = material.textures[textureIndex];
             const location = this.shader.getUniformLocation(info.samplerName);
-            if (!this.webGl.setTexture(location, state.gltf, info, textureIndex))
+            if (!this.webGl.setTexture(location, gltf, info, textureIndex))
             {
                 continue;
             }
@@ -2197,16 +2191,16 @@ class gltfRenderer {
         if (primitive.morphTargetTextureInfo !== undefined) 
         {
             const location = this.shader.getUniformLocation(primitive.morphTargetTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
+            this.webGl.setTexture(location, gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
             textureIndex++;
         }
 
         // set the joints texture
         if (state.renderingParameters.skinning && node.skin !== undefined && primitive.hasWeights && primitive.hasJoints) 
         {
-            const skin = state.gltf.skins[node.skin];
+            const skin = gltf.skins[node.skin];
             const location = this.shader.getUniformLocation(skin.jointTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
+            this.webGl.setTexture(location, gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
             textureIndex++;
         }
 
@@ -2259,7 +2253,7 @@ class gltfRenderer {
 	    
         if (drawIndexed)
         {
-            const indexAccessor = state.gltf.accessors[primitive.indices];
+            const indexAccessor = gltf.accessors[primitive.indices];
             if (instanceOffset !== undefined) {
                 this.webGl.context.drawElementsInstanced(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0, instanceOffset.length);
             } else {
@@ -2309,7 +2303,9 @@ class gltfRenderer {
             if (lightIndex === undefined) {
                 continue;
             }
-            const light = gltf.extensions?.KHR_lights_punctual?.lights[lightIndex];
+            // A light inside an external asset is declared by that asset, not the root.
+            const owner = node.ownerDocument ?? gltf;
+            const light = owner.extensions?.KHR_lights_punctual?.lights[lightIndex];
             nodeLights.push([node, light]);
         }
 
@@ -2317,9 +2313,9 @@ class gltfRenderer {
     }
 
     updateSkin(state, node) {
-        if (state.renderingParameters.skinning && state.gltf.skins !== undefined) {
-            const skin = state.gltf.skins[node.skin];
-            skin.computeJoints(state.gltf, this.webGl.context);
+        if (state.renderingParameters.skinning && node.ownerDocument.skins !== undefined) {
+            const skin = node.ownerDocument.skins[node.skin];
+            skin.computeJoints(node.ownerDocument, this.webGl.context);
         }
     }
 
@@ -2358,7 +2354,7 @@ class gltfRenderer {
             node.mesh !== undefined &&
             primitive.targets.length > 0
         ) {
-            const weights = node.getWeights(state.gltf);
+            const weights = node.getWeights(node.ownerDocument ?? state.gltf);
             if (weights !== undefined && weights.length > 0) {
                 this.shader.updateUniformArray("u_morphWeights", weights);
             }

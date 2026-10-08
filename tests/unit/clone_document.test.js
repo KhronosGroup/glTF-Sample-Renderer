@@ -257,4 +257,20 @@ describe("instantiation", () => {
 
         expect(plain.nodes.every((node) => node.externalAssetInstance === undefined)).toBe(true);
     });
+
+    it("does not walk into a child document when uploading the parent", () => {
+        // The default member walk would reach the child through externalAssets and call
+        // its initGl with a document where a GL context belongs, which blows up deep
+        // inside primitive upload rather than anywhere near the cause.
+        const child = documentOf(QUAD);
+        const parent = parentOf(child, 1);
+        let touched = false;
+        child.initGl = () => {
+            touched = true;
+        };
+
+        parent.initGl({ createTexture: () => ({}) });
+
+        expect(touched).toBe(false);
+    });
 });
