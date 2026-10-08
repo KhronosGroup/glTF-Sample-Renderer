@@ -49,6 +49,46 @@ function wireframeRingHeights(geometry) {
     return heights;
 }
 
+// The radial profile of the surface, as [height, radius] sorted by height.
+function radialProfile(geometry) {
+    const byHeight = new Map();
+    for (let i = 0; i < geometry.positions.length; i += 3) {
+        const y = Number(geometry.positions[i + 1].toFixed(5));
+        const r = Math.hypot(geometry.positions[i], geometry.positions[i + 2]);
+        byHeight.set(y, Math.max(byHeight.get(y) ?? 0, r));
+    }
+    return [...byHeight.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+// A capsule, sphere, cylinder and cone are all convex, so the radius must never dip below
+// the chord between its neighbours. A crease where a cap meets the lateral band shows up
+// here, which is what a wrong tangent angle produces.
+function profileConcavityError(geometry) {
+    const profile = radialProfile(geometry);
+    let worst = 0;
+    for (let i = 1; i + 1 < profile.length; i++) {
+        const [ya, ra] = profile[i - 1];
+        const [yb, rb] = profile[i];
+        const [yc, rc] = profile[i + 1];
+        const chord = ra + ((rc - ra) * (yb - ya)) / (yc - ya);
+        worst = Math.max(worst, chord - rb);
+    }
+    return worst;
+}
+
+// The surface radius at a given height, interpolated along the profile.
+function radiusAt(geometry, y) {
+    const profile = radialProfile(geometry);
+    for (let i = 1; i < profile.length; i++) {
+        const [ya, ra] = profile[i - 1];
+        const [yb, rb] = profile[i];
+        if (y >= ya && y <= yb) {
+            return yb === ya ? Math.max(ra, rb) : ra + ((rb - ra) * (y - ya)) / (yb - ya);
+        }
+    }
+    return 0;
+}
+
 function shapeOf(json) {
     const shape = new gltfShape();
     shape.fromJson(json);
@@ -133,13 +173,57 @@ describe("capsule geometry", () => {
     });
 
     it("joins unequal caps along their common tangent", () => {
-        // A tapered capsule is not a cylinder with different end caps: the lateral surface
-        // leaves each sphere at the tangent angle, so the widest point is below the radius.
-        const geometry = capsuleGeometry(2, 1, 0.5);
-        const phi = Math.asin((0.5 - 1) / 2);
+        // Tangency requires height*sin(phi) + (top - bottom) = 0. Deriving phi here rather
+        // than copying the implementation is the point: the sign is easy to get backwards
+        // and the result still looks like a capsule.
+        const [height, bottom, top] = [2, 1, 0.5];
+        const geometry = capsuleGeometry(height, bottom, top);
+        const phi = Math.asin((bottom - top) / height);
+        const heights = wireframeRingHeights(geometry);
 
-        expect(maxRadius(geometry)).toBeCloseTo(Math.cos(phi), 4);
-        expect(maxRadius(geometry)).toBeLessThan(1);
+        expect(heights).toContain(Number((-height / 2 + bottom * Math.sin(phi)).toFixed(4)));
+        expect(heights).toContain(Number((height / 2 + top * Math.sin(phi)).toFixed(4)));
+    });
+
+    it("passes outside the smaller sphere's equator", () => {
+        // The reported symptom of the opposite sign: the top sphere starts shrinking
+        // before the lateral band reaches it. Correctly, the band clears that equator, so
+        // at that height the surface is strictly wider than the sphere.
+        const geometry = capsuleGeometry(2, 1, 0.5);
+
+        expect(radiusAt(geometry, 1)).toBeGreaterThan(0.5 + 1e-3);
+    });
+
+    it("touches the larger sphere's equator, which is its widest circle", () => {
+        const geometry = capsuleGeometry(2, 1, 0.5);
+
+        expect(radiusAt(geometry, -1)).toBeCloseTo(1, 6);
+        expect(maxRadius(geometry)).toBeCloseTo(1, 6);
+    });
+
+    it.each([
+        ["narrowing", [2, 1, 0.5]],
+        ["widening", [2, 0.5, 1]],
+        ["equal", [2, 1, 1]],
+        ["cone-like", [2, 1, 0.01]]
+    ])("stays convex when %s", (_name, [height, bottom, top]) => {
+        expect(profileConcavityError(capsuleGeometry(height, bottom, top))).toBeLessThan(1e-6);
+    });
+
+    it("keeps every vertex on one of its two spheres", () => {
+        const geometry = capsuleGeometry(2, 1, 0.5);
+
+        for (let i = 0; i < geometry.positions.length; i += 3) {
+            const [x, y, z] = [
+                geometry.positions[i],
+                geometry.positions[i + 1],
+                geometry.positions[i + 2]
+            ];
+            const onBottom = Math.abs(Math.hypot(x, y + 1, z) - 1) < 1e-6;
+            const onTop = Math.abs(Math.hypot(x, y - 1, z) - 0.5) < 1e-6;
+
+            expect(onBottom || onTop).toBe(true);
+        }
     });
 
     it("survives a sphere that swallows the other", () => {
@@ -151,7 +235,7 @@ describe("capsule geometry", () => {
         // These two rings are the widest point of each cap and bound the lateral band.
         // Without them the meridians appear to run past the silhouette into nothing.
         const geometry = capsuleGeometry(2, 1, 0.5);
-        const phi = Math.asin((0.5 - 1) / 2);
+        const phi = Math.asin((1 - 0.5) / 2);
         const heights = wireframeRingHeights(geometry);
 
         expect(heights).toContain(Number((-1 + Math.sin(phi)).toFixed(4)));

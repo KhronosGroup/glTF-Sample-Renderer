@@ -115,21 +115,39 @@ function capsuleGeometry(height, radiusBottom, radiusTop) {
     const y1 = height / 2;
 
     // The lateral surface is the common tangent of the two cap spheres, leaving them at
-    // angle phi from the equator. Equal radii give a cylinder, a zero top radius a cone.
+    // angle phi from the equator. Tangency requires height*sin(phi) + (top - bottom) = 0,
+    // so a capsule that narrows upward meets both spheres above their equators.
     // Clamping covers the degenerate case of one sphere swallowing the other.
-    const phi = height > 0 ? Math.asin(clamp((radiusTop - radiusBottom) / height, -1, 1)) : 0;
+    const phi = height > 0 ? Math.asin(clamp((radiusBottom - radiusTop) / height, -1, 1)) : 0;
 
     const profile = [];
-    for (let i = 0; i <= RINGS; i++) {
-        const t = -Math.PI / 2 + (phi + Math.PI / 2) * (i / RINGS);
-        profile.push([y0 + radiusBottom * Math.sin(t), radiusBottom * Math.cos(t)]);
-    }
-    for (let i = 0; i <= RINGS; i++) {
-        const t = phi + (Math.PI / 2 - phi) * (i / RINGS);
-        profile.push([y1 + radiusTop * Math.sin(t), radiusTop * Math.cos(t)]);
-    }
-    // The two tangent rings bound the lateral band and are the widest points of the caps.
-    return revolve(profile, [RINGS, RINGS + 1]);
+    const features = [];
+    const arc = (centre, radius, from, to) => {
+        const angles = [];
+        for (let i = 0; i <= RINGS; i++) {
+            angles.push(from + (to - from) * (i / RINGS));
+        }
+        // A cap reaching past its own equator is widest there, so that circle goes into
+        // the profile exactly instead of wherever the sampling happens to land.
+        if (from < 0 && to > 0) {
+            angles.push(0);
+            angles.sort((a, b) => a - b);
+        }
+        for (const t of angles) {
+            profile.push([centre + radius * Math.sin(t), radius * Math.cos(t)]);
+            if (t === 0) {
+                features.push(profile.length - 1);
+            }
+        }
+    };
+
+    arc(y0, radiusBottom, -Math.PI / 2, phi);
+    const bottomTangent = profile.length - 1;
+    arc(y1, radiusTop, phi, Math.PI / 2);
+
+    // The two tangent rings bound the lateral band.
+    features.push(bottomTangent, bottomTangent + 1);
+    return revolve(profile, features);
 }
 
 function boxGeometry(size) {
