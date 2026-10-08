@@ -27,6 +27,7 @@ class gltfNode extends GltfObject {
         this.skin = undefined;
         this.weights = undefined;
         this.boundingVolume = undefined;
+        this.externalAsset = undefined;
 
         // non gltf
         this.worldTransform = mat4.create();
@@ -41,6 +42,8 @@ class gltfNode extends GltfObject {
         this.scene = undefined;
         this.physicsTransform = undefined;
         this.scaledPhysicsTransform = undefined;
+        // The child document instantiated at this node, one clone per referencing node.
+        this.externalAssetInstance = undefined;
 
         // These are set if this or any parent transform changed
         this.dirtyTransform = true;
@@ -118,6 +121,9 @@ class gltfNode extends GltfObject {
         if (jsonNode.boundingVolume !== undefined) {
             this.boundingVolume = new gltfBoundingVolume();
             this.boundingVolume.fromJson(jsonNode.boundingVolume);
+        }
+        if (jsonNode.camera !== undefined && jsonNode.externalAsset !== undefined) {
+            console.warn(`Node "${this.name ?? ""}" declares both a camera and an external asset`);
         }
         if (jsonNode.extensions?.KHR_node_visibility !== undefined) {
             this.extensions.KHR_node_visibility = new KHR_node_visibility();

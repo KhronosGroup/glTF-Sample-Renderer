@@ -78,6 +78,7 @@ class glTF extends GltfObject {
         "scenes",
         "skins"
     ];
+    static nextDocumentId = 1;
     constructor(file) {
         super();
         this.asset = undefined;
@@ -100,6 +101,10 @@ class glTF extends GltfObject {
         this.files = [];
         this.externalAssets = [];
         this.path = file;
+
+        // Distinguishes documents in a tree of external assets, where indices such as a
+        // mesh index only mean something together with the document they belong to.
+        this.documentId = glTF.nextDocumentId++;
 
         // Generated tangent cache
         this.tangentCache = new Map();
