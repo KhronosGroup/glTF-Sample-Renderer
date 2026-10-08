@@ -19,6 +19,8 @@ import shaderFunctions from "./shaders/functions.glsl";
 import animationShader from "./shaders/animation.glsl";
 import cubemapVertShader from "./shaders/cubemap.vert";
 import cubemapFragShader from "./shaders/cubemap.frag";
+import debugShapeVertShader from "./shaders/debug_shape.vert";
+import debugShapeFragShader from "./shaders/debug_shape.frag";
 import scatterShader from "./shaders/scatter.frag";
 import simpleFragShader from "./shaders/simple.frag";
 import specularGlossinesShader from "./shaders/specular_glossiness.frag";
@@ -30,6 +32,15 @@ import splatCompositeFragShader from "./shaders/splat_composite.frag";
 import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
+import {
+    boundsContain,
+    boundsCorners,
+    shapeColor,
+    shapeGeometry,
+    shapeGeometryKey,
+    transformedBounds,
+    WARNING_COLOR
+} from "./debug_geometry.js";
 
 class gltfRenderer {
     constructor(context) {
@@ -75,6 +86,8 @@ class gltfRenderer {
         shaderSources.set("scatter.frag", scatterShader);
         shaderSources.set("cubemap.vert", cubemapVertShader);
         shaderSources.set("cubemap.frag", cubemapFragShader);
+        shaderSources.set("debug_shape.vert", debugShapeVertShader);
+        shaderSources.set("debug_shape.frag", debugShapeFragShader);
         shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
         shaderSources.set("simple.frag", simpleFragShader);
         shaderSources.set("splat.vert", splatVertexShader);
@@ -1222,6 +1235,15 @@ class gltfRenderer {
             }
         }
 
+        // Drawn last so shapes overlay the finished image, but still depth-tested against
+        // opaque geometry unless the x-ray mode asks otherwise.
+        this.drawDebugShapes(state, scene, [
+            aspectOffsetX,
+            aspectOffsetY,
+            aspectWidth,
+            aspectHeight
+        ]);
+
         // Handle selection
         if (state.triggerSelection) {
             this.webGl.context.bindFramebuffer(
@@ -1376,6 +1398,244 @@ class gltfRenderer {
         this.tonemapPass(state, aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
 
         state.needsRedraw = this.needsRedraw;
+    }
+
+    // Draws glTF 2.1 shapes as an overlay: node bounding volumes, and optionally every
+    // shape a node references through an extension. Deliberately independent of the
+    // physics engines, so shapes are visible whether or not PhysX is loaded.
+    drawDebugShapes(state, scene, viewport) {
+        const parameters = state.renderingParameters.debugShapes;
+        const drawBoundingVolumes =
+            parameters?.boundingVolumes === GltfState.BoundingVolumeMode.ALL;
+        if (parameters === undefined || (!drawBoundingVolumes && !parameters.allShapes)) {
+            return;
+        }
+
+        const items = this.collectDebugShapes(state, scene, drawBoundingVolumes);
+        if (items.length === 0) {
+            return;
+        }
+
+        const fragmentHash = this.shaderCache.selectShader("debug_shape.frag", []);
+        const vertexHash = this.shaderCache.selectShader("debug_shape.vert", []);
+        const shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+        if (shader === undefined) {
+            return;
+        }
+        const gl = this.webGl.context;
+        const location = shader.getAttributeLocation("a_position");
+        if (location === null) {
+            return;
+        }
+
+        // The preceding pass may have left a splat framebuffer bound.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.mainFramebuffer);
+        gl.viewport(...viewport);
+
+        this.shader = shader;
+        gl.useProgram(shader.program);
+        shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
+
+        const style = parameters.style ?? GltfState.DebugShapeStyle.WIREFRAME;
+        const drawSolid = style !== GltfState.DebugShapeStyle.WIREFRAME;
+        const drawLines = style !== GltfState.DebugShapeStyle.SOLID;
+
+        if (parameters.depthTest === false) {
+            gl.disable(gl.DEPTH_TEST);
+        } else {
+            gl.enable(gl.DEPTH_TEST);
+        }
+        // Debug shapes never occlude each other or the scene, so depth stays read-only and
+        // back faces are kept: the far side of a wireframe box is part of the information.
+        gl.depthMask(false);
+        gl.disable(gl.CULL_FACE);
+        gl.enable(gl.BLEND);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.enableVertexAttribArray(location);
+
+        for (const item of items) {
+            const buffers = this.debugShapeBuffers(state.gltf, item.shape);
+            if (buffers === undefined) {
+                continue;
+            }
+            shader.updateUniform("u_ModelMatrix", item.transform);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positions);
+            gl.vertexAttribPointer(location, 3, gl.FLOAT, false, 0, 0);
+
+            if (drawSolid && buffers.triCount > 0) {
+                shader.updateUniform(
+                    "u_Color",
+                    vec4.fromValues(item.color[0], item.color[1], item.color[2], 0.25)
+                );
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.triIndices);
+                gl.drawElements(gl.TRIANGLES, buffers.triCount, buffers.indexType, 0);
+            }
+            if (drawLines && buffers.lineCount > 0) {
+                shader.updateUniform(
+                    "u_Color",
+                    vec4.fromValues(item.color[0], item.color[1], item.color[2], 1.0)
+                );
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.lineIndices);
+                gl.drawElements(gl.LINES, buffers.lineCount, buffers.indexType, 0);
+            }
+        }
+
+        gl.disableVertexAttribArray(location);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        gl.disable(gl.BLEND);
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+    }
+
+    // Pairs each shape reference in the scene with the world transform to draw it at.
+    collectDebugShapes(state, scene, drawBoundingVolumes) {
+        const parameters = state.renderingParameters.debugShapes;
+        const gltf = state.gltf;
+        const items = [];
+        if (gltf.shapes === undefined || gltf.shapes.length === 0 || this.nodes === undefined) {
+            return items;
+        }
+
+        const depths = this.nodeHierarchyDepths(gltf, scene);
+        const colorMode =
+            {
+                [GltfState.DebugShapeColor.TYPE]: "type",
+                [GltfState.DebugShapeColor.DEPTH]: "depth"
+            }[parameters.colorMode] ?? "uniform";
+
+        for (const node of this.nodes) {
+            const depth = depths.get(node.gltfObjectIndex) ?? 0;
+            const add = (shapeIndex, transform, isBoundingVolume) => {
+                const shape = gltf.shapes[shapeIndex];
+                if (shape === undefined) {
+                    return;
+                }
+                const encloses =
+                    !isBoundingVolume ||
+                    parameters.highlightNonEnclosing === false ||
+                    this.boundingVolumeEncloses(gltf, node, shape, transform);
+                items.push({
+                    shape,
+                    transform,
+                    color: encloses ? shapeColor(colorMode, shape, depth) : WARNING_COLOR
+                });
+            };
+
+            if (drawBoundingVolumes && node.boundingVolume !== undefined) {
+                add(node.boundingVolume.shape, node.boundingVolume.getWorldTransform(node), true);
+            }
+            if (parameters.allShapes) {
+                const physics = node.extensions?.KHR_physics_rigid_bodies;
+                for (const geometry of [physics?.collider?.geometry, physics?.trigger?.geometry]) {
+                    if (geometry?.shape !== undefined) {
+                        add(geometry.shape, node.worldTransform, false);
+                    }
+                }
+            }
+        }
+        return items;
+    }
+
+    nodeHierarchyDepths(gltf, scene) {
+        const depths = new Map();
+        const visit = (index, depth) => {
+            if (depths.has(index)) {
+                return;
+            }
+            depths.set(index, depth);
+            for (const child of gltf.nodes[index]?.children ?? []) {
+                visit(child, depth + 1);
+            }
+        };
+        for (const root of scene.nodes ?? []) {
+            visit(root, 0);
+        }
+        return depths;
+    }
+
+    // Whether a bounding volume actually bounds its node's mesh. Compared as world-space
+    // AABBs, so it is conservative: a volume flagged here is genuinely too small, while a
+    // tight volume on a rotated mesh may pass when it should not.
+    boundingVolumeEncloses(gltf, node, shape, transform) {
+        if (node.mesh === undefined) {
+            return true;
+        }
+        const buffers = this.debugShapeBuffers(gltf, shape);
+        if (buffers?.localBounds === undefined) {
+            return true;
+        }
+
+        const meshCorners = [];
+        for (const primitive of gltf.meshes[node.mesh]?.primitives ?? []) {
+            const accessor = gltf.accessors[primitive.attributes?.POSITION];
+            if (accessor?.min === undefined || accessor.max === undefined) {
+                continue;
+            }
+            meshCorners.push(...boundsCorners({ min: accessor.min, max: accessor.max }));
+        }
+        if (meshCorners.length === 0) {
+            return true;
+        }
+
+        return boundsContain(
+            transformedBounds(boundsCorners(buffers.localBounds), transform),
+            transformedBounds(new Float32Array(meshCorners), node.worldTransform)
+        );
+    }
+
+    // Uploads and caches the geometry for a shape. The cache key is the shape's current
+    // parameters, so an animated shape rebuilds itself and a static one never does.
+    debugShapeBuffers(gltf, shape) {
+        if (this.debugShapeCache === undefined) {
+            this.debugShapeCache = new Map();
+        }
+        const key = shapeGeometryKey(shape);
+        const cached = this.debugShapeCache.get(shape);
+        if (cached !== undefined && cached.key === key) {
+            return cached.buffers;
+        }
+        if (cached !== undefined) {
+            this.deleteDebugShapeBuffers(cached.buffers);
+        }
+
+        const geometry = shapeGeometry(gltf, shape);
+        let buffers = undefined;
+        if (geometry !== undefined) {
+            const gl = this.webGl.context;
+            const upload = (target, data) => {
+                const buffer = gl.createBuffer();
+                gl.bindBuffer(target, buffer);
+                gl.bufferData(target, data, gl.STATIC_DRAW);
+                return buffer;
+            };
+            buffers = {
+                positions: upload(gl.ARRAY_BUFFER, geometry.positions),
+                triIndices: upload(gl.ELEMENT_ARRAY_BUFFER, geometry.triIndices),
+                lineIndices: upload(gl.ELEMENT_ARRAY_BUFFER, geometry.lineIndices),
+                triCount: geometry.triIndices.length,
+                lineCount: geometry.lineIndices.length,
+                indexType:
+                    geometry.triIndices instanceof Uint32Array
+                        ? gl.UNSIGNED_INT
+                        : gl.UNSIGNED_SHORT,
+                localBounds: transformedBounds(geometry.positions, undefined)
+            };
+        }
+        // Shapes we cannot draw are cached as undefined so they are not retried per frame.
+        this.debugShapeCache.set(shape, { key, buffers });
+        return buffers;
+    }
+
+    deleteDebugShapeBuffers(buffers) {
+        if (buffers === undefined) {
+            return;
+        }
+        const gl = this.webGl.context;
+        gl.deleteBuffer(buffers.positions);
+        gl.deleteBuffer(buffers.triIndices);
+        gl.deleteBuffer(buffers.lineIndices);
     }
 
     drawSplat(state, primitive, node, projectionMatrix, viewMatrix) {
@@ -2343,6 +2603,10 @@ class gltfRenderer {
     }
 
     destroy() {
+        for (const cached of this.debugShapeCache?.values() ?? []) {
+            this.deleteDebugShapeBuffers(cached.buffers);
+        }
+        this.debugShapeCache = undefined;
         this.shaderCache.destroy();
     }
 }
