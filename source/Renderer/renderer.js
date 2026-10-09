@@ -2059,7 +2059,14 @@ class gltfRenderer {
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
-        this.shader.updateUniform("u_DebugUVSet", Math.max(0, this.debugUVSet ?? -1), false);
+        // The channel names a set index in the file, which each primitive resolves against
+        // its own slots, so primitives that number their sets differently each show the set
+        // the author asked for. -1 when this primitive does not carry it.
+        this.shader.updateUniform(
+            "u_DebugUVSet",
+            primitive.texCoordSlots.get(this.debugUVSetIndex) ?? -1,
+            false
+        );
         if (renderpassConfiguration.picking) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
         } 
@@ -2590,10 +2597,10 @@ class gltfRenderer {
         // Every texture coordinate slot shares one define and picks its set through a
         // uniform, so adding slots does not multiply shader permutations.
         fragDefines.push("DEBUG_UV " + mappingCount++);
-        this.debugUVSet = Object.values(GltfState.DebugOutput.generic)
-            .filter((name) => name.startsWith("Texture Coordinates "))
-            .indexOf(state.renderingParameters.debugOutput);
-        if (this.debugUVSet >= 0) {
+        this.debugUVSetIndex = GltfState.textureCoordinateDebugSetIndex(
+            state.renderingParameters.debugOutput
+        );
+        if (this.debugUVSetIndex !== undefined) {
             fragDefines.push("DEBUG DEBUG_UV");
             mappingFound = true;
         }

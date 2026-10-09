@@ -2,6 +2,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 import { installWebGlConstants } from "../helpers/webgl_constants.js";
 import { gltfPrimitive } from "../../source/gltf/primitive.js";
+import {
+    textureCoordinateDebugOutputs,
+    textureCoordinateDebugSetIndex
+} from "../../source/gltf/texcoord_debug_channels.js";
 
 installWebGlConstants();
 
@@ -93,6 +97,56 @@ describe("texture coordinate slot assignment", () => {
             gltfPrimitive.maxTexCoordSlots - 1
         );
         expect(warnSpy).toHaveBeenCalled();
+    });
+});
+
+describe("texture coordinate debug channels", () => {
+    const documentWith = (...primitives) => ({ nodes: [], meshes: [{ primitives }] });
+
+    it("names the set the file uses, not the slot it is packed into", () => {
+        const gltf = documentWith(primitiveWith({ POSITION: 0, TEXCOORD_5: 1 }));
+
+        // The set lands in slot 0, but calling the channel "Texture Coordinates 0" would
+        // name something the author never wrote.
+        expect(textureCoordinateDebugOutputs(gltf)).toEqual(["Texture Coordinates 5"]);
+    });
+
+    it("offers nothing for an asset with no texture coordinates", () => {
+        const gltf = documentWith(primitiveWith({ POSITION: 0 }));
+
+        expect(textureCoordinateDebugOutputs(gltf)).toEqual([]);
+    });
+
+    it("lists each set once across primitives, in ascending order", () => {
+        const gltf = documentWith(
+            primitiveWith({ POSITION: 0, TEXCOORD_3: 1 }),
+            primitiveWith({ POSITION: 0, TEXCOORD_3: 1, TEXCOORD_1: 2 })
+        );
+
+        expect(textureCoordinateDebugOutputs(gltf)).toEqual([
+            "Texture Coordinates 1",
+            "Texture Coordinates 3"
+        ]);
+    });
+
+    it("omits a set dropped for exceeding the slot budget", () => {
+        const attributes = { POSITION: 0 };
+        for (let set = 0; set <= gltfPrimitive.maxTexCoordSlots; set++) {
+            attributes[`TEXCOORD_${set}`] = set + 1;
+        }
+        const channels = textureCoordinateDebugOutputs(
+            documentWith(primitiveWith(attributes))
+        );
+
+        // Offering it would promise a view the shaders cannot produce.
+        expect(channels).not.toContain(`Texture Coordinates ${gltfPrimitive.maxTexCoordSlots}`);
+        expect(channels).toHaveLength(gltfPrimitive.maxTexCoordSlots);
+    });
+
+    it("round trips a channel name back to its set index", () => {
+        expect(textureCoordinateDebugSetIndex("Texture Coordinates 5")).toBe(5);
+        expect(textureCoordinateDebugSetIndex("Normal Texture")).toBeUndefined();
+        expect(textureCoordinateDebugSetIndex("None")).toBeUndefined();
     });
 });
 

@@ -487,8 +487,9 @@ void main()
 
     // Generic:
 #if DEBUG == DEBUG_UV
-    // Leave the checkerboard showing when the primitive does not carry the chosen set.
-    if (u_DebugUVSet < TEXCOORD_SET_COUNT)
+    // -1 when this primitive does not carry the chosen set, which leaves the checkerboard
+    // showing rather than silently displaying a different set.
+    if (u_DebugUVSet >= 0)
     {
         g_finalColor.rgb = vec3(getTexCoord(u_DebugUVSet), 0.0);
     }

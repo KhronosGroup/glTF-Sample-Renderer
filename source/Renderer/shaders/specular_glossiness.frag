@@ -182,7 +182,7 @@ void main()
 
     // Generic:
 #if DEBUG == DEBUG_UV
-    if (u_DebugUVSet < TEXCOORD_SET_COUNT)
+    if (u_DebugUVSet >= 0)
     {
         g_finalColor.rgb = vec3(getTexCoord(u_DebugUVSet), 0.0);
     }

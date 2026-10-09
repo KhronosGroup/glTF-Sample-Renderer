@@ -38,9 +38,8 @@ uniform int u_DebugUVSet;
 
 
 // glTF 2.1 lets a primitive carry any number of texture coordinate sets and a material
-// address any of them. Sets the primitive does not provide are remapped on the CPU, so
-// the index is normally in range; the clamp covers the debug uniform, which is free to
-// name a set this primitive lacks.
+// address any of them. Both a material's set index and the debug channel are resolved to
+// a slot on the CPU, so the clamp only stops a bad index from reading outside the array.
 vec2 getTexCoord(int set)
 {
     return v_texcoord[clamp(set, 0, TEXCOORD_ARRAY_SIZE - 1)];

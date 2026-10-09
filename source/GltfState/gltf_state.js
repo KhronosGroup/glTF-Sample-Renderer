@@ -2,7 +2,11 @@ import { GraphController } from "../gltf/interactivity.js";
 import { UserCamera } from "../gltf/user_camera.js";
 import { AnimationTimer } from "./animation_timer.js";
 import { PhysicsController } from "./physics_controller.js";
-import { MAX_TEXCOORD_SLOTS } from "../gltf/attribute_limits.js";
+import {
+    textureCoordinateDebugOutput,
+    textureCoordinateDebugOutputs,
+    textureCoordinateDebugSetIndex
+} from "../gltf/texcoord_debug_channels.js";
 
 /**
  * GltfState containing a state for visualization in GltfView
@@ -229,15 +233,8 @@ GltfState.DebugOutput = {
 
     /** generic debug outputs */
     generic: {
-        // One entry per texture coordinate slot the shaders carry. Slots, not file set
-        // indices: glTF 2.1 lets the sets be numbered freely, and the renderer packs
-        // them down in ascending order, so slot 0 is the lowest set the asset defines.
-        ...Object.fromEntries(
-            Array.from({ length: MAX_TEXCOORD_SLOTS }, (_, slot) => [
-                `UV_COORDS_${slot}`,
-                `Texture Coordinates ${slot}`
-            ])
-        ),
+        // Texture coordinate channels are not listed here. They depend on the asset, so
+        // they come from textureCoordinateDebugOutputs instead.
         /** output the world space normals (i.e. with TBN applied) */
         NORMAL: "Normal Texture",
         /** output the normal from the TBN*/
@@ -352,5 +349,11 @@ GltfState.DebugOutput = {
         SH_DEGREE_3: "SH Degree 3"
     }
 };
+
+// Texture coordinate channels depend on the asset, so they are built from the loaded
+// document rather than listed in DebugOutput. See texcoord_debug_channels.js.
+GltfState.textureCoordinateDebugOutput = textureCoordinateDebugOutput;
+GltfState.textureCoordinateDebugOutputs = textureCoordinateDebugOutputs;
+GltfState.textureCoordinateDebugSetIndex = textureCoordinateDebugSetIndex;
 
 export { GltfState };
