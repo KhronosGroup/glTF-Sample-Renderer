@@ -2,6 +2,7 @@ import { GraphController } from "../gltf/interactivity.js";
 import { UserCamera } from "../gltf/user_camera.js";
 import { AnimationTimer } from "./animation_timer.js";
 import { PhysicsController } from "./physics_controller.js";
+import { MAX_TEXCOORD_SLOTS } from "../gltf/attribute_limits.js";
 
 /**
  * GltfState containing a state for visualization in GltfView
@@ -228,10 +229,15 @@ GltfState.DebugOutput = {
 
     /** generic debug outputs */
     generic: {
-        /** output the texture coordinates 0 */
-        UV_COORDS_0: "Texture Coordinates 0",
-        /** output the texture coordinates 1 */
-        UV_COORDS_1: "Texture Coordinates 1",
+        // One entry per texture coordinate slot the shaders carry. Slots, not file set
+        // indices: glTF 2.1 lets the sets be numbered freely, and the renderer packs
+        // them down in ascending order, so slot 0 is the lowest set the asset defines.
+        ...Object.fromEntries(
+            Array.from({ length: MAX_TEXCOORD_SLOTS }, (_, slot) => [
+                `UV_COORDS_${slot}`,
+                `Texture Coordinates ${slot}`
+            ])
+        ),
         /** output the world space normals (i.e. with TBN applied) */
         NORMAL: "Normal Texture",
         /** output the normal from the TBN*/

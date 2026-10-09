@@ -11,13 +11,14 @@ import { gltfBufferView } from "./buffer_view.js";
 import { DracoDecoder } from "../ResourceLoader/draco.js";
 import { GL } from "../Renderer/webgl.js";
 import { generateTangents } from "../libs/mikktspace.js";
+import { MAX_COLOR_SLOTS, MAX_TEXCOORD_SLOTS } from "./attribute_limits.js";
 
 class gltfPrimitive extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["material"];
-    // The shaders declare this many varyings per indexed semantic.
-    static maxTexCoordSlots = 4;
-    static maxColorSlots = 1;
+    // Clamped at startup if the GPU affords fewer; see attribute_limits.js.
+    static maxTexCoordSlots = MAX_TEXCOORD_SLOTS;
+    static maxColorSlots = MAX_COLOR_SLOTS;
     constructor() {
         super();
         this.attributes = {};
@@ -364,10 +365,10 @@ class gltfPrimitive extends GltfObject {
                     continue;
                 }
                 const idx = this.attributes[attribute];
-                const name = `${indexedAttribute[1].toLowerCase()}_${slot}`;
+                const name = `a_${indexedAttribute[1].toLowerCase()}_${slot}`;
                 this.glAttributes.push({
                     attribute,
-                    name: `a_${name}`,
+                    name,
                     accessor: idx
                 });
                 this.defines.push(
@@ -1414,6 +1415,15 @@ class gltfPrimitive extends GltfObject {
             "TEXCOORD"
         );
         this.colorSlots = assign(collect("COLOR"), gltfPrimitive.maxColorSlots, "COLOR");
+
+        // The shaders size their varying array from this. It goes in defines, which is the
+        // one list reaching both the vertex and the fragment stage, so the two cannot
+        // disagree about how many sets exist.
+        //
+        // The array is never empty: a material may address a set the primitive does not
+        // provide, and that has to sample a zeroed coordinate rather than fail to compile.
+        this.defines.push(`TEXCOORD_ARRAY_SIZE ${Math.max(1, this.texCoordSlots.size)}`);
+        this.defines.push(`TEXCOORD_SET_COUNT ${this.texCoordSlots.size}`);
     }
 
     /**

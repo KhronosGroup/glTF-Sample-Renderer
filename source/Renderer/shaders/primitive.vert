@@ -26,28 +26,27 @@ out vec3 v_Normal;
 out float v_TangentWSign;
 #endif
 
-#ifdef HAS_TEXCOORD_0_VEC2
+// GLSL ES 3.00 forbids arrays of vertex inputs, so the attributes are named one by one
+// even though the varyings they feed are an array. An asset supplying more sets than are
+// declared here fails to compile rather than silently sampling the wrong set.
+#if TEXCOORD_SET_COUNT > 4
+#error Declare more a_texcoord attributes to match MAX_TEXCOORD_SLOTS
+#endif
+
+#if TEXCOORD_SET_COUNT > 0
 in vec2 a_texcoord_0;
 #endif
-
-#ifdef HAS_TEXCOORD_1_VEC2
+#if TEXCOORD_SET_COUNT > 1
 in vec2 a_texcoord_1;
 #endif
-
-// Sets beyond the first two are declared only when present, so an asset using the usual
-// one or two pays nothing for them.
-#ifdef HAS_TEXCOORD_2_VEC2
+#if TEXCOORD_SET_COUNT > 2
 in vec2 a_texcoord_2;
-out vec2 v_texcoord_2;
 #endif
-
-#ifdef HAS_TEXCOORD_3_VEC2
+#if TEXCOORD_SET_COUNT > 3
 in vec2 a_texcoord_3;
-out vec2 v_texcoord_3;
 #endif
 
-out vec2 v_texcoord_0;
-out vec2 v_texcoord_1;
+out vec2 v_texcoord[TEXCOORD_ARRAY_SIZE];
 
 #ifdef HAS_COLOR_0_VEC3
 in vec3 a_color_0;
@@ -165,29 +164,31 @@ void main()
 #endif
 #endif
 
-    v_texcoord_0 = vec2(0.0, 0.0);
-    v_texcoord_1 = vec2(0.0, 0.0);
+    for (int i = 0; i < TEXCOORD_ARRAY_SIZE; ++i)
+    {
+        v_texcoord[i] = vec2(0.0, 0.0);
+    }
 
-#ifdef HAS_TEXCOORD_0_VEC2
-    v_texcoord_0 = a_texcoord_0;
+#if TEXCOORD_SET_COUNT > 0
+    v_texcoord[0] = a_texcoord_0;
+#endif
+#if TEXCOORD_SET_COUNT > 1
+    v_texcoord[1] = a_texcoord_1;
+#endif
+#if TEXCOORD_SET_COUNT > 2
+    v_texcoord[2] = a_texcoord_2;
+#endif
+#if TEXCOORD_SET_COUNT > 3
+    v_texcoord[3] = a_texcoord_3;
 #endif
 
-#ifdef HAS_TEXCOORD_1_VEC2
-    v_texcoord_1 = a_texcoord_1;
-#endif
-
-#ifdef HAS_TEXCOORD_2_VEC2
-    v_texcoord_2 = a_texcoord_2;
-#endif
-
-#ifdef HAS_TEXCOORD_3_VEC2
-    v_texcoord_3 = a_texcoord_3;
-#endif
-
-// Morph targets only ever address the first two sets, so higher ones are not displaced.
+// Morph targets only ever displace the first two sets, which is what animation.glsl
+// implements.
 #ifdef USE_MORPHING
-    v_texcoord_0 += getTargetTexCoord0(gl_VertexID);
-    v_texcoord_1 += getTargetTexCoord1(gl_VertexID);
+    v_texcoord[0] += getTargetTexCoord0(gl_VertexID);
+#if TEXCOORD_ARRAY_SIZE > 1
+    v_texcoord[1] += getTargetTexCoord1(gl_VertexID);
+#endif
 #endif
 
 

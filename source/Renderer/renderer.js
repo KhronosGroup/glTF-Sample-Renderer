@@ -33,6 +33,8 @@ import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
 import { cullNodes } from "./culling.js";
+import { gltfPrimitive } from "../gltf/primitive.js";
+import { MAX_TEXCOORD_SLOTS } from "../gltf/attribute_limits.js";
 import {
     boundsContain,
     boundsCorners,
@@ -401,6 +403,27 @@ class gltfRenderer {
             context.bindFramebuffer(context.FRAMEBUFFER, null);
 
             this.maxVertAttributes = context.getParameter(context.MAX_VERTEX_ATTRIBS);
+
+            // Every texture coordinate set costs a vertex attribute and a varying, and
+            // the rest of the pipeline needs its share of both. Ask for the configured
+            // budget but take what the hardware affords, never dropping below the two
+            // sets glTF 2.0 assets rely on.
+            const RESERVED_VARYINGS = 8;
+            const RESERVED_ATTRIBUTES = 8;
+            const affordable = Math.min(
+                context.getParameter(context.MAX_VARYING_VECTORS) - RESERVED_VARYINGS,
+                this.maxVertAttributes - RESERVED_ATTRIBUTES
+            );
+            gltfPrimitive.maxTexCoordSlots = Math.max(
+                2,
+                Math.min(MAX_TEXCOORD_SLOTS, affordable)
+            );
+            if (gltfPrimitive.maxTexCoordSlots < MAX_TEXCOORD_SLOTS) {
+                console.warn(
+                    `This GPU affords ${gltfPrimitive.maxTexCoordSlots} texture coordinate ` +
+                        `sets rather than the ${MAX_TEXCOORD_SLOTS} configured`
+                );
+            }
 
             this.initialized = true;
 
@@ -2036,6 +2059,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        this.shader.updateUniform("u_DebugUVSet", Math.max(0, this.debugUVSet ?? -1), false);
         if (renderpassConfiguration.picking) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
         } 
@@ -2460,8 +2484,6 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_BITANGENT"
             },
             { debugOutput: GltfState.DebugOutput.generic.ALPHA, shaderDefine: "DEBUG_ALPHA" },
-            { debugOutput: GltfState.DebugOutput.generic.UV_COORDS_0, shaderDefine: "DEBUG_UV_0" },
-            { debugOutput: GltfState.DebugOutput.generic.UV_COORDS_1, shaderDefine: "DEBUG_UV_1" },
             {
                 debugOutput: GltfState.DebugOutput.generic.OCCLUSION,
                 shaderDefine: "DEBUG_OCCLUSION"
@@ -2563,6 +2585,17 @@ class gltfRenderer {
                 fragDefines.push("DEBUG " + mapping.shaderDefine);
                 mappingFound = true;
             }
+        }
+
+        // Every texture coordinate slot shares one define and picks its set through a
+        // uniform, so adding slots does not multiply shader permutations.
+        fragDefines.push("DEBUG_UV " + mappingCount++);
+        this.debugUVSet = Object.values(GltfState.DebugOutput.generic)
+            .filter((name) => name.startsWith("Texture Coordinates "))
+            .indexOf(state.renderingParameters.debugOutput);
+        if (this.debugUVSet >= 0) {
+            fragDefines.push("DEBUG DEBUG_UV");
+            mappingFound = true;
         }
 
         if (mappingFound == false) {

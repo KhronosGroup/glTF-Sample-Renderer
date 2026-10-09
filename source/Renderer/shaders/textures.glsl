@@ -30,28 +30,20 @@ uniform float u_OcclusionStrength;
 uniform mat3 u_OcclusionUVTransform;
 
 
-in vec2 v_texcoord_0;
-in vec2 v_texcoord_1;
-#ifdef HAS_TEXCOORD_2_VEC2
-in vec2 v_texcoord_2;
-#endif
-#ifdef HAS_TEXCOORD_3_VEC2
-in vec2 v_texcoord_3;
-#endif
+in vec2 v_texcoord[TEXCOORD_ARRAY_SIZE];
+
+// Which set the texture coordinate debug view shows. A uniform rather than a define per
+// set, so the number of sets does not multiply shader permutations.
+uniform int u_DebugUVSet;
 
 
-// glTF 2.1 lets a primitive carry more than two texture coordinate sets and a material
-// address any of them. A set the primitive does not provide is remapped on the CPU, so
-// the index arriving here always names one of the varyings declared above.
+// glTF 2.1 lets a primitive carry any number of texture coordinate sets and a material
+// address any of them. Sets the primitive does not provide are remapped on the CPU, so
+// the index is normally in range; the clamp covers the debug uniform, which is free to
+// name a set this primitive lacks.
 vec2 getTexCoord(int set)
 {
-#ifdef HAS_TEXCOORD_3_VEC2
-    if (set >= 3) { return v_texcoord_3; }
-#endif
-#ifdef HAS_TEXCOORD_2_VEC2
-    if (set >= 2) { return v_texcoord_2; }
-#endif
-    return set < 1 ? v_texcoord_0 : v_texcoord_1;
+    return v_texcoord[clamp(set, 0, TEXCOORD_ARRAY_SIZE - 1)];
 }
 
 

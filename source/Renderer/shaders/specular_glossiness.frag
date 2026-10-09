@@ -181,11 +181,11 @@ void main()
     // Debug views:
 
     // Generic:
-#if DEBUG == DEBUG_UV_0 && defined(HAS_TEXCOORD_0_VEC2)
-    g_finalColor.rgb = vec3(v_texcoord_0, 0);
-#endif
-#if DEBUG == DEBUG_UV_1 && defined(HAS_TEXCOORD_1_VEC2)
-    g_finalColor.rgb = vec3(v_texcoord_1, 0);
+#if DEBUG == DEBUG_UV
+    if (u_DebugUVSet < TEXCOORD_SET_COUNT)
+    {
+        g_finalColor.rgb = vec3(getTexCoord(u_DebugUVSet), 0.0);
+    }
 #endif
 #if DEBUG == DEBUG_NORMAL_TEXTURE && defined(HAS_NORMAL_MAP)
     g_finalColor.rgb = (normalInfo.ntex + 1.0) / 2.0;
