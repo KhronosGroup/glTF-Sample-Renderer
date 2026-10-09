@@ -66,16 +66,32 @@ describe("texture coordinate slot assignment", () => {
         expect(warnSpy).toHaveBeenCalledTimes(1);
     });
 
-    it("drops sets beyond the shader's slot budget and says so", () => {
+    it("carries more than the two sets glTF 2.0 allowed", () => {
         const primitive = primitiveWith({
             POSITION: 0,
             TEXCOORD_0: 1,
-            TEXCOORD_1: 2,
-            TEXCOORD_2: 3
+            TEXCOORD_2: 2,
+            TEXCOORD_4: 3,
+            TEXCOORD_6: 4
         });
 
+        expect([0, 2, 4, 6].map((set) => primitive.mapTexCoord(set))).toEqual([0, 1, 2, 3]);
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it("drops sets beyond the shader's slot budget and says so", () => {
+        const attributes = { POSITION: 0 };
+        for (let set = 0; set <= gltfPrimitive.maxTexCoordSlots; set++) {
+            attributes[`TEXCOORD_${set}`] = set + 1;
+        }
+        const primitive = primitiveWith(attributes);
+
         expect(primitive.texCoordSlots.size).toBe(gltfPrimitive.maxTexCoordSlots);
-        expect(primitive.mapTexCoord(2)).toBe(0);
+        // The set that did not fit falls back rather than shifting the others along.
+        expect(primitive.mapTexCoord(gltfPrimitive.maxTexCoordSlots)).toBe(0);
+        expect(primitive.mapTexCoord(gltfPrimitive.maxTexCoordSlots - 1)).toBe(
+            gltfPrimitive.maxTexCoordSlots - 1
+        );
         expect(warnSpy).toHaveBeenCalled();
     });
 });

@@ -34,6 +34,18 @@ in vec2 a_texcoord_0;
 in vec2 a_texcoord_1;
 #endif
 
+// Sets beyond the first two are declared only when present, so an asset using the usual
+// one or two pays nothing for them.
+#ifdef HAS_TEXCOORD_2_VEC2
+in vec2 a_texcoord_2;
+out vec2 v_texcoord_2;
+#endif
+
+#ifdef HAS_TEXCOORD_3_VEC2
+in vec2 a_texcoord_3;
+out vec2 v_texcoord_3;
+#endif
+
 out vec2 v_texcoord_0;
 out vec2 v_texcoord_1;
 
@@ -164,6 +176,15 @@ void main()
     v_texcoord_1 = a_texcoord_1;
 #endif
 
+#ifdef HAS_TEXCOORD_2_VEC2
+    v_texcoord_2 = a_texcoord_2;
+#endif
+
+#ifdef HAS_TEXCOORD_3_VEC2
+    v_texcoord_3 = a_texcoord_3;
+#endif
+
+// Morph targets only ever address the first two sets, so higher ones are not displaced.
 #ifdef USE_MORPHING
     v_texcoord_0 += getTargetTexCoord0(gl_VertexID);
     v_texcoord_1 += getTargetTexCoord1(gl_VertexID);

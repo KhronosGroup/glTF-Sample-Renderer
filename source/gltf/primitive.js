@@ -16,7 +16,7 @@ class gltfPrimitive extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["material"];
     // The shaders declare this many varyings per indexed semantic.
-    static maxTexCoordSlots = 2;
+    static maxTexCoordSlots = 4;
     static maxColorSlots = 1;
     constructor() {
         super();
