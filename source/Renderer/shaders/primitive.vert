@@ -182,12 +182,22 @@ void main()
     v_texcoord[3] = a_texcoord_3;
 #endif
 
-// Morph targets only ever displace the first two sets, which is what animation.glsl
-// implements.
+// Each slot is spelled out for the same reason as the attributes above: the offset of a
+// slot's targets is a macro, so it cannot be looked up by a loop variable. The array
+// bound is checked too, because a morph target may name a set the primitive itself does
+// not carry, which has no slot to displace.
 #ifdef USE_MORPHING
-    v_texcoord[0] += getTargetTexCoord0(gl_VertexID);
-#if TEXCOORD_ARRAY_SIZE > 1
-    v_texcoord[1] += getTargetTexCoord1(gl_VertexID);
+#if defined(HAS_MORPH_TARGET_TEXCOORD_0) && TEXCOORD_ARRAY_SIZE > 0
+    v_texcoord[0] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_0_OFFSET);
+#endif
+#if defined(HAS_MORPH_TARGET_TEXCOORD_1) && TEXCOORD_ARRAY_SIZE > 1
+    v_texcoord[1] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_1_OFFSET);
+#endif
+#if defined(HAS_MORPH_TARGET_TEXCOORD_2) && TEXCOORD_ARRAY_SIZE > 2
+    v_texcoord[2] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_2_OFFSET);
+#endif
+#if defined(HAS_MORPH_TARGET_TEXCOORD_3) && TEXCOORD_ARRAY_SIZE > 3
+    v_texcoord[3] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_3_OFFSET);
 #endif
 #endif
 
