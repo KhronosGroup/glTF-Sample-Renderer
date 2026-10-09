@@ -32,6 +32,7 @@ import splatCompositeFragShader from "./shaders/splat_composite.frag";
 import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
+import { cullNodes } from "./culling.js";
 import {
     boundsContain,
     boundsCorners,
@@ -694,6 +695,17 @@ class gltfRenderer {
             return id;
         });
 
+        // A group with more than one member is drawn as instances in a single call, so
+        // its nodes cannot be rejected individually.
+        this.instancedNodes = new Set();
+        for (const group of Object.values(this.opaqueDrawables)) {
+            if (group.length > 1) {
+                for (const drawable of group) {
+                    this.instancedNodes.add(drawable.node);
+                }
+            }
+        }
+
         // transparent drawables need sorting before they can be drawn
         this.transparentDrawables = drawables.filter(
             (drawable) =>
@@ -780,6 +792,8 @@ class gltfRenderer {
         }
 
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
+
+        this.cullByBoundingVolume(state);
 
         // Update skins. this.nodes spans the whole tree of external assets, where
         // state.gltf would only be the root document.
@@ -1637,8 +1651,28 @@ class gltfRenderer {
         gl.deleteBuffer(buffers.lineIndices);
     }
 
+    // Marks nodes whose bounding volume falls entirely outside the view, so the draw
+    // calls below can skip them. Toggleable, because a mis-authored volume hides geometry
+    // that should be visible.
+    cullByBoundingVolume(state) {
+        if (this.nodes === undefined) {
+            return;
+        }
+        if (state.renderingParameters.cullByBoundingVolume === false) {
+            for (const node of this.nodes) {
+                node.culled = false;
+            }
+            return;
+        }
+        cullNodes(this.nodes, this.viewProjectionMatrix, {
+            fallbackDocument: state.gltf,
+            isInstanced: (node) => this.instancedNodes?.has(node)
+        });
+    }
+
     drawSplat(state, primitive, node, projectionMatrix, viewMatrix) {
         if (primitive.skip) return;
+        if (node?.culled) return;
         const gltf = node?.ownerDocument ?? state.gltf;
         // Request an async worker sort each frame (no-op if the previous sort
         // has not yet finished or no worker is available).
@@ -1886,6 +1920,7 @@ class gltfRenderer {
     drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, sampledTextures, instanceOffset = undefined)
     {
         if (primitive.skip) return;
+        if (node?.culled) return;
 
         // Every index below belongs to the document that owns this node, which is not the
         // root document once external assets are instantiated.

@@ -142,6 +142,9 @@ class GltfState {
             /** Use RGBA16F floating-point main framebuffer instead of RGBA8 */
             floatingPointFramebuffer: true,
 
+            /** skip nodes whose glTF 2.1 bounding volume is outside the view */
+            cullByBoundingVolume: true,
+
             /** debug visualization of glTF 2.1 shapes and bounding volumes */
             debugShapes: {
                 /** draw node bounding volumes, see {@link GltfState.BoundingVolumeMode} */

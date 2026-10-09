@@ -381,6 +381,74 @@ function shapeColor(colorMode, shape, depth) {
     return UNIFORM_COLOR;
 }
 
+// Extent of a shape in its own space, without building its geometry. Culling needs this
+// every frame, and generating a sphere to measure it would be absurd.
+//
+// Returns undefined when the shape has no finite extent, or none that can be known
+// cheaply. Callers must treat that as "cannot cull" rather than "empty".
+function shapeBounds(gltf, shape) {
+    const p = shape.parameters();
+    const box = (x, y, z) => ({
+        min: vec3.fromValues(-x, -y, -z),
+        max: vec3.fromValues(x, y, z)
+    });
+
+    switch (shape.type) {
+        case "box": {
+            const size = p?.size ?? [1, 1, 1];
+            return box(size[0] / 2, size[1] / 2, size[2] / 2);
+        }
+        case "sphere": {
+            const r = p?.radius ?? 0.5;
+            return box(r, r, r);
+        }
+        case "cylinder": {
+            const height = p?.height ?? 2.0;
+            const r = Math.max(p?.radiusBottom ?? 0.5, p?.radiusTop ?? 0.5);
+            return box(r, height / 2, r);
+        }
+        case "capsule": {
+            const height = p?.height ?? 1.0;
+            const bottom = p?.radiusBottom ?? 0.5;
+            const top = p?.radiusTop ?? 0.5;
+            return {
+                min: vec3.fromValues(
+                    -Math.max(bottom, top),
+                    -height / 2 - bottom,
+                    -Math.max(bottom, top)
+                ),
+                max: vec3.fromValues(Math.max(bottom, top), height / 2 + top, Math.max(bottom, top))
+            };
+        }
+        case "plane":
+            // An extent of undefined means infinite along that axis.
+            if (p?.sizeX === undefined || p?.sizeZ === undefined) {
+                return undefined;
+            }
+            return box(p.sizeX / 2, 0, p.sizeZ / 2);
+        case "mesh":
+        case "convexMesh": {
+            const mesh = gltf.meshes?.[p?.mesh];
+            if (mesh === undefined) {
+                return undefined;
+            }
+            const min = vec3.fromValues(Infinity, Infinity, Infinity);
+            const max = vec3.fromValues(-Infinity, -Infinity, -Infinity);
+            for (const primitive of mesh.primitives) {
+                const accessor = gltf.accessors[primitive.attributes?.POSITION];
+                if (accessor?.min === undefined || accessor.max === undefined) {
+                    return undefined;
+                }
+                vec3.min(min, min, accessor.min);
+                vec3.max(max, max, accessor.max);
+            }
+            return Number.isFinite(min[0]) ? { min, max } : undefined;
+        }
+        default:
+            return undefined;
+    }
+}
+
 // Axis-aligned bounds of a position buffer after a transform, used by the enclosure
 // diagnostics. Returns undefined for empty input.
 function transformedBounds(positions, transform) {
@@ -442,6 +510,7 @@ export {
     shapeColor,
     shapeGeometry,
     shapeGeometryKey,
+    shapeBounds,
     sphereGeometry,
     transformedBounds,
     DEPTH_COLORS,
