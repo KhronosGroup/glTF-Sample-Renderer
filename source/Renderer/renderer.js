@@ -1494,7 +1494,7 @@ class gltfRenderer {
             if (gltf.shapes === undefined || gltf.shapes.length === 0) {
                 continue;
             }
-            const depth = depths.get(node.gltfObjectIndex) ?? 0;
+            const depth = depths.get(node) ?? 0;
             const add = (shapeIndex, transform, isBoundingVolume) => {
                 const shape = gltf.shapes[shapeIndex];
                 if (shape === undefined) {
@@ -1527,19 +1527,29 @@ class gltfRenderer {
         return items;
     }
 
+    // Depth of every node below the scene, keyed by the node itself. An index would be
+    // ambiguous here: node 0 of an instantiated asset is not node 0 of the root.
     nodeHierarchyDepths(gltf, scene) {
         const depths = new Map();
-        const visit = (index, depth) => {
-            if (depths.has(index)) {
+        const visit = (node, depth) => {
+            if (node === undefined || depths.has(node)) {
                 return;
             }
-            depths.set(index, depth);
-            for (const child of gltf.nodes[index]?.children ?? []) {
-                visit(child, depth + 1);
+            depths.set(node, depth);
+            const owner = node.ownerDocument ?? gltf;
+            for (const child of node.children ?? []) {
+                visit(owner.nodes[child], depth + 1);
+            }
+            const instance = node.externalAssetInstance;
+            if (instance !== undefined) {
+                const instanceScene = instance.scenes[instance.scene ?? 0];
+                for (const root of instanceScene?.nodes ?? []) {
+                    visit(instance.nodes[root], depth + 1);
+                }
             }
         };
         for (const root of scene.nodes ?? []) {
-            visit(root, 0);
+            visit(gltf.nodes[root], 0);
         }
         return depths;
     }

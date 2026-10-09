@@ -6,6 +6,7 @@ import {
     hasInstancedAnimations,
     instantiateExternalAssets,
     instantiatedDocuments,
+    warnAboutIgnoredGraphs,
     CLONED_ARRAYS,
     MAX_INSTANCES,
     SHARED_ARRAYS
@@ -324,5 +325,35 @@ describe("walking the instantiated tree", () => {
         const [first, second] = [...instantiatedDocuments(parent)];
 
         expect(first.animations[0]).not.toBe(second.animations[0]);
+    });
+
+    it("says so when it ignores a graph inside an instance", () => {
+        const warnings = [];
+        vi.spyOn(console, "warn").mockImplementation((...a) => warnings.push(a.join(" ")));
+        const child = documentOf({
+            ...QUAD,
+            extensions: {
+                KHR_interactivity: { graphs: [{ declarations: [], nodes: [] }], graph: 0 }
+            }
+        });
+        child.path = "child.gltf";
+
+        // Two instances of one asset, so the author hears about it once rather than twice.
+        warnAboutIgnoredGraphs(parentOf(child, 2));
+
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toMatch(/child\.gltf/);
+        expect(warnings[0]).toMatch(/not executed|root document/);
+        vi.restoreAllMocks();
+    });
+
+    it("stays quiet when no instance has a graph", () => {
+        const warnings = [];
+        vi.spyOn(console, "warn").mockImplementation((...a) => warnings.push(a.join(" ")));
+
+        warnAboutIgnoredGraphs(parentOf(documentOf(QUAD), 1));
+
+        expect(warnings).toEqual([]);
+        vi.restoreAllMocks();
     });
 });

@@ -187,11 +187,33 @@ function hasInstancedAnimations(gltf) {
     return false;
 }
 
+// Only the root document's behaviour graph runs.
+//
+// A graph addresses the world through JSON pointers such as /nodes/0/translation, which
+// name one document. Running a child's graph would need an engine per instance, and the
+// spec does not say whether an event raised by one document's graph should reach another,
+// or whether two instances of one asset share graph variables. Rather than guess at
+// semantics that are still open, the viewer runs the root graph and says so.
+function warnAboutIgnoredGraphs(gltf) {
+    const reported = new Set();
+    for (const document of instantiatedDocuments(gltf)) {
+        if (document.extensions?.KHR_interactivity === undefined || reported.has(document.path)) {
+            continue;
+        }
+        reported.add(document.path);
+        console.warn(
+            `Interactivity graphs in external asset "${document.path}" are not executed; ` +
+                `only the graph of the root document runs`
+        );
+    }
+}
+
 export {
     cloneDocument,
     hasInstancedAnimations,
     instantiateExternalAssets,
     instantiatedDocuments,
+    warnAboutIgnoredGraphs,
     CLONED_ARRAYS,
     MAX_INSTANCES,
     SHARED_ARRAYS
