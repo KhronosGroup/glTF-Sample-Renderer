@@ -296,8 +296,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             events = events.filter((event) => event.id !== undefined);
             events = JSON.parse(JSON.stringify(events)); // Deep copy to avoid mutation
             for (const event of events) {
-                for (const value of Object.values(event.values)) {
-                    value.type = graphCopy.types[value.type].signature;
+                if (event.values !== undefined) {
+                    for (const value of Object.values(event.values)) {
+                        value.type = graphCopy.types[value.type].signature;
+                    }
                 }
             }
             this.behaveEngine.loadBehaveGraph(graphCopy, false);
