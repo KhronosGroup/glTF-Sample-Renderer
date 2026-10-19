@@ -119,6 +119,8 @@ class ResourceLoader {
             allowAbsolutePath: allowResourceAbsolutePath
         });
 
+        // Parsing a primitive decodes its draco payload, so the decoder has to exist first.
+        await this.dracoInitialization;
         await init(`${this.libPath}mikktspace_bg.wasm`);
 
         const externalAssets = new ExternalAssetLoader({
@@ -215,12 +217,13 @@ class ResourceLoader {
     /**
      * initDracoLib must be called before loading gltf files with draco meshes
      * @param {*} [externalDracoLib] external draco library (for example from a CDN)
+     * @returns {Promise} a promise that fulfills once the draco decoder is usable
      */
-    async initDracoLib(externalDracoLib) {
+    initDracoLib(externalDracoLib) {
         const dracoDecoder = new DracoDecoder(externalDracoLib);
-        if (dracoDecoder !== undefined) {
-            await dracoDecoder.ready();
-        }
+        this.dracoInitialization =
+            dracoDecoder !== undefined ? dracoDecoder.ready() : Promise.resolve();
+        return this.dracoInitialization;
     }
 }
 

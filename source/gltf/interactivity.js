@@ -2,6 +2,7 @@ import { GltfObject } from "./gltf_object";
 import * as interactivity from "@khronosgroup/gltf-interactivity-engine";
 import { mat4 } from "gl-matrix";
 import { recurseAllAnimatedProperties } from "./gltf_utils";
+import { gltfNode } from "./node.js";
 
 class gltfGraph extends GltfObject {
     static animatedProperties = [];
@@ -218,6 +219,14 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.behaveEngine = behaveEngine;
         this.world = undefined;
         this.lastHoverNodeIndex = undefined;
+        this.nodeWeightPointers = new Map();
+        const resolveJsonPtr = this.behaveEngine.resolveJsonPtr;
+        this.behaveEngine.resolveJsonPtr = (path) => {
+            if (/^\/nodes\/[^/]+\/weights(?:\/|\.|$)/.test(path)) {
+                return this.nodeWeightPointers.get(path);
+            }
+            return resolveJsonPtr(path);
+        };
 
         if (debug) {
             this.behaveEngine.processNodeStarted = this.processNodeStarted;
@@ -296,8 +305,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             events = events.filter((event) => event.id !== undefined);
             events = JSON.parse(JSON.stringify(events)); // Deep copy to avoid mutation
             for (const event of events) {
-                for (const value of Object.values(event.values)) {
-                    value.type = graphCopy.types[value.type].signature;
+                if (event.values !== undefined) {
+                    for (const value of Object.values(event.values)) {
+                        value.type = graphCopy.types[value.type].signature;
+                    }
                 }
             }
             this.behaveEngine.loadBehaveGraph(graphCopy, false);
@@ -450,6 +461,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             return;
         }
         const registerFunction = (currentPath, propertyName, parent, readOnly) => {
+            if (parent instanceof gltfNode && propertyName === "weights") {
+                return;
+            }
             let jsonPtr = currentPath + "/" + propertyName;
             let type = this.getTypeFromValue(parent[propertyName]);
             if (readOnly) {
@@ -523,6 +537,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             );
         };
         recurseAllAnimatedProperties(this.world.gltf, registerFunction);
+        this.registerNodeWeightPointers();
 
         // Special pointers that need to be handled manually
 
@@ -938,6 +953,49 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "float3",
             true
         );
+    }
+
+    registerNodeWeightPointers() {
+        this.nodeWeightPointers.clear();
+        for (const node of this.world.gltf.nodes) {
+            const mesh = this.world.gltf.meshes[node.mesh];
+            if (mesh === undefined) {
+                continue;
+            }
+            const targetCount = mesh.primitives[0]?.targets?.length ?? 0;
+            const path = `/nodes/${node.gltfObjectIndex}/weights`;
+            this.nodeWeightPointers.set(`${path}.length`, {
+                typeName: "int",
+                readOnly: true,
+                getValue: () => [targetCount],
+                setValue: () => {}
+            });
+            if (targetCount === 0) {
+                continue;
+            }
+            node.weights = Array.from(
+                node.weights ?? mesh.weights ?? new Array(targetCount).fill(0)
+            );
+            const property = node.animatedPropertyObjects.weights;
+            this.nodeWeightPointers.set(path, {
+                typeName: "float[]",
+                readOnly: false,
+                getValue: () => Array.from(node.weights),
+                setValue: (_path, value) => property.animate(Array.from(value))
+            });
+            for (let index = 0; index < targetCount; index++) {
+                this.nodeWeightPointers.set(`${path}/${index}`, {
+                    typeName: "float",
+                    readOnly: false,
+                    getValue: () => [node.weights[index]],
+                    setValue: (_path, value) => {
+                        const weights = Array.from(node.weights);
+                        weights[index] = typeof value === "number" ? value : value[0];
+                        property.animate(weights);
+                    }
+                });
+            }
+        }
     }
 
     registerJsonPointer(jsonPtr, getterCallback, setterCallback, typeName, readOnly) {
