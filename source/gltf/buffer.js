@@ -41,11 +41,21 @@ class gltfBuffer extends GltfObject {
         if (this.uri === undefined) {
             return false;
         }
-        if (!allowResourceAbsolutePath && ResourceLoaderUtils.isAbsoluteUrl(this.uri)) {
+        const isDataUri = this.uri.startsWith("data:");
+        const isAbsolute = ResourceLoaderUtils.isAbsoluteUrl(this.uri);
+        if (isAbsolute && !allowResourceAbsolutePath) {
             reject("Absolute URLs are not allowed for security reasons: " + this.uri);
             return true; // we return true, because the buffer has a uri, but we reject the loading due to security reasons
         }
-        const parentPath = this.uri.startsWith("data:")
+        if (!isDataUri && !isAbsolute && gltf.loadedFromLocalFiles) {
+            // setBufferFromFiles has already failed, and there is no base URL to resolve against.
+            reject(
+                `Missing file '${this.uri}' referenced by '${gltf.path}'. ` +
+                    "It has to be provided alongside the glTF file."
+            );
+            return true;
+        }
+        const parentPath = isDataUri
             ? ""
             : ResourceLoaderUtils.getContainingFolder(gltf.path ?? "");
         fetch(parentPath + this.uri)
