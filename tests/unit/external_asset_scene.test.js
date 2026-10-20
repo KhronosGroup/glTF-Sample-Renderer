@@ -118,11 +118,20 @@ describe("gathering across documents", () => {
         expect(gathered.nodes.map((node) => node.name)).toEqual(["slot", "default"]);
     });
 
-    it("ignores a child that has no scene to contribute", () => {
+    // A 2.1 child may declare no scene at all, and its roots are what it contributes.
+    it("takes the node roots of a child that declares no scene", () => {
         const parent = parentWith(
             [{ name: "slot", externalAsset: 0 }],
             documentOf({ nodes: [{ name: "orphan" }] })
         );
+
+        const gathered = parent.scenes[0].gatherNodes(parent, ALL_EXTENSIONS);
+
+        expect(gathered.nodes.map((node) => node.name)).toEqual(["slot", "orphan"]);
+    });
+
+    it("ignores a child that has nothing to contribute", () => {
+        const parent = parentWith([{ name: "slot", externalAsset: 0 }], documentOf({}));
 
         const gathered = parent.scenes[0].gatherNodes(parent, ALL_EXTENSIONS);
 

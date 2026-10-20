@@ -208,6 +208,14 @@ class glTF extends GltfObject {
             }
         }
 
+        // glTF 2.1 deprecates multiple scenes and lets an asset declare none at all,
+        // which leaves nothing to draw. Standing one up over the node hierarchy's own
+        // roots keeps every pass that walks a scene working unchanged.
+        if (this.scenes.length === 0 && this.nodes.length > 0 && this.isAtLeast(2, 1)) {
+            this.scenes = [new gltfScene(rootNodeIndices(this.nodes))];
+            this.scene = 0;
+        }
+
         this.computeDisjointAnimations();
         this.addNodeMetaInformation();
         this.markThumbnailImage();
@@ -357,6 +365,17 @@ class glTF extends GltfObject {
             node.dirtyTransform = false;
         }
     }
+}
+
+// Nodes no other node claims as a child, in declaration order.
+function rootNodeIndices(nodes) {
+    const children = new Set();
+    for (const node of nodes) {
+        for (const child of node.children) {
+            children.add(child);
+        }
+    }
+    return nodes.map((_, index) => index).filter((index) => !children.has(index));
 }
 
 function enforceVariantsUniqueness(variants) {
