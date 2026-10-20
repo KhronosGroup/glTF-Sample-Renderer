@@ -137,6 +137,19 @@ describe("gathering across documents", () => {
 
         expect(gathered.nodes.map((node) => node.name)).toEqual(["slot"]);
     });
+
+    // 2.0 requires the scenes array, so a child without one says it has no content and
+    // the old behaviour of contributing nothing still holds.
+    it("ignores a 2.0 child that declares no scene", () => {
+        const parent = parentWith(
+            [{ name: "slot", externalAsset: 0 }],
+            documentOf({ asset: { version: "2.0" }, nodes: [{ name: "orphan" }] })
+        );
+
+        const gathered = parent.scenes[0].gatherNodes(parent, ALL_EXTENSIONS);
+
+        expect(gathered.nodes.map((node) => node.name)).toEqual(["slot"]);
+    });
 });
 
 describe("transforms across documents", () => {
