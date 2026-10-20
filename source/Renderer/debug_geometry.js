@@ -64,12 +64,8 @@ function revolve(profile, featureRings = [], segments = SEGMENTS) {
     }
 
     const features = new Set(featureRings);
-    const ringStride = Math.max(1, Math.round((profile.length - 1) / WIREFRAME_RINGS));
-    for (let ring = 0; ring < profile.length; ring++) {
+    for (const ring of sampledRings(profile.length, features)) {
         if (profile[ring][1] <= 0) {
-            continue;
-        }
-        if (!features.has(ring) && ring % ringStride !== 0) {
             continue;
         }
         for (let s = 0; s < segments; s++) {
@@ -83,6 +79,23 @@ function revolve(profile, featureRings = [], segments = SEGMENTS) {
     }
 
     return geometry(positions, triIndices, lineIndices);
+}
+
+// Which profile rings the wireframe draws. Striding from ring 0 would put the pattern
+// wherever the profile happens to start: on a sphere that lands a sampled ring 11.25°
+// from the equator feature ring while leaving 33.75° elsewhere. Growing outwards from
+// the middle instead keeps the latitudes symmetric and evenly spaced.
+function sampledRings(ringCount, features) {
+    const last = ringCount - 1;
+    const stride = Math.max(1, Math.round(last / WIREFRAME_RINGS));
+    const middle = last / 2;
+
+    const rings = new Set(features);
+    for (let offset = 0; middle - offset >= 0; offset += stride) {
+        rings.add(Math.floor(middle - offset));
+        rings.add(Math.ceil(middle + offset));
+    }
+    return [...rings].filter((ring) => ring >= 0 && ring <= last).sort((a, b) => a - b);
 }
 
 function sphereGeometry(radius) {

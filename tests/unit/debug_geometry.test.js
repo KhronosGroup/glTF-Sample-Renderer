@@ -130,6 +130,25 @@ describe("sphere geometry", () => {
         // The equator is the silhouette. Sampling rings by stride alone skips it.
         expect(wireframeRingHeights(sphereGeometry(2))).toContain(0);
     });
+
+    it("spaces its latitudes evenly and symmetrically", () => {
+        // Striding from the first ring landed one sample right next to the equator and
+        // left a gap twice that size elsewhere, which reads as a malformed sphere.
+        // The heights are quantised to 4 decimals, hence the loose comparisons.
+        const radius = 2;
+        const angles = [...wireframeRingHeights(sphereGeometry(radius))]
+            .sort((a, b) => a - b)
+            .map((y) => Math.asin(y / radius));
+
+        for (let i = 0; i < angles.length; i++) {
+            expect(angles[i]).toBeCloseTo(-angles[angles.length - 1 - i], 3);
+        }
+
+        const gaps = angles.slice(1).map((angle, i) => angle - angles[i]);
+        for (const gap of gaps) {
+            expect(gap).toBeCloseTo(gaps[0], 3);
+        }
+    });
 });
 
 describe("cylinder geometry", () => {
