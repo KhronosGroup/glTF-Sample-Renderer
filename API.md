@@ -606,7 +606,10 @@ Use RGBA16F floating-point main framebuffer instead of RGBA8
 <a name="GltfState+renderingParameters.clipping"></a>
 
 #### renderingParameters.clipping
-cuboid of six clipping planes that cuts the model open for inspection
+cuboid of six clipping planes that cuts the model open for inspection.
+Requires WEBGL_clip_cull_distance, which is not available on all
+browsers/platforms; setting enabled to true has no effect where it
+is unsupported.
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
 

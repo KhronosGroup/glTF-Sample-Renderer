@@ -141,7 +141,12 @@ class GltfState {
             internalMSAA: 4,
             /** Use RGBA16F floating-point main framebuffer instead of RGBA8 */
             floatingPointFramebuffer: true,
-            /** cuboid of six clipping planes that cuts the model open for inspection */
+            /**
+             * cuboid of six clipping planes that cuts the model open for inspection.
+             * Requires WEBGL_clip_cull_distance, which is not available on all
+             * browsers/platforms; setting enabled to true has no effect where it
+             * is unsupported.
+             */
             clipping: {
                 /** discard everything outside the cuboid. Requires WEBGL_clip_cull_distance */
                 enabled: false,
