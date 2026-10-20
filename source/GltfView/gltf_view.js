@@ -175,7 +175,7 @@ class GltfView {
                         return vertexCount - 2;
                 }
             })
-            .reduce((acc, faceCount) => acc + faceCount);
+            .reduce((acc, faceCount) => acc + faceCount, 0);
 
         // assemble statistics object
         return {
