@@ -40,7 +40,7 @@ void main()
     vec4 pos = u_ModelMatrix * getPosition();
 
 #ifdef USE_CLIPPING
-    vec4 clipPosition = vec4(pos.xyz / pos.w, 1.0);
+    vec4 clipPosition = vec4(pos.xyz, 1.0);
     gl_ClipDistance[0] = dot(clipPosition, u_ClippingPlanes[0]);
     gl_ClipDistance[1] = dot(clipPosition, u_ClippingPlanes[1]);
     gl_ClipDistance[2] = dot(clipPosition, u_ClippingPlanes[2]);
