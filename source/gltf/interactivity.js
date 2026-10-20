@@ -342,15 +342,15 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.world.gltf.resetAnimatedProperties(this.world.sceneIndex ?? -1);
     }
 
-    processNodeStarted(node) {
+    processNodeStarted(_node) {
         // console.log("Node started:", node);
     }
 
-    processAddingNodeToQueue(flow) {
+    processAddingNodeToQueue(_flow) {
         // console.log("Adding node to queue:", flow);
     }
 
-    processExecutingNextNode(flow) {
+    processExecutingNextNode(_flow) {
         // console.log("Executing next node:", flow);
     }
 
