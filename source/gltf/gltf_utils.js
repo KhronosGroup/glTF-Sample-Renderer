@@ -2,6 +2,7 @@ import { vec3 } from "gl-matrix";
 import { jsToGl } from "./utils.js";
 import { gltfAccessor } from "./accessor.js";
 import { GltfObject } from "./gltf_object.js";
+import { boundsCorners, shapeBounds, transformedBounds } from "../Renderer/debug_geometry.js";
 
 function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
     for (const i of [0, 1, 2]) {
@@ -10,6 +11,12 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
     }
 
     const scene = gltf.scenes[sceneIndex];
+
+    // A bounding volume states where geometry may be, not what is drawn, so it only
+    // frames the view when the scene has no geometry of its own. A glTF 2.1 scene can
+    // consist of nothing but shapes, and framing an empty box leaves it off screen.
+    const volumeMin = vec3.fromValues(Infinity, Infinity, Infinity);
+    const volumeMax = vec3.fromValues(-Infinity, -Infinity, -Infinity);
 
     // Nodes are visited as objects rather than indices, because an instantiated external
     // asset brings nodes belonging to a different document and an index would resolve
@@ -28,11 +35,18 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
             }
         }
 
+        const owner = node.ownerDocument ?? gltf;
+
+        const volumeBounds = boundingVolumeWorldBounds(owner, node);
+        if (volumeBounds !== undefined) {
+            vec3.min(volumeMin, volumeMin, volumeBounds.min);
+            vec3.max(volumeMax, volumeMax, volumeBounds.max);
+        }
+
         if (node.mesh === undefined) {
             continue;
         }
 
-        const owner = node.ownerDocument ?? gltf;
         const mesh = owner.meshes[node.mesh];
         if (mesh.primitives === undefined) {
             continue;
@@ -55,6 +69,39 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
             }
         }
     }
+
+    if (outMin[0] <= outMax[0]) {
+        return;
+    }
+    if (volumeMin[0] <= volumeMax[0]) {
+        vec3.copy(outMin, volumeMin);
+        vec3.copy(outMax, volumeMax);
+        return;
+    }
+
+    // Nothing framable leaves the extents inverted and infinite, which turns the fitted
+    // camera distance and clipping planes into NaN and draws nothing at all.
+    for (const i of [0, 1, 2]) {
+        outMin[i] = -0.5;
+        outMax[i] = 0.5;
+    }
+}
+
+// An infinite plane has no bounds that could be framed, so shapeBounds returns undefined
+// and the node is skipped rather than stretching the scene to an arbitrary size.
+function boundingVolumeWorldBounds(owner, node) {
+    if (node.boundingVolume === undefined) {
+        return undefined;
+    }
+    const shape = owner.shapes?.[node.boundingVolume.shape];
+    if (shape === undefined) {
+        return undefined;
+    }
+    const local = shapeBounds(owner, shape);
+    if (local === undefined) {
+        return undefined;
+    }
+    return transformedBounds(boundsCorners(local), node.boundingVolume.getWorldTransform(node));
 }
 
 function getExtentsFromAccessor(accessor, worldTransform, outMin, outMax) {
@@ -85,7 +132,7 @@ function getExtentsFromAccessor(accessor, worldTransform, outMin, outMax) {
     }
 
     // Create new (axis-aligned) bounding box out of transformed bounding box
-    const boxMin = vec3.clone(boxVertices[0]); // initialize
+    const boxMin = vec3.clone(boxVertices[0]);
     const boxMax = vec3.clone(boxVertices[0]);
 
     for (let i in boxVertices) {
