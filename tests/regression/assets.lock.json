@@ -1,0 +1,15 @@
+{
+    "sampleAssets": {
+        "repository": "KhronosGroup/glTF-Sample-Assets",
+        "branch": "main",
+        "commit": "edc7c9e67c639d230715049ee31f9a96a6babbbe",
+        "variant": "glTF"
+    },
+    "environment": {
+        "repository": "KhronosGroup/glTF-Sample-Environments",
+        "branch": "low_resolution_hdrs",
+        "commit": "3a030b54c2e4f0f4d469eec2f98f47398c9a2a30",
+        "file": "Cannon_Exterior.hdr"
+    },
+    "models": ["DamagedHelmet"]
+}
