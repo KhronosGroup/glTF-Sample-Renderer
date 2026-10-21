@@ -54,7 +54,8 @@ const BADGES = {
     pass: ["green", "PASS"],
     fail: ["red", "FAIL"],
     "missing-baseline": ["yellow", "MISSING"],
-    error: ["magenta", "ERROR"]
+    error: ["magenta", "ERROR"],
+    fetched: ["blue", "FETCHED"]
 };
 const badge = (status) => {
     const [color, label] = BADGES[status];
@@ -62,6 +63,7 @@ const badge = (status) => {
 };
 const dim = (text) => styleText("dim", text);
 const percent = (ratio) => `${(ratio * 100).toFixed(3)}%`;
+const counter = (index, total) => dim(`[${String(index).padStart(String(total).length)}/${total}]`);
 
 const frameFile = (name, timeMs, type) =>
     `${name}/t${String(timeMs).padStart(5, "0")}ms.${type}.png`;
@@ -218,7 +220,7 @@ function modelStatus(frames) {
     return "pass";
 }
 
-function printModel(name, entry, nameWidth) {
+function printModel(name, entry, nameWidth, progress) {
     const count = `${entry.frames.length} frame${entry.frames.length === 1 ? "" : "s"}`;
     let detail = dim(count.padEnd(10));
     if (entry.error) {
@@ -230,7 +232,7 @@ function printModel(name, entry, nameWidth) {
     if (entry.consoleErrors?.length) {
         detail += styleText("yellow", `  ${entry.consoleErrors.length} console error(s)`);
     }
-    console.log(`  ${badge(entry.status)} ${name.padEnd(nameWidth)}  ${detail}`);
+    console.log(`  ${progress} ${badge(entry.status)} ${name.padEnd(nameWidth)}  ${detail}`);
 }
 
 async function main() {
@@ -256,11 +258,16 @@ async function main() {
 
     console.log(dim("Fetching assets…"));
     const environment = await fetchEnvironment(lock, outputRoot);
-    const models = await fetchModels(lock, outputRoot, names, ({ name, downloaded }) => {
-        if (downloaded) {
-            console.log(dim(`  downloaded ${name}`));
+    const models = await fetchModels(
+        lock,
+        outputRoot,
+        names,
+        ({ name, index, total, downloaded }) => {
+            if (downloaded) {
+                console.log(`  ${counter(index, total)} ${badge("fetched")} ${name}`);
+            }
         }
-    });
+    );
 
     const server = await startServer(
         {
@@ -311,7 +318,7 @@ async function main() {
         page.on("pageerror", (error) => consoleErrors.push(error.message));
 
         console.log(dim("Rendering…"));
-        for (const model of models) {
+        for (const [i, model] of models.entries()) {
             const previous = summary.models[model.name];
             consoleErrors = [];
             if (kind === "baseline") {
@@ -364,7 +371,7 @@ async function main() {
             }
             summary.models[model.name] = entry;
             statuses.push([model.name, entry.status]);
-            printModel(model.name, entry, nameWidth);
+            printModel(model.name, entry, nameWidth, counter(i + 1, models.length));
             await writeFile(summaryFile, JSON.stringify(summary, undefined, 4));
         }
     } finally {

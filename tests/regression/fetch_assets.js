@@ -61,7 +61,7 @@ export async function fetchEnvironment(lock, outputRoot) {
  * @param {Object} lock parsed assets.lock.json
  * @param {string} outputRoot absolute path of the regression folder
  * @param {string[] | null} names model names, or null for every model shipping the variant
- * @param {(event: Object) => void} onProgress called once per model
+ * @param {(event: { name: string, index: number, total: number, downloaded?: boolean, error?: string }) => void} onProgress called once per model, index is 1-based
  * @returns {Promise<Object[]>} one entry per model: { name, label, tags, file } or { name, error }
  */
 export async function fetchModels(lock, outputRoot, names, onProgress = () => {}) {
@@ -76,13 +76,14 @@ export async function fetchModels(lock, outputRoot, names, onProgress = () => {}
     const selected = names ?? index.map((entry) => entry.name);
 
     const results = [];
-    for (const name of selected) {
+    for (const [i, name] of selected.entries()) {
+        const progress = { name, index: i + 1, total: selected.length };
         const entry = byName.get(name);
         const mainFile = entry?.variants?.[variant];
         if (mainFile === undefined) {
             const error = entry ? `no ${variant} variant` : "not in model-index.json";
             results.push({ name, error });
-            onProgress({ name, error });
+            onProgress({ ...progress, error });
             continue;
         }
 
@@ -110,10 +111,10 @@ export async function fetchModels(lock, outputRoot, names, onProgress = () => {}
 
             const file = path.relative(outputRoot, gltfFile).split(path.sep).join("/");
             results.push({ name, label: entry.label, tags: entry.tags, file });
-            onProgress({ name, downloaded });
+            onProgress({ ...progress, downloaded });
         } catch (error) {
             results.push({ name, error: error.message });
-            onProgress({ name, error: error.message });
+            onProgress({ ...progress, error: error.message });
         }
     }
     return results;
