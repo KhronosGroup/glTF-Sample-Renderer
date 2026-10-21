@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>glTF Sample Renderer regression</title>
+        <link rel="icon" href="data:," />
+        <style>
+            html,
+            body {
+                margin: 0;
+                height: 100%;
+                overflow: hidden;
+            }
+            canvas {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+        <script src="libs/libktx.js"></script>
+        <script type="importmap">
+            { "imports": { "gl-matrix": "/node_modules/gl-matrix/esm/index.js" } }
+        </script>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+        <script type="module">
+            import { GltfView, GltfState } from "/dist/gltf-viewer.module.js";
+
+            const params = new URLSearchParams(location.search);
+            const canvas = document.getElementById("canvas");
+            canvas.width = Number(params.get("width"));
+            canvas.height = Number(params.get("height"));
+
+            async function setup() {
+                const context = canvas.getContext("webgl2", { alpha: false, antialias: true });
+                const view = new GltfView(context);
+                // The glTF variants carry no Draco data; this only silences the missing-decoder error.
+                const resourceLoader = view.createResourceLoader((options) =>
+                    options.onModuleLoaded(null)
+                );
+                const state = view.createState();
+                state.renderingParameters.useDirectionalLightsWithDisabledIBL = true;
+                state.renderingParameters.toneMap = GltfState.ToneMaps.KHR_PBR_NEUTRAL;
+
+                state.environment = await resourceLoader.loadEnvironment(params.get("environment"));
+
+                const gltf = await resourceLoader.loadGltf(params.get("model"), undefined, false);
+                state.gltf = gltf;
+                state.sceneIndex = gltf.scene ?? 0;
+                if (state.sceneIndex >= gltf.scenes.length) {
+                    state.sceneIndex = 0;
+                }
+
+                let durationSec = 0;
+                if (gltf.scenes.length > 0) {
+                    gltf.scenes[state.sceneIndex].applyTransformHierarchy(gltf);
+                    state.userCamera.perspective.aspectRatio = canvas.width / canvas.height;
+                    state.userCamera.resetView(gltf, state.sceneIndex);
+
+                    // Same selection as the viewer: all animations that don't target the same property.
+                    for (let i = 0; i < gltf.animations.length; i++) {
+                        if (!gltf.nonDisjointAnimations(state.animationIndices).includes(i)) {
+                            state.animationIndices.push(i);
+                        }
+                    }
+                    for (const index of state.animationIndices) {
+                        const animation = gltf.animations[index];
+                        animation.computeMinMaxTime(gltf);
+                        durationSec = Math.max(durationSec, animation.maxTime ?? 0);
+                    }
+                }
+
+                const debugInfo = context.getExtension("WEBGL_debug_renderer_info");
+                const gpu = debugInfo
+                    ? context.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+                    : context.getParameter(context.RENDERER);
+
+                // Draws twice so state that depends on the previous frame has settled.
+                const capture = async (timeSec) => {
+                    state.animationTimer.setFixedTime(timeSec);
+                    view.renderFrame(state, canvas.width, canvas.height);
+                    await new Promise(requestAnimationFrame);
+                    view.renderFrame(state, canvas.width, canvas.height);
+                    return canvas.toDataURL("image/png");
+                };
+
+                return { info: { durationSec, gpu }, capture };
+            }
+
+            window.regression = setup();
+        </script>
+    </body>
+</html>
