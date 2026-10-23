@@ -49,6 +49,7 @@ class ResourceLoader {
         let json = undefined;
         let data = undefined;
         let filename = "";
+        let loadedFromLocalFiles = false;
         if (typeof gltfFile === "string") {
             const response = await fetch(gltfFile);
             const responseData = await response.arrayBuffer();
@@ -64,6 +65,7 @@ class ResourceLoader {
 
             filename = gltfFile;
         } else if (gltfFile instanceof ArrayBuffer) {
+            loadedFromLocalFiles = true;
             isGlb = externalFiles === undefined;
             if (isGlb) {
                 data = gltfFile;
@@ -75,6 +77,7 @@ class ResourceLoader {
             typeof File !== "undefined" &&
             gltfFile[1] instanceof File
         ) {
+            loadedFromLocalFiles = true;
             let fileContent = gltfFile[1];
             filename = gltfFile[0];
             isGlb = ResourceLoaderUtils.getExtension(filename) == "glb";
@@ -101,6 +104,7 @@ class ResourceLoader {
         }
 
         const gltf = new glTF(filename);
+        gltf.loadedFromLocalFiles = loadedFromLocalFiles;
         gltf.ktxDecoder = this.view.ktxDecoder;
         gltf.moptDecoder = MeshoptDecoder;
         //Make sure draco decoder instance is ready

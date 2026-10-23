@@ -139,8 +139,16 @@ class gltfImage extends GltfObject {
         if (this.uri === undefined || this.uri.startsWith("data:")) {
             return false;
         }
-        if (!allowResourceAbsolutePath && ResourceLoaderUtils.isAbsoluteUrl(this.uri)) {
+        const isAbsolute = ResourceLoaderUtils.isAbsoluteUrl(this.uri);
+        if (isAbsolute && !allowResourceAbsolutePath) {
             throw new Error("Absolute URLs are not allowed for security reasons: " + this.uri);
+        }
+        if (!isAbsolute && gltf.loadedFromLocalFiles) {
+            // setImageFromFiles has already failed, and there is no base URL to resolve against.
+            throw new Error(
+                `Missing file '${this.uri}' referenced by '${gltf.path}'. ` +
+                    "It has to be provided alongside the glTF file."
+            );
         }
         const parentPath = ResourceLoaderUtils.getContainingFolder(gltf.path ?? "");
         const fullPath = parentPath + this.uri;

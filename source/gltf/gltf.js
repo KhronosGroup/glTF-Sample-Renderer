@@ -93,6 +93,10 @@ class glTF extends GltfObject {
         this.skins = [];
         this.path = file;
 
+        // When set, path is a plain file name rather than a URL, so relative
+        // resource uris can only be satisfied from the files handed to the loader.
+        this.loadedFromLocalFiles = false;
+
         // Generated tangent cache
         this.tangentCache = new Map();
     }
