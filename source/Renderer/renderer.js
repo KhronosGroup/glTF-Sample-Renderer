@@ -1681,7 +1681,12 @@ class gltfRenderer {
         }
 
         // POINTS, LINES, LINE_LOOP, LINE_STRIP
-        if (primitive.mode < 4) {
+        // Wireframe draws triangles as lines, so the shader must not rely on triangle-only features.
+        const wireframe =
+            state.renderingParameters.wireframe &&
+            !renderpassConfiguration.picking &&
+            primitive.mode >= GL.TRIANGLES;
+        if (primitive.mode < 4 || wireframe) {
             fragDefines.push("NOT_TRIANGLE 1");
             if (primitive.attributes?.NORMAL !== undefined && primitive.attributes?.TANGENT === undefined) {
                 //Points or Lines with NORMAL but without TANGENT attributes SHOULD be rendered with standard lighting but ignoring any normal textures on the material.
@@ -1776,7 +1781,16 @@ class gltfRenderer {
         
 
         const drawIndexed = primitive.indices !== undefined;
-        if (drawIndexed)
+        let wireframeIndexCount = 0;
+        if (wireframe)
+        {
+            wireframeIndexCount = this.webGl.setWireframeIndices(state.gltf, primitive);
+            if (wireframeIndexCount === 0)
+            {
+                return;
+            }
+        }
+        else if (drawIndexed)
         {
             if (!this.webGl.setIndices(state.gltf, primitive.indices))
             {
@@ -1992,7 +2006,15 @@ class gltfRenderer {
 	        }
 	    }
 	    
-        if (drawIndexed)
+        if (wireframe)
+        {
+            if (instanceOffset !== undefined) {
+                this.webGl.context.drawElementsInstanced(GL.LINES, wireframeIndexCount, GL.UNSIGNED_INT, 0, instanceOffset.length);
+            } else {
+                this.webGl.context.drawElements(GL.LINES, wireframeIndexCount, GL.UNSIGNED_INT, 0);
+            }
+        }
+        else if (drawIndexed)
         {
             const indexAccessor = state.gltf.accessors[primitive.indices];
             if (instanceOffset !== undefined) {

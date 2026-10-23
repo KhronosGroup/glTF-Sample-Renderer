@@ -21,6 +21,7 @@ class gltfAccessor extends GltfObject {
 
         // non gltf
         this.glBuffer = undefined;
+        this.wireframeGlBuffers = undefined;
         this.typedView = undefined;
         this.filteredView = undefined;
         this.normalizedFilteredView = undefined;
@@ -444,8 +445,14 @@ class gltfAccessor extends GltfObject {
             // TODO: this breaks the dependency direction
             WebGl.context.deleteBuffer(this.glBuffer);
         }
+        if (this.wireframeGlBuffers !== undefined) {
+            for (const wireframe of this.wireframeGlBuffers.values()) {
+                WebGl.context.deleteBuffer(wireframe.glBuffer);
+            }
+        }
 
         this.glBuffer = undefined;
+        this.wireframeGlBuffers = undefined;
     }
 }
 
