@@ -89,6 +89,13 @@ The API consists of several components that in combination allow flexible config
 
 More detailed information about the API is listed in the [api documentation](API.md).
 
+For manual morph-weight control, set `gltf.nodes[index].morphWeightOverrides` to
+an array of per-target values. Undefined entries retain the node/mesh's current
+weight (or zero when no weights are specified). Overrides affect rendering only:
+original weights and animation playback are unchanged, and nodes sharing a mesh
+remain independent. Set the property to `undefined` to remove all overrides on
+that node. Request a new frame after changing overrides.
+
 ### GltfView
 
 The GltfView component is associated with one WebGL2 context. In practice this means it will be associated with one HTML5 Canvas. This component manages the interaction between the canvas and the GL context. It therefore specifies the viewport, the swapchain and can be used to schedule frame renders.
