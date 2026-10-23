@@ -1,9 +1,13 @@
 precision highp float;
 
-// Only the wireframe mask is bound as draw buffer; the tonemap pass inverts the final color where it is set.
-layout(location = 2) out float wireframeMask;
+layout(location = 0) out vec4 g_finalColor;
+layout(location = 1) out uint toneMapFlag;
+
+uniform vec4 u_WireframeColor;
 
 void main()
 {
-    wireframeMask = 1.0;
+    g_finalColor = u_WireframeColor;
+    // Linear color, only converted to sRGB without tone mapping
+    toneMapFlag = 1u;
 }

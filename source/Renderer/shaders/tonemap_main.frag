@@ -11,7 +11,6 @@ precision highp float;
 
 uniform sampler2D u_MainSampler;
 uniform lowp usampler2D u_TonemapSampler;
-uniform sampler2D u_WireframeSampler;
 
 in vec2 v_uv;
 
@@ -26,12 +25,6 @@ void main()
         color.rgb = toneMap(color.rgb);
     } else if (splatCoverage == 1u) {
         color.rgb = linearTosRGB(color.rgb);
-    }
-
-    // Draw wireframe lines as the inverted grayscale of the displayed color
-    if (texture(u_WireframeSampler, v_uv).r > 0.5) {
-        float luminance = dot(clamp(color.rgb, 0.0, 1.0), vec3(0.2126, 0.7152, 0.0722));
-        color.rgb = vec3(1.0 - luminance);
     }
     g_finalColor = vec4(color.rgb, color.a);
 }
