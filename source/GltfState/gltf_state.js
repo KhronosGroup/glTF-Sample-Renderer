@@ -68,7 +68,7 @@ class GltfState {
             morphing: true,
             /** skin / skeleton */
             skinning: true,
-            /** overlay the triangle edges of all meshes as black lines (wireframe) */
+            /** overlay the triangle edges of all meshes as gray lines with the inverted brightness of the underlying color (wireframe) */
             wireframe: false,
 
             /** enabled extensions */
