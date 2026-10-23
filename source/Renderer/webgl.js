@@ -163,6 +163,51 @@ class gltfWebGl {
         return true;
     }
 
+    /**
+     * Binds an element array buffer containing the edges of a triangle primitive as line pairs.
+     * The buffer is generated lazily and cached on the accessor it was derived from
+     * (the index accessor, or the POSITION accessor for non-indexed primitives),
+     * so it is released together with that accessor.
+     * @returns {number} the number of indices to draw with GL.LINES, or 0 on failure
+     */
+    setWireframeIndices(gltf, primitive) {
+        const indexed = primitive.indices !== undefined;
+        const sourceAccessor =
+            gltf.accessors[indexed ? primitive.indices : primitive.attributes.POSITION];
+        if (sourceAccessor === undefined) {
+            return 0;
+        }
+
+        sourceAccessor.wireframeGlBuffers ??= new Map();
+        let wireframe = sourceAccessor.wireframeGlBuffers.get(primitive.mode);
+        if (wireframe === undefined) {
+            let indices = undefined;
+            if (indexed) {
+                indices = sourceAccessor.getTypedView(gltf);
+                if (indices === undefined) {
+                    return 0;
+                }
+            }
+            const lineIndices = generateWireframeIndices(
+                primitive.mode,
+                indices,
+                sourceAccessor.count
+            );
+            if (lineIndices === undefined) {
+                return 0;
+            }
+
+            wireframe = { glBuffer: this.context.createBuffer(), count: lineIndices.length };
+            this.context.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, wireframe.glBuffer);
+            this.context.bufferData(GL.ELEMENT_ARRAY_BUFFER, lineIndices, GL.STATIC_DRAW);
+            sourceAccessor.wireframeGlBuffers.set(primitive.mode, wireframe);
+        } else {
+            this.context.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, wireframe.glBuffer);
+        }
+
+        return wireframe.count;
+    }
+
     enableAttribute(gltf, attributeLocation, gltfAccessor) {
         if (attributeLocation === null) {
             console.warn("Tried to access unknown attribute");
@@ -302,4 +347,56 @@ class gltfWebGl {
     }
 }
 
-export { gltfWebGl, GL };
+const MODE_TRIANGLES = 4;
+const MODE_TRIANGLE_STRIP = 5;
+const MODE_TRIANGLE_FAN = 6;
+
+/**
+ * Converts triangle topology into a list of line segments (pairs of vertex indices).
+ * @param {number} mode TRIANGLES, TRIANGLE_STRIP or TRIANGLE_FAN
+ * @param {ArrayLike<number> | undefined} indices index data, or undefined for non-indexed geometry
+ * @param {number} count number of indices (or vertices for non-indexed geometry)
+ * @returns {Uint32Array | undefined} undefined if mode is not a triangle mode
+ */
+function generateWireframeIndices(mode, indices, count) {
+    let triangleCount;
+    switch (mode) {
+        case MODE_TRIANGLES:
+            triangleCount = Math.floor(count / 3);
+            break;
+        case MODE_TRIANGLE_STRIP:
+        case MODE_TRIANGLE_FAN:
+            triangleCount = Math.max(count - 2, 0);
+            break;
+        default:
+            return undefined;
+    }
+
+    const index = indices !== undefined ? (i) => indices[i] : (i) => i;
+    const lines = new Uint32Array(triangleCount * 6);
+    for (let t = 0, o = 0; t < triangleCount; t++, o += 6) {
+        let a, b, c;
+        if (mode === MODE_TRIANGLES) {
+            a = index(3 * t);
+            b = index(3 * t + 1);
+            c = index(3 * t + 2);
+        } else if (mode === MODE_TRIANGLE_STRIP) {
+            a = index(t);
+            b = index(t + 1);
+            c = index(t + 2);
+        } else {
+            a = index(0);
+            b = index(t + 1);
+            c = index(t + 2);
+        }
+        lines[o] = a;
+        lines[o + 1] = b;
+        lines[o + 2] = b;
+        lines[o + 3] = c;
+        lines[o + 4] = c;
+        lines[o + 5] = a;
+    }
+    return lines;
+}
+
+export { gltfWebGl, GL, generateWireframeIndices };
