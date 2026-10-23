@@ -68,7 +68,7 @@ class GltfState {
             morphing: true,
             /** skin / skeleton */
             skinning: true,
-            /** render triangle primitives as wireframe (triangle edges drawn as lines) */
+            /** overlay the triangle edges of all meshes as black lines (wireframe) */
             wireframe: false,
 
             /** enabled extensions */
