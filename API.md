@@ -371,7 +371,7 @@ skin / skeleton
 <a name="GltfState+renderingParameters.wireframe"></a>
 
 #### renderingParameters.wireframe
-render triangle primitives as wireframe (triangle edges drawn as lines)
+overlay the triangle edges of all meshes as black lines (wireframe)
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
 <a name="GltfState+renderingParameters.enabledExtensions"></a>
