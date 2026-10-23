@@ -120,8 +120,6 @@ class gltfRenderer {
         this.mainTextureHDR = undefined;
         this.mainDepthTexture = undefined;
         this.mainTonemapTexture = undefined;
-        this.mainWireframeTexture = undefined;
-        this.wireframeDrawables = [];
         this.mainFramebuffer = undefined;
 
         this.framebufferFormat = undefined;
@@ -357,20 +355,6 @@ class gltfRenderer {
 
             context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT1,
                 context.TEXTURE_2D, this.mainTonemapTexture, 0);
-
-            // Wireframe mask: R8, set where wireframe lines are drawn. Only written by the wireframe pass.
-            this.mainWireframeTexture = context.createTexture();
-            context.bindTexture(context.TEXTURE_2D, this.mainWireframeTexture);
-            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
-            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
-            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
-            context.texImage2D(context.TEXTURE_2D, 0, context.R8,
-                hdrW, hdrH, 0, context.RED, context.UNSIGNED_BYTE, null);
-            context.bindTexture(context.TEXTURE_2D, null);
-            context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT2,
-                context.TEXTURE_2D, this.mainWireframeTexture, 0);
-
             context.drawBuffers([context.COLOR_ATTACHMENT0, context.COLOR_ATTACHMENT1]);
             context.bindFramebuffer(context.FRAMEBUFFER, null);
 
@@ -545,24 +529,6 @@ class gltfRenderer {
                 );
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
 
-                // Resize wireframe mask texture (R8).
-                this.webGl.context.bindTexture(
-                    this.webGl.context.TEXTURE_2D,
-                    this.mainWireframeTexture
-                );
-                this.webGl.context.texImage2D(
-                    this.webGl.context.TEXTURE_2D,
-                    0,
-                    this.webGl.context.R8,
-                    this.currentWidth,
-                    this.currentHeight,
-                    0,
-                    this.webGl.context.RED,
-                    this.webGl.context.UNSIGNED_BYTE,
-                    null
-                );
-                this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
-
                 // Resize splat isolation colour textures.
                 this.webGl.context.bindTexture(
                     this.webGl.context.TEXTURE_2D,
@@ -631,10 +597,6 @@ class gltfRenderer {
             gl.clearBufferfv(gl.COLOR, 0, linearClearColor);
             // Clear tonemap flag attachment to 1 (linear to sRGB by default).
             gl.clearBufferuiv(gl.COLOR, 1, new Uint32Array([1, 1, 1, 1]));
-            // Clear the wireframe mask (attachment 2), which is not part of the default draw buffers.
-            gl.drawBuffers([gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT2]);
-            gl.clearBufferfv(gl.COLOR, 2, new Float32Array([0, 0, 0, 0]));
-            gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
             // Clear depth.
             gl.clearBufferfv(gl.DEPTH, 0, new Float32Array([1.0]));
         }
@@ -1106,7 +1068,6 @@ class gltfRenderer {
 
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.mainFramebuffer);
         this.webGl.context.viewport(aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
-        this.wireframeDrawables = [];
 
         // Environment (always linear in this pass)
         this.environmentRenderer.drawEnvironmentMap(
@@ -1264,25 +1225,6 @@ class gltfRenderer {
                     this.viewProjectionMatrix
                 );
             }
-        }
-
-        // Wireframe lines are drawn after all surfaces, so lines hidden by later drawn surfaces are depth-rejected.
-        if (this.wireframeDrawables.length > 0) {
-            const gl = this.webGl.context;
-            gl.bindFramebuffer(gl.FRAMEBUFFER, this.mainFramebuffer);
-            gl.viewport(aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
-            gl.drawBuffers([gl.NONE, gl.NONE, gl.COLOR_ATTACHMENT2]);
-            for (const drawable of this.wireframeDrawables) {
-                this.drawWireframe(
-                    state,
-                    drawable.primitive,
-                    drawable.node,
-                    drawable.viewProjectionMatrix,
-                    drawable.instanceOffset
-                );
-            }
-            gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-            this.wireframeDrawables = [];
         }
 
         // Handle selection
@@ -1613,11 +1555,6 @@ class gltfRenderer {
         gl.activeTexture(GL.TEXTURE1);
         gl.bindTexture(GL.TEXTURE_2D, this.mainTonemapTexture);
         gl.uniform1i(tonemapLoc, 1);
-
-        const wireframeLoc = shader.getUniformLocation("u_WireframeSampler");
-        gl.activeTexture(GL.TEXTURE2);
-        gl.bindTexture(GL.TEXTURE_2D, this.mainWireframeTexture);
-        gl.uniform1i(wireframeLoc, 2);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.splatVBO);
         const posLoc = shader.getAttributeLocation("a_position");
@@ -2060,11 +1997,11 @@ class gltfRenderer {
             !renderpassConfiguration.scatter &&
             !renderpassConfiguration.transmission;
         if (drawWireframe) {
-            this.wireframeDrawables.push({ primitive, node, viewProjectionMatrix, instanceOffset });
+            this.drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset);
         }
     }
 
-    /// Draws the triangle edges of a primitive into the wireframe mask. Expects only the mask to be bound as draw buffer.
+    /// Draws the triangle edges of a primitive as black lines on top of the already rendered surface.
     drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset = undefined) {
         const gl = this.webGl.context;
 
@@ -2104,6 +2041,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
         this.shader.updateUniform("u_WireframeOffset", WIREFRAME_OFFSET, false);
+        this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
         this.updateAnimationUniforms(state, node, primitive);
         this.applyAnimationTextures(state, node, primitive, 0);
 

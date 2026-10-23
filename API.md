@@ -371,7 +371,7 @@ skin / skeleton
 <a name="GltfState+renderingParameters.wireframe"></a>
 
 #### renderingParameters.wireframe
-overlay the triangle edges of all meshes as gray lines with the inverted brightness of the underlying color (wireframe)
+overlay the triangle edges of all meshes as black lines (wireframe)
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
 <a name="GltfState+renderingParameters.enabledExtensions"></a>
