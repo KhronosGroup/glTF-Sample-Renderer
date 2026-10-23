@@ -135,6 +135,8 @@ GltfState containing a state for visualization in GltfView
         * [.renderingParameters](#GltfState+renderingParameters)
             * [.morphing](#GltfState+renderingParameters.morphing)
             * [.skinning](#GltfState+renderingParameters.skinning)
+    * [.wireframe](#GltfState+renderingParameters.wireframe)
+            * [.wireframe](#GltfState+renderingParameters.wireframe)
             * [.enabledExtensions](#GltfState+renderingParameters.enabledExtensions)
                 * [.KHR_materials_clearcoat](#GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat)
                 * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
@@ -364,6 +366,12 @@ morphing between vertices
 
 #### renderingParameters.skinning
 skin / skeleton
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.wireframe"></a>
+
+#### renderingParameters.wireframe
+overlay the triangle edges of all meshes as black lines (wireframe)
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
 <a name="GltfState+renderingParameters.enabledExtensions"></a>
