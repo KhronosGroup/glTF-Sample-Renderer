@@ -32,6 +32,7 @@ class gltfWebGl {
         this.context.supports_EXT_color_buffer_half_float =
             this.context.supports_EXT_color_buffer_float ||
             (this.context.getExtension("EXT_color_buffer_half_float") ? true : false);
+        this.polygonModeExtension = this.context.getExtension("WEBGL_polygon_mode") ?? undefined;
     }
 
     setTexture(loc, gltf, textureInfo, texSlot) {
