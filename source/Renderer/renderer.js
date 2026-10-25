@@ -1992,6 +1992,7 @@ class gltfRenderer {
 
         const drawWireframe =
             state.renderingParameters.wireframe &&
+            this.webGl.polygonModeExtension !== undefined &&
             primitive.mode >= GL.TRIANGLES &&
             !renderpassConfiguration.picking &&
             !renderpassConfiguration.scatter &&
@@ -2045,29 +2046,12 @@ class gltfRenderer {
         this.updateAnimationUniforms(state, node, primitive);
         this.applyAnimationTextures(state, node, primitive, 0);
 
-        const polygonMode = this.webGl.polygonModeExtension;
-        let indexCount = 0;
-        let indexType = GL.UNSIGNED_INT;
-        let drawMode = GL.LINES;
-        if (polygonMode !== undefined) {
-            // Rasterize the original triangles as lines, no extra index buffer needed.
-            drawMode = primitive.mode;
-            if (primitive.indices !== undefined) {
-                if (!this.webGl.setIndices(state.gltf, primitive.indices)) {
-                    return;
-                }
-                const indexAccessor = state.gltf.accessors[primitive.indices];
-                indexCount = indexAccessor.count;
-                indexType = indexAccessor.componentType;
-            } else {
-                indexType = undefined;
-                indexCount = state.gltf.accessors[primitive.attributes.POSITION].count;
-            }
-        } else {
-            indexCount = this.webGl.setWireframeIndices(state.gltf, primitive);
-            if (indexCount === 0) {
+        let indexAccessor = undefined;
+        if (primitive.indices !== undefined) {
+            if (!this.webGl.setIndices(state.gltf, primitive.indices)) {
                 return;
             }
+            indexAccessor = state.gltf.accessors[primitive.indices];
         }
 
         const enabledLocations = [];
@@ -2087,27 +2071,28 @@ class gltfRenderer {
             this.enableInstanceAttributes(instanceOffset);
         }
 
+        const polygonMode = this.webGl.polygonModeExtension;
         gl.disable(GL.BLEND);
         gl.depthMask(false);
-        if (polygonMode !== undefined) {
-            polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
-        }
+        polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
 
-        if (indexType === undefined) {
+        if (indexAccessor !== undefined) {
+            const { count, componentType } = indexAccessor;
             if (instanceOffset !== undefined) {
-                gl.drawArraysInstanced(drawMode, 0, indexCount, instanceOffset.length);
+                gl.drawElementsInstanced(primitive.mode, count, componentType, 0, instanceOffset.length);
             } else {
-                gl.drawArrays(drawMode, 0, indexCount);
+                gl.drawElements(primitive.mode, count, componentType, 0);
             }
-        } else if (instanceOffset !== undefined) {
-            gl.drawElementsInstanced(drawMode, indexCount, indexType, 0, instanceOffset.length);
         } else {
-            gl.drawElements(drawMode, indexCount, indexType, 0);
+            const vertexCount = state.gltf.accessors[primitive.attributes.POSITION].count;
+            if (instanceOffset !== undefined) {
+                gl.drawArraysInstanced(primitive.mode, 0, vertexCount, instanceOffset.length);
+            } else {
+                gl.drawArrays(primitive.mode, 0, vertexCount);
+            }
         }
 
-        if (polygonMode !== undefined) {
-            polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
-        }
+        polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
         gl.depthMask(true);
         enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));
         if (instanceOffset !== undefined) {
