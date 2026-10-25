@@ -11,5 +11,6 @@
         "commit": "3a030b54c2e4f0f4d469eec2f98f47398c9a2a30",
         "file": "Cannon_Exterior.hdr"
     },
-    "models": null
+    "models": null,
+    "localAssets": ["test-assets/gaussian-splatting-tests"]
 }

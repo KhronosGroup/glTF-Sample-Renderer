@@ -7,7 +7,7 @@ import { parseArgs, styleText } from "node:util";
 import { chromium } from "@playwright/test";
 
 import { comparePngs } from "./compare.js";
-import { fetchEnvironment, fetchModels } from "./fetch_assets.js";
+import { collectLocalModels, fetchEnvironment, fetchModels } from "./fetch_assets.js";
 import { startServer } from "./server.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -144,7 +144,7 @@ async function removeRenderings(name, types) {
 
 async function renderModel(page, serverUrl, environment, model, previous) {
     const query = new URLSearchParams({
-        model: `/${model.file}`,
+        model: `/${model.url}`,
         environment: `/${environment}`,
         width,
         height
@@ -242,7 +242,14 @@ async function main() {
     }
 
     const lock = JSON.parse(await readFile(path.join(here, "assets.lock.json"), "utf8"));
-    const names = args.models ? args.models.split(",").map((n) => n.trim()) : lock.models;
+    const local = await collectLocalModels(lock, here, rendererRoot);
+    const requested = args.models?.split(",").map((n) => n.trim());
+    const localModels = requested
+        ? local.models.filter((m) => requested.includes(m.name))
+        : local.models;
+    const sampleNames = requested
+        ? requested.filter((n) => !local.models.some((m) => m.name === n))
+        : lock.models;
     const summary = await loadSummary(lock);
     await mkdir(renderingsRoot, { recursive: true });
 
@@ -258,16 +265,17 @@ async function main() {
 
     console.log(dim("Fetching assets…"));
     const environment = await fetchEnvironment(lock, outputRoot);
-    const models = await fetchModels(
+    const sampleModels = await fetchModels(
         lock,
         outputRoot,
-        names,
+        sampleNames,
         ({ name, index, total, downloaded }) => {
             if (downloaded) {
                 console.log(`  ${counter(index, total)} ${badge("fetched")} ${name}`);
             }
         }
     );
+    const models = [...sampleModels, ...localModels];
 
     const server = await startServer(
         {
@@ -276,7 +284,8 @@ async function main() {
             "/assets/images/": path.join(rendererRoot, "assets", "images"),
             "/node_modules/": path.join(rendererRoot, "node_modules"),
             "/models/": path.join(outputRoot, "models"),
-            "/environments/": path.join(outputRoot, "environments")
+            "/environments/": path.join(outputRoot, "environments"),
+            ...local.mounts
         },
         path.join(here, "page", "index.html")
     );
@@ -328,6 +337,7 @@ async function main() {
             }
 
             let entry = {
+                source: model.source,
                 label: model.label,
                 tags: model.tags,
                 file: model.file

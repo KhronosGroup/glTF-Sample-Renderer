@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const RAW_BASE = "https://raw.githubusercontent.com";
@@ -82,7 +82,7 @@ export async function fetchModels(lock, outputRoot, names, onProgress = () => {}
         const mainFile = entry?.variants?.[variant];
         if (mainFile === undefined) {
             const error = entry ? `no ${variant} variant` : "not in model-index.json";
-            results.push({ name, error });
+            results.push({ name, source: "sample-assets", error });
             onProgress({ ...progress, error });
             continue;
         }
@@ -110,12 +110,48 @@ export async function fetchModels(lock, outputRoot, names, onProgress = () => {}
             downloaded ||= fetched.some(Boolean);
 
             const file = path.relative(outputRoot, gltfFile).split(path.sep).join("/");
-            results.push({ name, label: entry.label, tags: entry.tags, file });
+            results.push({
+                name,
+                source: "sample-assets",
+                label: entry.label,
+                tags: entry.tags,
+                file,
+                url: file
+            });
             onProgress({ ...progress, downloaded });
         } catch (error) {
-            results.push({ name, error: error.message });
+            results.push({ name, source: "sample-assets", error: error.message });
             onProgress({ ...progress, error: error.message });
         }
     }
     return results;
+}
+
+/**
+ * Lists every .gltf and .glb in the lock file's local folders. Models are named
+ * `<folder name>/<file name without extension>`.
+ * @param {Object} lock parsed assets.lock.json
+ * @param {string} lockDir folder of the lock file; local folders are relative to it
+ * @param {string} rendererRoot files are recorded relative to it
+ * @returns {Promise<{ models: Object[], mounts: Object<string, string> }>} models and the
+ *     server mounts that serve them
+ */
+export async function collectLocalModels(lock, lockDir, rendererRoot) {
+    const models = [];
+    const mounts = {};
+    for (const [i, folder] of (lock.localAssets ?? []).entries()) {
+        const root = path.resolve(lockDir, folder);
+        const mount = `local/${i}/`;
+        mounts[`/${mount}`] = root;
+        const files = (await readdir(root)).filter((f) => /\.(gltf|glb)$/i.test(f)).sort();
+        for (const file of files) {
+            models.push({
+                name: `${path.basename(root)}/${path.parse(file).name}`,
+                source: "local",
+                file: path.relative(rendererRoot, path.join(root, file)).split(path.sep).join("/"),
+                url: mount + encodeURIComponent(file)
+            });
+        }
+    }
+    return { models, mounts };
 }

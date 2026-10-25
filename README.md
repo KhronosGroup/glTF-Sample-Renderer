@@ -290,7 +290,7 @@ node tests/regression/run.js --compare --models DamagedHelmet,BoxAnimated
 | Option | Default | Description |
 | --- | --- | --- |
 | `--baseline` / `--compare` | | Required, exactly one. |
-| `--models A,B` | `models` from the lock file | Comma-separated model names from `model-index.json`. |
+| `--models A,B` | `models` from the lock file, plus all local assets | Comma-separated model names from `model-index.json` or local asset names (`<folder>/<file>`). |
 | `--width`, `--height` | `1920`, `1080` | Canvas size. Changing it requires a new baseline. |
 | `--threshold` | `0.1` | Per-pixel color tolerance of [pixelmatch](https://github.com/mapbox/pixelmatch) (0 to 1). |
 | `--max-diff-ratio` | `0.001` | Fraction of differing pixels above which a frame fails. |
@@ -306,11 +306,13 @@ The exit code is `1` if any model fails or cannot be rendered.
 
 Assets are downloaded on first use and cached per commit.
 
+`localAssets` lists folders, relative to the lock file, whose `.gltf` and `.glb` files are rendered as well. They are named `<folder name>/<file name without extension>`, e.g. `gaussian-splatting-tests/Blending`. [tests/regression/test-assets](tests/regression/test-assets) holds small checked-in assets for features not covered by glTF-Sample-Assets, currently `KHR_gaussian_splatting`.
+
 ### Rendering
 
 Each model is loaded into [tests/regression/page/index.html](tests/regression/page/index.html), a full-size canvas using the built `dist/` package. All models are rendered sequentially in a single browser page that is reloaded per model, so memory use does not grow with the number of models.
 
-The view matches the default of the glTF Sample Viewer: default scene, user camera fitted to the scene, Khronos PBR Neutral tone mapping and the Cannon Exterior environment. All animations that don't target the same properties are played and sampled every 250 ms over the longest animation, capped at 40 frames (10 s). Physics and `KHR_interactivity` graphs are not run.
+The view matches the default of the glTF Sample Viewer: default scene, user camera fitted to the scene, Khronos PBR Neutral tone mapping and the Cannon Exterior environment. All animations that don't target the same properties are played and sampled every 250 ms over the longest animation, capped at 40 frames (10 s). Physics and `KHR_interactivity` graphs are not run. Before a frame is captured, rendering repeats until the Gaussian splat sort worker has finished (at most 10 s, otherwise the model is reported as an error).
 
 ### Output
 
