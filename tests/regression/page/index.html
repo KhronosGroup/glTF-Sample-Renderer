@@ -76,12 +76,19 @@
                     ? context.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
                     : context.getParameter(context.RENDERER);
 
-                // Draws twice so state that depends on the previous frame has settled.
+                // Draws at least twice so state that depends on the previous frame has settled,
+                // then keeps drawing while Gaussian splat sorts are still running in the worker.
                 const capture = async (timeSec) => {
                     state.animationTimer.setFixedTime(timeSec);
                     view.renderFrame(state, canvas.width, canvas.height);
-                    await new Promise(requestAnimationFrame);
-                    view.renderFrame(state, canvas.width, canvas.height);
+                    const deadline = performance.now() + 10000;
+                    do {
+                        if (performance.now() > deadline) {
+                            throw new Error("Gaussian splat sorting did not finish within 10 s");
+                        }
+                        await new Promise(requestAnimationFrame);
+                        view.renderFrame(state, canvas.width, canvas.height);
+                    } while (state.needsRedraw);
                     return canvas.toDataURL("image/png");
                 };
 
