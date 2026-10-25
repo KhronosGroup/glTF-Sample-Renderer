@@ -32,8 +32,9 @@ import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
 
-// Distance the wireframe is pushed off the surface along the normal, relative to the camera distance.
-const WIREFRAME_OFFSET = 0.001;
+// Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
+const WIREFRAME_POLYGON_OFFSET_FACTOR = -1.0;
+const WIREFRAME_POLYGON_OFFSET_UNITS = -1.0;
 
 class gltfRenderer {
     constructor(context) {
@@ -2019,7 +2020,6 @@ class gltfRenderer {
         if (instanceOffset !== undefined) {
             vertDefines.push("USE_INSTANCING 1");
         }
-        vertDefines.push("WIREFRAME 1");
 
         const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
         const fragmentHash = this.shaderCache.selectShader("wireframe.frag", []);
@@ -2040,8 +2040,6 @@ class gltfRenderer {
         this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
-        this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
-        this.shader.updateUniform("u_WireframeOffset", WIREFRAME_OFFSET, false);
         this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
         this.updateAnimationUniforms(state, node, primitive);
         this.applyAnimationTextures(state, node, primitive, 0);
@@ -2075,6 +2073,8 @@ class gltfRenderer {
         gl.disable(GL.BLEND);
         gl.depthMask(false);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
+        gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
+        gl.polygonOffset(WIREFRAME_POLYGON_OFFSET_FACTOR, WIREFRAME_POLYGON_OFFSET_UNITS);
 
         if (indexAccessor !== undefined) {
             const { count, componentType } = indexAccessor;
@@ -2092,6 +2092,7 @@ class gltfRenderer {
             }
         }
 
+        gl.disable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
         gl.depthMask(true);
         enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));

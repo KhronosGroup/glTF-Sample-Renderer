@@ -55,11 +55,6 @@ in mat4 a_instance_model_matrix;
 uniform mat3 u_vertNormalUVTransform;
 #endif
 
-#ifdef WIREFRAME
-uniform vec3 u_Camera;
-uniform float u_WireframeOffset;
-#endif
-
 vec4 getPosition()
 {
     vec4 pos = vec4(a_position, 1.0);
@@ -187,24 +182,6 @@ void main()
 #if defined(USE_MORPHING)
     v_Color = clamp(v_Color + getTargetColor0(gl_VertexID), 0.0f, 1.0f);
 #endif
-#endif
-
-#ifdef WIREFRAME
-    // Push the line slightly off the surface towards the viewer to avoid z-fighting with the shaded mesh.
-    // The offset scales with the camera distance to stay roughly constant in depth-buffer precision.
-    vec3 toCamera = u_Camera - pos.xyz;
-    float wireframeOffset = u_WireframeOffset * length(toCamera);
-#ifdef HAS_NORMAL_VEC3
-    vec3 offsetDirection = normalize(vec3(normalMatrix * vec4(getNormal(), 0.0)));
-    // Flip the normal for surfaces seen from behind (e.g. double sided materials)
-    if (dot(offsetDirection, toCamera) < 0.0)
-    {
-        offsetDirection = -offsetDirection;
-    }
-#else
-    vec3 offsetDirection = normalize(toCamera);
-#endif
-    pos.xyz += offsetDirection * wireframeOffset;
 #endif
 
     gl_Position = u_ViewProjectionMatrix * pos;
