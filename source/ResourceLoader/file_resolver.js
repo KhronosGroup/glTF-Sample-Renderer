@@ -45,19 +45,26 @@ class FileResolver {
      * @param {boolean} [options.allowAbsolutePath]
      * @param {Map} [options.cache] Shared across an asset tree so a file reached from
      *   several places is fetched once.
+     * @param {boolean} [options.localOnly] The root asset came from memory or disk, so
+     *   baseUri is a plain file name and relative URIs may only match droppedFiles.
+     * @param {string} [options.referrer] Path of the owning asset, for error messages.
      */
     constructor({
         baseUri = "",
         aliases = undefined,
         droppedFiles = undefined,
         allowAbsolutePath = true,
-        cache = new Map()
+        cache = new Map(),
+        localOnly = false,
+        referrer = undefined
     } = {}) {
         this.baseUri = baseUri;
         this.aliases = aliases;
         this.droppedFiles = droppedFiles;
         this.allowAbsolutePath = allowAbsolutePath;
         this.cache = cache;
+        this.localOnly = localOnly;
+        this.referrer = referrer;
     }
 
     /** A resolver for an asset embedded in this one, which borrows this base URI. */
@@ -67,18 +74,23 @@ class FileResolver {
             aliases,
             droppedFiles: this.droppedFiles,
             allowAbsolutePath: this.allowAbsolutePath,
-            cache: this.cache
+            cache: this.cache,
+            localOnly: this.localOnly,
+            referrer: this.referrer
         });
     }
 
     /** A resolver for an asset that has its own location. */
     forLocation(uri, aliases) {
+        const path = this.absolutePath(uri);
         return new FileResolver({
-            baseUri: ResourceLoaderUtils.getContainingFolder(this.absolutePath(uri)),
+            baseUri: ResourceLoaderUtils.getContainingFolder(path),
             aliases,
             droppedFiles: this.droppedFiles,
             allowAbsolutePath: this.allowAbsolutePath,
-            cache: this.cache
+            cache: this.cache,
+            localOnly: this.localOnly,
+            referrer: path
         });
     }
 
@@ -122,18 +134,27 @@ class FileResolver {
             return cached;
         }
 
-        const promise = this.read(path).then((result) => ({ ...result, identity: path }));
+        const promise = this.read(path, uri).then((result) => ({ ...result, identity: path }));
         this.cache.set(path, promise);
         return promise;
     }
 
-    async read(path) {
+    async read(path, uri = path) {
         const dropped = this.droppedFiles?.find((entry) => entry[0] === path);
         if (dropped !== undefined) {
             return {
                 bytes: new Uint8Array(await dropped[1].arrayBuffer()),
                 mimeType: dropped[1].type || undefined
             };
+        }
+
+        // Without a base URL the fetch would hit the page origin, which a dev server
+        // answers with index.html and a 200.
+        if (this.localOnly && !ResourceLoaderUtils.isAbsoluteUrl(path)) {
+            throw new Error(
+                `Missing file '${uri}' referenced by '${this.referrer}'. ` +
+                    "It has to be provided alongside the glTF file."
+            );
         }
 
         const response = await fetch(path);

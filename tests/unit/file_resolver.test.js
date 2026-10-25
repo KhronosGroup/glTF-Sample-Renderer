@@ -142,6 +142,30 @@ describe("aliases", () => {
     });
 });
 
+describe("local assets", () => {
+    it("refuses to fetch a relative uri that was not provided", async () => {
+        const resolver = new FileResolver({
+            baseUri: "dropped/",
+            droppedFiles: [],
+            localOnly: true,
+            referrer: "dropped/scene.gltf"
+        });
+
+        await expect(resolver.resolve("scene.bin")).rejects.toThrow(
+            "Missing file 'scene.bin' referenced by 'dropped/scene.gltf'"
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("carries the restriction into an external asset", async () => {
+        const parent = new FileResolver({ baseUri: "dropped/", localOnly: true });
+
+        await expect(parent.forLocation("parts/arm.gltf").resolve("arm.bin")).rejects.toThrow(
+            "referenced by 'dropped/parts/arm.gltf'"
+        );
+    });
+});
+
 describe("child resolvers", () => {
     const aliases = new Map([["a", async () => ({ bytes: new Uint8Array() })]]);
 
