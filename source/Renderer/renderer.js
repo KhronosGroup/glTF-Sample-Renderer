@@ -35,6 +35,8 @@ import { gltfMaterial } from "../gltf/material.js";
 // Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
 const WIREFRAME_POLYGON_OFFSET_FACTOR = -1.0;
 const WIREFRAME_POLYGON_OFFSET_UNITS = -1.0;
+// How far the shaded surface is blended towards white so the black lines stand out.
+const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 
 class gltfRenderer {
     constructor(context) {
@@ -1685,6 +1687,9 @@ class gltfRenderer {
         {
             fragDefines.push("TRANSMISSION_PASS 1");
         }
+        if (this.drawsWireframe(state, primitive, renderpassConfiguration)) {
+            fragDefines.push(`WIREFRAME_BRIGHTEN ${WIREFRAME_SURFACE_BRIGHTEN.toFixed(2)}`);
+        }
 
         // POINTS, LINES, LINE_LOOP, LINE_STRIP
         if (primitive.mode < 4) {
@@ -1991,16 +1996,20 @@ class gltfRenderer {
             this.disableInstanceAttributes();
         }
 
-        const drawWireframe =
+        if (this.drawsWireframe(state, primitive, renderpassConfiguration)) {
+            this.drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset);
+        }
+    }
+
+    drawsWireframe(state, primitive, renderpassConfiguration) {
+        return (
             state.renderingParameters.wireframe &&
             this.webGl.polygonModeExtension !== undefined &&
             primitive.mode >= GL.TRIANGLES &&
             !renderpassConfiguration.picking &&
             !renderpassConfiguration.scatter &&
-            !renderpassConfiguration.transmission;
-        if (drawWireframe) {
-            this.drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset);
-        }
+            !renderpassConfiguration.transmission
+        );
     }
 
     /// Draws the triangle edges of a primitive as black lines on top of the already rendered surface.
