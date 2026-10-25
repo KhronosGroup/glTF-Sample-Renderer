@@ -56,6 +56,9 @@
         "rollup-plugin-license": "^3.5.2",
         "serve": "^14.2.5"
     },
+    "overrides": {
+        "compression": "1.8.2"
+    },
     "bugs": {
         "url": "https://github.com/KhronosGroup/glTF-Sample-Renderer/issues"
     },
