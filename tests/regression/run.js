@@ -221,8 +221,9 @@ function modelStatus(frames) {
 }
 
 function printModel(name, entry, nameWidth, progress) {
-    const count = `${entry.frames.length} frame${entry.frames.length === 1 ? "" : "s"}`;
-    let detail = dim(count.padEnd(10));
+    const frameCount = entry.frames.length;
+    const count = `${String(frameCount).padStart(String(MAX_FRAMES).length)} frame${frameCount === 1 ? "" : "s"}`;
+    let detail = dim(count.padEnd(`${MAX_FRAMES} frames`.length + 2));
     if (entry.error) {
         detail += styleText("magenta", entry.error);
     } else if (entry.maxDiffRatio !== undefined) {
