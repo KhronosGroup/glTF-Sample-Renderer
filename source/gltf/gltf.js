@@ -4,7 +4,7 @@ import { gltfBufferView } from "./buffer_view.js";
 import { gltfCamera } from "./camera.js";
 import { gltfImage } from "./image.js";
 import { gltfLight } from "./light.js";
-import { gltfImplicitShape } from "./implicit_shape.js";
+import { gltfShape } from "./shape.js";
 import { gltfMaterial } from "./material.js";
 import { gltfMesh } from "./mesh.js";
 import { gltfNode } from "./node.js";
@@ -18,10 +18,15 @@ import { gltfAnimation } from "./animation.js";
 import { gltfSkin } from "./skin.js";
 import { gltfVariant } from "./variant.js";
 import { gltfGraph } from "./interactivity.js";
+import { gltfFile } from "./file.js";
+import { gltfExternalAsset } from "./external_asset.js";
 import { KHR_physics_rigid_bodies } from "./rigid_bodies.js";
 import { recurseAllAnimatedProperties } from "./gltf_utils.js";
 import { AnimatableProperty } from "./animatable_property.js";
 
+// Extensions still accepted in `extensionsRequired`. The four marked "2.1 core" were
+// promoted into the core specification in glTF 2.1 and are also supported without being
+// declared at all; they remain listed so glTF 2.0 assets that require them keep loading.
 const allowedExtensions = [
     "KHR_accessor_float64",
     "KHR_animation_pointer",
@@ -35,7 +40,7 @@ const allowedExtensions = [
     "KHR_materials_clearcoat",
     "KHR_materials_diffuse_transmission",
     "KHR_materials_dispersion",
-    "KHR_materials_emissive_strength",
+    "KHR_materials_emissive_strength", // 2.1 core
     "KHR_materials_ior",
     "KHR_materials_iridescence",
     "KHR_materials_pbrSpecularGlossiness",
@@ -48,17 +53,17 @@ const allowedExtensions = [
     "KHR_materials_volume",
     "KHR_materials_volume_scatter",
     "KHR_meshopt_compression",
-    "KHR_mesh_quantization",
+    "KHR_mesh_quantization", // 2.1 core
     "KHR_node_hoverability",
     "KHR_node_selectability",
-    "KHR_node_visibility",
+    "KHR_node_visibility", // 2.1 core
     "KHR_physics_rigid_bodies",
     "KHR_texture_basisu",
     "KHR_texture_transform",
     "KHR_xmp_json_ld",
     "EXT_mesh_gpu_instancing",
     "EXT_meshopt_compression",
-    "EXT_texture_webp"
+    "EXT_texture_webp" // 2.1 core
 ];
 
 class glTF extends GltfObject {
@@ -73,6 +78,7 @@ class glTF extends GltfObject {
         "scenes",
         "skins"
     ];
+    static nextDocumentId = 1;
     constructor(file) {
         super();
         this.asset = undefined;
@@ -91,11 +97,17 @@ class glTF extends GltfObject {
         this.materials = [];
         this.animations = [];
         this.skins = [];
+        this.shapes = [];
+        this.files = [];
+        this.externalAssets = [];
         this.path = file;
 
-        // When set, path is a plain file name rather than a URL, so relative
-        // resource uris can only be satisfied from the files handed to the loader.
-        this.loadedFromLocalFiles = false;
+        // Distinguishes documents in a tree of external assets, where indices such as a
+        // mesh index only mean something together with the document they belong to.
+        this.documentId = glTF.nextDocumentId++;
+
+        // Set once the tree is instantiated: something below this document animates.
+        this.hasInstancedAnimations = false;
 
         // Generated tangent cache
         this.tangentCache = new Map();
@@ -103,6 +115,10 @@ class glTF extends GltfObject {
 
     initGl(webGlContext) {
         initGlForMembers(this, this, webGlContext);
+    }
+
+    isAtLeast(major, minor) {
+        return this.asset?.isAtLeast(major, minor) ?? false;
     }
 
     fromJson(json) {
@@ -128,6 +144,9 @@ class glTF extends GltfObject {
         this.images = objectsFromJsons(json.images, gltfImage);
         this.animations = objectsFromJsons(json.animations, gltfAnimation);
         this.skins = objectsFromJsons(json.skins, gltfSkin);
+        this.files = objectsFromJsons(json.files, gltfFile);
+        this.externalAssets = objectsFromJsons(json.externalAssets, gltfExternalAsset);
+        this.shapes = objectsFromJsons(json.shapes, gltfShape);
 
         if (json.extensions?.KHR_lights_punctual !== undefined) {
             this.extensions.KHR_lights_punctual = new GltfObject([]);
@@ -156,11 +175,19 @@ class glTF extends GltfObject {
         }
 
         if (json.extensions?.KHR_implicit_shapes !== undefined) {
-            this.extensions.KHR_implicit_shapes = new GltfObject([]);
-            this.extensions.KHR_implicit_shapes.shapes = objectsFromJsons(
-                json.extensions.KHR_implicit_shapes.shapes,
-                gltfImplicitShape
-            );
+            // KHR_implicit_shapes becomes the core `shapes` array in glTF 2.1. An asset
+            // cannot sensibly use both spellings, because collider shape indices would be
+            // ambiguous, so the extension array simply becomes the core array.
+            if (this.shapes.length > 0) {
+                console.warn(
+                    "Asset defines both shapes and KHR_implicit_shapes; ignoring the extension"
+                );
+            } else {
+                this.shapes = objectsFromJsons(
+                    json.extensions.KHR_implicit_shapes.shapes,
+                    gltfShape
+                );
+            }
         }
 
         if (json.extensions?.KHR_physics_rigid_bodies !== undefined) {
@@ -181,8 +208,35 @@ class glTF extends GltfObject {
             }
         }
 
+        // glTF 2.1 deprecates multiple scenes and lets an asset declare none at all,
+        // which leaves nothing to draw. Standing one up over the node hierarchy's own
+        // roots keeps every pass that walks a scene working unchanged.
+        if (this.scenes.length === 0 && this.nodes.length > 0 && this.isAtLeast(2, 1)) {
+            this.scenes = [new gltfScene(rootNodeIndices(this.nodes))];
+            this.scene = 0;
+        }
+
         this.computeDisjointAnimations();
         this.addNodeMetaInformation();
+        this.markThumbnailImage();
+    }
+
+    // glTF 2.1 thumbnails exist so an application can preview an asset without loading
+    // the scene. A thumbnail that no texture uses is therefore dead weight during a
+    // normal load, and is skipped; ResourceLoader.loadThumbnail fetches it on its own.
+    markThumbnailImage() {
+        const index = this.asset?.thumbnail;
+        if (index === undefined) {
+            return;
+        }
+        const image = this.images[index];
+        if (image === undefined) {
+            console.warn(`asset.thumbnail refers to image ${index}, which does not exist`);
+            this.asset.thumbnail = undefined;
+            return;
+        }
+        image.isThumbnail = true;
+        image.usedByTexture = this.textures.some((texture) => texture.source === index);
     }
 
     // Adds parent and scene information to each node
@@ -196,6 +250,11 @@ class glTF extends GltfObject {
             for (const child of node.children) {
                 recurseNodes(gltf, child, scene, node);
             }
+        }
+        // A node index only resolves against the document that owns it, and a tree of
+        // external assets has several, so every node carries its own.
+        for (const node of this.nodes) {
+            node.ownerDocument = this;
         }
         for (const scene of this.scenes) {
             for (const nodeIndex of scene.nodes) {
@@ -306,6 +365,17 @@ class glTF extends GltfObject {
             node.dirtyTransform = false;
         }
     }
+}
+
+// Nodes no other node claims as a child, in declaration order.
+function rootNodeIndices(nodes) {
+    const children = new Set();
+    for (const node of nodes) {
+        for (const child of node.children) {
+            children.add(child);
+        }
+    }
+    return nodes.map((_, index) => index).filter((index) => !children.has(index));
 }
 
 function enforceVariantsUniqueness(variants) {

@@ -2,6 +2,11 @@ import { GraphController } from "../gltf/interactivity.js";
 import { UserCamera } from "../gltf/user_camera.js";
 import { AnimationTimer } from "./animation_timer.js";
 import { PhysicsController } from "./physics_controller.js";
+import {
+    textureCoordinateDebugOutput,
+    textureCoordinateDebugOutputs,
+    textureCoordinateDebugSetIndex
+} from "../gltf/texcoord_debug_channels.js";
 
 /**
  * GltfState containing a state for visualization in GltfView
@@ -140,7 +145,26 @@ class GltfState {
             /** MSAA used for cases which are not handled by the browser (e.g. Transmission)*/
             internalMSAA: 4,
             /** Use RGBA16F floating-point main framebuffer instead of RGBA8 */
-            floatingPointFramebuffer: true
+            floatingPointFramebuffer: true,
+
+            /** skip nodes whose glTF 2.1 bounding volume is outside the view */
+            cullByBoundingVolume: true,
+
+            /** debug visualization of glTF 2.1 shapes and bounding volumes */
+            debugShapes: {
+                /** draw node bounding volumes, see {@link GltfState.BoundingVolumeMode} */
+                boundingVolumes: GltfState.BoundingVolumeMode.NONE,
+                /** draw every entry of the shapes array at the nodes referencing it */
+                allShapes: false,
+                /** how shapes are drawn, see {@link GltfState.DebugShapeStyle} */
+                style: GltfState.DebugShapeStyle.WIREFRAME,
+                /** how shapes are coloured, see {@link GltfState.DebugShapeColor} */
+                colorMode: GltfState.DebugShapeColor.UNIFORM,
+                /** when false, shapes are drawn through geometry (x-ray) */
+                depthTest: true,
+                /** flag bounding volumes that fail to enclose their node's geometry */
+                highlightNonEnclosing: true
+            }
         };
 
         // retain a reference to the view with which the state was created, so that it can be validated
@@ -166,6 +190,40 @@ GltfState.ToneMaps = {
 };
 
 /**
+ * Which node bounding volumes the shape debug pass draws
+ */
+GltfState.BoundingVolumeMode = {
+    /** bounding volumes are not drawn */
+    NONE: "None",
+    /** draw the bounding volume of every node in the scene */
+    ALL: "All"
+};
+
+/**
+ * How the shape debug pass draws a shape
+ */
+GltfState.DebugShapeStyle = {
+    /** edges only */
+    WIREFRAME: "Wireframe",
+    /** translucent solid surfaces */
+    SOLID: "Translucent",
+    /** translucent solid surfaces with their edges on top */
+    BOTH: "Both"
+};
+
+/**
+ * How the shape debug pass colours a shape
+ */
+GltfState.DebugShapeColor = {
+    /** one colour for everything */
+    UNIFORM: "Uniform",
+    /** by depth in the node hierarchy, which makes a bounding volume hierarchy legible */
+    DEPTH: "Hierarchy Depth",
+    /** by shape type */
+    TYPE: "Shape Type"
+};
+
+/**
  * DebugOutput enum for selecting debug output channels
  * such as "NORMAL"
  */
@@ -175,10 +233,8 @@ GltfState.DebugOutput = {
 
     /** generic debug outputs */
     generic: {
-        /** output the texture coordinates 0 */
-        UV_COORDS_0: "Texture Coordinates 0",
-        /** output the texture coordinates 1 */
-        UV_COORDS_1: "Texture Coordinates 1",
+        // Texture coordinate channels are not listed here. They depend on the asset, so
+        // they come from textureCoordinateDebugOutputs instead.
         /** output the world space normals (i.e. with TBN applied) */
         NORMAL: "Normal Texture",
         /** output the normal from the TBN*/
@@ -293,5 +349,11 @@ GltfState.DebugOutput = {
         SH_DEGREE_3: "SH Degree 3"
     }
 };
+
+// Texture coordinate channels depend on the asset, so they are built from the loaded
+// document rather than listed in DebugOutput. See texcoord_debug_channels.js.
+GltfState.textureCoordinateDebugOutput = textureCoordinateDebugOutput;
+GltfState.textureCoordinateDebugOutputs = textureCoordinateDebugOutputs;
+GltfState.textureCoordinateDebugSetIndex = textureCoordinateDebugSetIndex;
 
 export { GltfState };

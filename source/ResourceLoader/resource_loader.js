@@ -17,6 +17,14 @@ import { KtxDecoder } from "./ktx.js";
 import { loadHDR } from "../libs/hdrpng.js";
 
 import { ResourceLoaderUtils } from "./loader_utils.js";
+import { FileResolver } from "./file_resolver.js";
+import { ExternalAssetLoader } from "./external_asset_loader.js";
+import {
+    instantiateExternalAssets,
+    hasInstancedAnimations,
+    warnAboutIgnoredGraphs
+} from "../gltf/clone_document.js";
+import { loadThumbnail } from "./thumbnail_loader.js";
 
 /**
  * ResourceLoader can be used to load resources for the GltfState
@@ -45,7 +53,7 @@ class ResourceLoader {
      */
     async loadGltf(gltfFile, externalFiles, allowResourceAbsolutePath = true) {
         let isGlb = undefined;
-        let buffers = undefined;
+        let appendix = undefined;
         let json = undefined;
         let data = undefined;
         let filename = "";
@@ -86,7 +94,7 @@ class ResourceLoader {
             } else {
                 data = await AsyncFileReader.readAsText(fileContent);
                 json = JSON.parse(data);
-                buffers = externalFiles;
+                appendix = externalFiles;
             }
         } else {
             // Load empty glTF
@@ -99,22 +107,81 @@ class ResourceLoader {
         if (isGlb) {
             const glbParser = new GlbParser(data);
             const glb = glbParser.extractGlbData();
+            if (glb === undefined) {
+                throw new Error(`Could not read the GLB container of ${filename}`);
+            }
             json = glb.json;
-            buffers = glb.buffers;
+            // Buffers bind to chunks by index, so the loader needs the whole chunk table
+            // and the parser that can slice it, not just a list of binary payloads.
+            appendix = { glb: { ...glb, parser: glbParser } };
         }
 
-        const gltf = new glTF(filename);
-        gltf.loadedFromLocalFiles = loadedFromLocalFiles;
-        gltf.ktxDecoder = this.view.ktxDecoder;
-        gltf.moptDecoder = MeshoptDecoder;
-        //Make sure draco decoder instance is ready
-        await this.dracoInitialization;
-        gltf.fromJson(json);
+        const resolver = new FileResolver({
+            baseUri: ResourceLoaderUtils.getContainingFolder(filename),
+            droppedFiles: externalFiles,
+            allowAbsolutePath: allowResourceAbsolutePath,
+            localOnly: loadedFromLocalFiles,
+            referrer: filename
+        });
 
+        // Parsing a primitive decodes its draco payload, so the decoder has to exist first.
+        await this.dracoInitialization;
         await init(`${this.libPath}mikktspace_bg.wasm`);
-        await gltfLoader.load(gltf, this.view.context, buffers, allowResourceAbsolutePath);
+
+        const externalAssets = new ExternalAssetLoader({
+            createDocument: (options) => this.buildDocument(options, externalAssets)
+        });
+
+        const gltf = await this.buildDocument(
+            {
+                json,
+                glb: appendix?.glb,
+                path: filename,
+                resolver,
+                ancestry: new Set([filename]),
+                depth: 0
+            },
+            externalAssets
+        );
+
+        // Done once the whole tree is parsed and uploaded, so every instance clones a
+        // document whose GPU resources already exist and can simply be shared.
+        instantiateExternalAssets(gltf, this.view.context);
+        gltf.hasInstancedAnimations = hasInstancedAnimations(gltf);
+        warnAboutIgnoredGraphs(gltf);
 
         return gltf;
+    }
+
+    /**
+     * Parses one glTF document, loads its resources, then recurses into the assets it
+     * references. Buffers have to land before the recursion, because a referenced asset
+     * may live in a bufferView of this one.
+     */
+    async buildDocument({ json, glb, path, resolver, ancestry, depth }, externalAssets) {
+        const gltf = new glTF(path);
+        gltf.ktxDecoder = this.view.ktxDecoder;
+        gltf.moptDecoder = MeshoptDecoder;
+        gltf.fromJson(json);
+
+        await gltfLoader.loadBuffers(gltf, glb, resolver);
+        await externalAssets.loadFor(gltf, resolver, ancestry, depth);
+        await gltfLoader.loadImages(gltf, resolver);
+
+        gltf.initGl(this.view.context);
+        return gltf;
+    }
+
+    /**
+     * loadThumbnail reads only the `asset.thumbnail` image of a glTF 2.1 asset, without
+     * building a glTF document or touching WebGL. Use it to preview an asset cheaply.
+     * @param {(String | ArrayBuffer | File | Array)} gltfFile the .gltf or .glb file
+     * @param {File[]} [externalFiles] files accompanying a dropped asset
+     * @returns {Promise<Object|undefined>} `{ url, mimeType }`, or undefined when the
+     *   asset declares no thumbnail. The caller owns `url` and must revoke it.
+     */
+    async loadThumbnail(gltfFile, externalFiles = undefined) {
+        return loadThumbnail(gltfFile, externalFiles);
     }
 
     /**
@@ -396,7 +463,9 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
     environment.sheenELUT = new gltfTextureInfo(environment.textures.length - 1, 0, true);
     environment.sheenELUT.generateMips = false;
 
-    await gltfLoader.loadImages(environment);
+    // The environment's images are the LUTs, whose paths are already relative to the
+    // page rather than to any glTF asset, so this resolver has an empty base.
+    await gltfLoader.loadImages(environment, new FileResolver());
 
     environment.initGl(view.context);
 

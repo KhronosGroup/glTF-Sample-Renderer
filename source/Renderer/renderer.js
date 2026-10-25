@@ -19,6 +19,8 @@ import shaderFunctions from "./shaders/functions.glsl";
 import animationShader from "./shaders/animation.glsl";
 import cubemapVertShader from "./shaders/cubemap.vert";
 import cubemapFragShader from "./shaders/cubemap.frag";
+import debugShapeVertShader from "./shaders/debug_shape.vert";
+import debugShapeFragShader from "./shaders/debug_shape.frag";
 import scatterShader from "./shaders/scatter.frag";
 import simpleFragShader from "./shaders/simple.frag";
 import specularGlossinesShader from "./shaders/specular_glossiness.frag";
@@ -30,6 +32,18 @@ import splatCompositeFragShader from "./shaders/splat_composite.frag";
 import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
+import { cullNodes } from "./culling.js";
+import { gltfPrimitive } from "../gltf/primitive.js";
+import { MAX_TEXCOORD_SLOTS } from "../gltf/attribute_limits.js";
+import {
+    boundsContain,
+    boundsCorners,
+    shapeColor,
+    shapeGeometry,
+    shapeGeometryKey,
+    transformedBounds,
+    WARNING_COLOR
+} from "./debug_geometry.js";
 
 class gltfRenderer {
     constructor(context) {
@@ -75,6 +89,8 @@ class gltfRenderer {
         shaderSources.set("scatter.frag", scatterShader);
         shaderSources.set("cubemap.vert", cubemapVertShader);
         shaderSources.set("cubemap.frag", cubemapFragShader);
+        shaderSources.set("debug_shape.vert", debugShapeVertShader);
+        shaderSources.set("debug_shape.frag", debugShapeFragShader);
         shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
         shaderSources.set("simple.frag", simpleFragShader);
         shaderSources.set("splat.vert", splatVertexShader);
@@ -388,6 +404,27 @@ class gltfRenderer {
 
             this.maxVertAttributes = context.getParameter(context.MAX_VERTEX_ATTRIBS);
 
+            // Every texture coordinate set costs a vertex attribute and a varying, and
+            // the rest of the pipeline needs its share of both. Ask for the configured
+            // budget but take what the hardware affords, never dropping below the two
+            // sets glTF 2.0 assets rely on.
+            const RESERVED_VARYINGS = 8;
+            const RESERVED_ATTRIBUTES = 8;
+            const affordable = Math.min(
+                context.getParameter(context.MAX_VARYING_VECTORS) - RESERVED_VARYINGS,
+                this.maxVertAttributes - RESERVED_ATTRIBUTES
+            );
+            gltfPrimitive.maxTexCoordSlots = Math.max(
+                2,
+                Math.min(MAX_TEXCOORD_SLOTS, affordable)
+            );
+            if (gltfPrimitive.maxTexCoordSlots < MAX_TEXCOORD_SLOTS) {
+                console.warn(
+                    `This GPU affords ${gltfPrimitive.maxTexCoordSlots} texture coordinate ` +
+                        `sets rather than the ${MAX_TEXCOORD_SLOTS} configured`
+                );
+            }
+
             this.initialized = true;
 
             this.environmentRenderer = new EnvironmentRenderer(this.webGl);
@@ -612,28 +649,22 @@ class gltfRenderer {
 
     prepareScene(state, scene) {
         const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions);
+
+        // A tree of external assets has one document per instance, and an index only
+        // resolves against the document that owns the node holding it.
+        const documentOf = (node) => node.ownerDocument ?? state.gltf;
+        const materialOf = ({ node, primitive }) => documentOf(node).materials[primitive.material];
+        const primitivesOf = (node) =>
+            documentOf(node).meshes[node.mesh].primitives.map((primitive, index) => {
+                return { node: node, primitive: primitive, primitiveIndex: index };
+            });
+
         this.selectionDrawables = newNodes.selectableNodes
             .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            );
+            .reduce((accumulator, node) => accumulator.concat(primitivesOf(node)), []);
         this.hoverDrawables = newNodes.hoverableNodes
             .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            );
+            .reduce((accumulator, node) => accumulator.concat(primitivesOf(node)), []);
 
         // check if nodes have changed since previous frame to avoid unnecessary updates
         if (
@@ -648,32 +679,23 @@ class gltfRenderer {
         // and nodes for the transform
         const drawables = this.nodes
             .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            )
+            .reduce((accumulator, node) => accumulator.concat(primitivesOf(node)), [])
             .filter(({ primitive }) => primitive.material !== undefined);
         this.drawables = drawables;
 
         // opaque drawables don't need sorting
         this.opaqueDrawables = drawables.filter(
-            ({ primitive }) =>
-                state.gltf.materials[primitive.material].alphaMode !== "BLEND" &&
-                (state.gltf.materials[primitive.material].extensions === undefined ||
-                    state.gltf.materials[primitive.material].extensions
-                        .KHR_materials_transmission === undefined) &&
-                primitive.extensions?.KHR_gaussian_splatting === undefined
+            (drawable) =>
+                materialOf(drawable).alphaMode !== "BLEND" &&
+                (materialOf(drawable).extensions === undefined ||
+                    materialOf(drawable).extensions.KHR_materials_transmission === undefined) &&
+                drawable.primitive.extensions?.KHR_gaussian_splatting === undefined
         );
 
         let counter = 0;
         this.opaqueDrawables = Object.groupBy(this.opaqueDrawables, (a) => {
             const winding = Math.sign(mat4.determinant(a.node.getRenderedWorldTransform()));
-            const id = `${a.node.mesh}_${winding}_${a.primitiveIndex}`;
+            const id = `${documentOf(a.node).documentId}_${a.node.mesh}_${winding}_${a.primitiveIndex}`;
             // Disable instancing for skins, morph targets and if the GPU attributes limit is reached.
             // Additionally we define a new id for each instance of the EXT_mesh_gpu_instancing extension.
             if (
@@ -696,32 +718,40 @@ class gltfRenderer {
             return id;
         });
 
+        // A group with more than one member is drawn as instances in a single call, so
+        // its nodes cannot be rejected individually.
+        this.instancedNodes = new Set();
+        for (const group of Object.values(this.opaqueDrawables)) {
+            if (group.length > 1) {
+                for (const drawable of group) {
+                    this.instancedNodes.add(drawable.node);
+                }
+            }
+        }
+
         // transparent drawables need sorting before they can be drawn
         this.transparentDrawables = drawables.filter(
-            ({ primitive }) =>
-                (state.gltf.materials[primitive.material].alphaMode === "BLEND" &&
-                    (state.gltf.materials[primitive.material].extensions === undefined ||
-                        state.gltf.materials[primitive.material].extensions
-                            .KHR_materials_transmission === undefined)) ||
-                primitive.extensions?.KHR_gaussian_splatting !== undefined
+            (drawable) =>
+                (materialOf(drawable).alphaMode === "BLEND" &&
+                    (materialOf(drawable).extensions === undefined ||
+                        materialOf(drawable).extensions.KHR_materials_transmission ===
+                            undefined)) ||
+                drawable.primitive.extensions?.KHR_gaussian_splatting !== undefined
         );
 
         this.transmissionDrawables = drawables.filter(
-            ({ primitive }) =>
-                state.gltf.materials[primitive.material].extensions !== undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_transmission !==
-                    undefined &&
-                primitive.extensions?.KHR_gaussian_splatting === undefined
+            (drawable) =>
+                materialOf(drawable).extensions !== undefined &&
+                materialOf(drawable).extensions.KHR_materials_transmission !== undefined &&
+                drawable.primitive.extensions?.KHR_gaussian_splatting === undefined
         );
 
         this.scatterDrawables = drawables.filter(
-            ({ primitive }) =>
-                state.gltf.materials[primitive.material].extensions !== undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_volume_scatter !==
-                    undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_volume !==
-                    undefined &&
-                primitive.extensions?.KHR_gaussian_splatting === undefined
+            (drawable) =>
+                materialOf(drawable).extensions !== undefined &&
+                materialOf(drawable).extensions.KHR_materials_volume_scatter !== undefined &&
+                materialOf(drawable).extensions.KHR_materials_volume !== undefined &&
+                drawable.primitive.extensions?.KHR_gaussian_splatting === undefined
         );
     }
 
@@ -786,8 +816,11 @@ class gltfRenderer {
 
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
 
-        // Update skins.
-        for (const node of state.gltf.nodes) {
+        this.cullByBoundingVolume(state);
+
+        // Update skins. this.nodes spans the whole tree of external assets, where
+        // state.gltf would only be the root document.
+        for (const node of this.nodes) {
             if (node.mesh !== undefined && node.skin !== undefined) {
                 this.updateSkin(state, node);
             }
@@ -1222,6 +1255,15 @@ class gltfRenderer {
             }
         }
 
+        // Drawn last so shapes overlay the finished image, but still depth-tested against
+        // opaque geometry unless the x-ray mode asks otherwise.
+        this.drawDebugShapes(state, scene, [
+            aspectOffsetX,
+            aspectOffsetY,
+            aspectWidth,
+            aspectHeight
+        ]);
+
         // Handle selection
         if (state.triggerSelection) {
             this.webGl.context.bindFramebuffer(
@@ -1270,7 +1312,7 @@ class gltfRenderer {
 
             // Search for node with matching picking ID
             let found = false;
-            for (const node of state.gltf.nodes) {
+            for (const node of this.nodes) {
                 if (node.pickingColor === pixels[0]) {
                     found = true;
                     pickingResult.node = node;
@@ -1357,7 +1399,7 @@ class gltfRenderer {
             };
 
             // Search for node with matching picking ID
-            for (const node of state.gltf.nodes) {
+            for (const node of this.nodes) {
                 if (node.pickingColor === pixels[0]) {
                     pickingResult.node = node;
                     break;
@@ -1378,8 +1420,283 @@ class gltfRenderer {
         state.needsRedraw = this.needsRedraw;
     }
 
+    // Draws glTF 2.1 shapes as an overlay: node bounding volumes, and optionally every
+    // shape a node references through an extension. Deliberately independent of the
+    // physics engines, so shapes are visible whether or not PhysX is loaded.
+    drawDebugShapes(state, scene, viewport) {
+        const parameters = state.renderingParameters.debugShapes;
+        const drawBoundingVolumes =
+            parameters?.boundingVolumes === GltfState.BoundingVolumeMode.ALL;
+        if (parameters === undefined || (!drawBoundingVolumes && !parameters.allShapes)) {
+            return;
+        }
+
+        const items = this.collectDebugShapes(state, scene, drawBoundingVolumes);
+        if (items.length === 0) {
+            return;
+        }
+
+        const fragmentHash = this.shaderCache.selectShader("debug_shape.frag", []);
+        const vertexHash = this.shaderCache.selectShader("debug_shape.vert", []);
+        const shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+        if (shader === undefined) {
+            return;
+        }
+        const gl = this.webGl.context;
+        const location = shader.getAttributeLocation("a_position");
+        if (location === null) {
+            return;
+        }
+
+        // The preceding pass may have left a splat framebuffer bound.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.mainFramebuffer);
+        gl.viewport(...viewport);
+
+        this.shader = shader;
+        gl.useProgram(shader.program);
+        shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
+
+        const style = parameters.style ?? GltfState.DebugShapeStyle.WIREFRAME;
+        const drawSolid = style !== GltfState.DebugShapeStyle.WIREFRAME;
+        const drawLines = style !== GltfState.DebugShapeStyle.SOLID;
+
+        if (parameters.depthTest === false) {
+            gl.disable(gl.DEPTH_TEST);
+        } else {
+            gl.enable(gl.DEPTH_TEST);
+        }
+        // Debug shapes never occlude each other or the scene, so depth stays read-only and
+        // back faces are kept: the far side of a wireframe box is part of the information.
+        gl.depthMask(false);
+        gl.disable(gl.CULL_FACE);
+        gl.enable(gl.BLEND);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.enableVertexAttribArray(location);
+
+        for (const item of items) {
+            const buffers = this.debugShapeBuffers(item.gltf, item.shape);
+            if (buffers === undefined) {
+                continue;
+            }
+            shader.updateUniform("u_ModelMatrix", item.transform);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positions);
+            gl.vertexAttribPointer(location, 3, gl.FLOAT, false, 0, 0);
+
+            if (drawSolid && buffers.triCount > 0) {
+                shader.updateUniform(
+                    "u_Color",
+                    vec4.fromValues(item.color[0], item.color[1], item.color[2], 0.25)
+                );
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.triIndices);
+                gl.drawElements(gl.TRIANGLES, buffers.triCount, buffers.indexType, 0);
+            }
+            if (drawLines && buffers.lineCount > 0) {
+                shader.updateUniform(
+                    "u_Color",
+                    vec4.fromValues(item.color[0], item.color[1], item.color[2], 1.0)
+                );
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.lineIndices);
+                gl.drawElements(gl.LINES, buffers.lineCount, buffers.indexType, 0);
+            }
+        }
+
+        gl.disableVertexAttribArray(location);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        gl.disable(gl.BLEND);
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+    }
+
+    // Pairs each shape reference in the scene with the world transform to draw it at.
+    collectDebugShapes(state, scene, drawBoundingVolumes) {
+        const parameters = state.renderingParameters.debugShapes;
+        const items = [];
+        if (this.nodes === undefined) {
+            return items;
+        }
+
+        const depths = this.nodeHierarchyDepths(state.gltf, scene);
+        const colorMode =
+            {
+                [GltfState.DebugShapeColor.TYPE]: "type",
+                [GltfState.DebugShapeColor.DEPTH]: "depth"
+            }[parameters.colorMode] ?? "uniform";
+
+        for (const node of this.nodes) {
+            // A shape index belongs to the document declaring it, so an external asset
+            // brings its own shapes along with its nodes.
+            const gltf = node.ownerDocument ?? state.gltf;
+            if (gltf.shapes === undefined || gltf.shapes.length === 0) {
+                continue;
+            }
+            const depth = depths.get(node) ?? 0;
+            const add = (shapeIndex, transform, isBoundingVolume) => {
+                const shape = gltf.shapes[shapeIndex];
+                if (shape === undefined) {
+                    return;
+                }
+                const encloses =
+                    !isBoundingVolume ||
+                    parameters.highlightNonEnclosing === false ||
+                    this.boundingVolumeEncloses(gltf, node, shape, transform);
+                items.push({
+                    gltf,
+                    shape,
+                    transform,
+                    color: encloses ? shapeColor(colorMode, shape, depth) : WARNING_COLOR
+                });
+            };
+
+            if (drawBoundingVolumes && node.boundingVolume !== undefined) {
+                add(node.boundingVolume.shape, node.boundingVolume.getWorldTransform(node), true);
+            }
+            if (parameters.allShapes) {
+                const physics = node.extensions?.KHR_physics_rigid_bodies;
+                for (const geometry of [physics?.collider?.geometry, physics?.trigger?.geometry]) {
+                    if (geometry?.shape !== undefined) {
+                        add(geometry.shape, node.worldTransform, false);
+                    }
+                }
+            }
+        }
+        return items;
+    }
+
+    // Depth of every node below the scene, keyed by the node itself. An index would be
+    // ambiguous here: node 0 of an instantiated asset is not node 0 of the root.
+    nodeHierarchyDepths(gltf, scene) {
+        const depths = new Map();
+        const visit = (node, depth) => {
+            if (node === undefined || depths.has(node)) {
+                return;
+            }
+            depths.set(node, depth);
+            const owner = node.ownerDocument ?? gltf;
+            for (const child of node.children ?? []) {
+                visit(owner.nodes[child], depth + 1);
+            }
+            const instance = node.externalAssetInstance;
+            if (instance !== undefined) {
+                const instanceScene = instance.scenes[instance.scene ?? 0];
+                for (const root of instanceScene?.nodes ?? []) {
+                    visit(instance.nodes[root], depth + 1);
+                }
+            }
+        };
+        for (const root of scene.nodes ?? []) {
+            visit(gltf.nodes[root], 0);
+        }
+        return depths;
+    }
+
+    // Whether a bounding volume actually bounds its node's mesh. Compared as world-space
+    // AABBs, so it is conservative: a volume flagged here is genuinely too small, while a
+    // tight volume on a rotated mesh may pass when it should not.
+    boundingVolumeEncloses(gltf, node, shape, transform) {
+        if (node.mesh === undefined) {
+            return true;
+        }
+        const buffers = this.debugShapeBuffers(gltf, shape);
+        if (buffers?.localBounds === undefined) {
+            return true;
+        }
+
+        const meshCorners = [];
+        for (const primitive of gltf.meshes[node.mesh]?.primitives ?? []) {
+            const accessor = gltf.accessors[primitive.attributes?.POSITION];
+            if (accessor?.min === undefined || accessor.max === undefined) {
+                continue;
+            }
+            meshCorners.push(...boundsCorners({ min: accessor.min, max: accessor.max }));
+        }
+        if (meshCorners.length === 0) {
+            return true;
+        }
+
+        return boundsContain(
+            transformedBounds(boundsCorners(buffers.localBounds), transform),
+            transformedBounds(new Float32Array(meshCorners), node.worldTransform)
+        );
+    }
+
+    // Uploads and caches the geometry for a shape. The cache key is the shape's current
+    // parameters, so an animated shape rebuilds itself and a static one never does.
+    debugShapeBuffers(gltf, shape) {
+        if (this.debugShapeCache === undefined) {
+            this.debugShapeCache = new Map();
+        }
+        const key = shapeGeometryKey(shape);
+        const cached = this.debugShapeCache.get(shape);
+        if (cached !== undefined && cached.key === key) {
+            return cached.buffers;
+        }
+        if (cached !== undefined) {
+            this.deleteDebugShapeBuffers(cached.buffers);
+        }
+
+        const geometry = shapeGeometry(gltf, shape);
+        let buffers = undefined;
+        if (geometry !== undefined) {
+            const gl = this.webGl.context;
+            const upload = (target, data) => {
+                const buffer = gl.createBuffer();
+                gl.bindBuffer(target, buffer);
+                gl.bufferData(target, data, gl.STATIC_DRAW);
+                return buffer;
+            };
+            buffers = {
+                positions: upload(gl.ARRAY_BUFFER, geometry.positions),
+                triIndices: upload(gl.ELEMENT_ARRAY_BUFFER, geometry.triIndices),
+                lineIndices: upload(gl.ELEMENT_ARRAY_BUFFER, geometry.lineIndices),
+                triCount: geometry.triIndices.length,
+                lineCount: geometry.lineIndices.length,
+                indexType:
+                    geometry.triIndices instanceof Uint32Array
+                        ? gl.UNSIGNED_INT
+                        : gl.UNSIGNED_SHORT,
+                localBounds: transformedBounds(geometry.positions, undefined)
+            };
+        }
+        // Shapes we cannot draw are cached as undefined so they are not retried per frame.
+        this.debugShapeCache.set(shape, { key, buffers });
+        return buffers;
+    }
+
+    deleteDebugShapeBuffers(buffers) {
+        if (buffers === undefined) {
+            return;
+        }
+        const gl = this.webGl.context;
+        gl.deleteBuffer(buffers.positions);
+        gl.deleteBuffer(buffers.triIndices);
+        gl.deleteBuffer(buffers.lineIndices);
+    }
+
+    // Marks nodes whose bounding volume falls entirely outside the view, so the draw
+    // calls below can skip them. Toggleable, because a mis-authored volume hides geometry
+    // that should be visible.
+    cullByBoundingVolume(state) {
+        if (this.nodes === undefined) {
+            return;
+        }
+        if (state.renderingParameters.cullByBoundingVolume === false) {
+            for (const node of this.nodes) {
+                node.culled = false;
+            }
+            return;
+        }
+        cullNodes(this.nodes, this.viewProjectionMatrix, {
+            fallbackDocument: state.gltf,
+            isInstanced: (node) => this.instancedNodes?.has(node)
+        });
+    }
+
     drawSplat(state, primitive, node, projectionMatrix, viewMatrix) {
         if (primitive.skip) return;
+        if (node?.culled) return;
+        const gltf = node?.ownerDocument ?? state.gltf;
         // Request an async worker sort each frame (no-op if the previous sort
         // has not yet finished or no worker is available).
         const modelViewMatrix = mat4.multiply(mat4.create(), viewMatrix, node.worldTransform);
@@ -1481,19 +1798,19 @@ class gltfRenderer {
         let textureIndex = 0;
 
         let location = this.shader.getUniformLocation(primitive.positionTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.positionTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.positionTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.rotationTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.rotationTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.rotationTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.scaleTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.scaleTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.scaleTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.opacityTextureInfo.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.opacityTextureInfo, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.opacityTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.shArray.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.shArray, textureIndex++);
+        this.webGl.setTexture(location, gltf, primitive.shArray, textureIndex++);
 
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, this.splatVBO);
         location = this.shader.getAttributeLocation("a_position");
@@ -1626,11 +1943,16 @@ class gltfRenderer {
     drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, sampledTextures, instanceOffset = undefined)
     {
         if (primitive.skip) return;
+        if (node?.culled) return;
+
+        // Every index below belongs to the document that owns this node, which is not the
+        // root document once external assets are instantiated.
+        const gltf = node?.ownerDocument ?? state.gltf;
 
         let material;
-        if(primitive.mappings !== undefined && state.variant != "default" && state.gltf.extensions?.KHR_materials_variants.variants !== undefined)
+        if(primitive.mappings !== undefined && state.variant != "default" && gltf.extensions?.KHR_materials_variants.variants !== undefined)
         {
-            const names = state.gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
+            const names = gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
             const idx = names.indexOf(state.variant);
             let materialIdx = primitive.material;
             primitive.mappings.forEach(element => {
@@ -1639,11 +1961,11 @@ class gltfRenderer {
                     materialIdx = element.material;
                 }
             });
-            material = state.gltf.materials[materialIdx];
+            material = gltf.materials[materialIdx];
         }
         else
         {
-            material = state.gltf.materials[primitive.material];
+            material = gltf.materials[primitive.material];
         }
 
         //select shader permutation, compile and link program.
@@ -1652,7 +1974,7 @@ class gltfRenderer {
         this.pushVertParameterDefines(
             vertDefines,
             state.renderingParameters,
-            state.gltf,
+            gltf,
             node,
             primitive,
             state.renderingParameters.debugOutput
@@ -1737,6 +2059,14 @@ class gltfRenderer {
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        // The channel names a set index in the file, which each primitive resolves against
+        // its own slots, so primitives that number their sets differently each show the set
+        // the author asked for. -1 when this primitive does not carry it.
+        this.shader.updateUniform(
+            "u_DebugUVSet",
+            primitive.texCoordSlots.get(this.debugUVSetIndex) ?? -1,
+            false
+        );
         if (renderpassConfiguration.picking) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
         } 
@@ -1778,7 +2108,7 @@ class gltfRenderer {
         const drawIndexed = primitive.indices !== undefined;
         if (drawIndexed)
         {
-            if (!this.webGl.setIndices(state.gltf, primitive.indices))
+            if (!this.webGl.setIndices(gltf, primitive.indices))
             {
                 return;
             }
@@ -1790,7 +2120,7 @@ class gltfRenderer {
             if (renderpassConfiguration.picking && (attribute.attribute !== "POSITION" || attribute.attribute.startsWith("JOINTS") || attribute.attribute.startsWith("WEIGHTS"))) {
                 continue;
             }
-            const gltfAccessor = state.gltf.accessors[attribute.accessor];
+            const gltfAccessor = gltf.accessors[attribute.accessor];
             vertexCount = gltfAccessor.count;
 
             const location = this.shader.getAttributeLocation(attribute.name);
@@ -1798,7 +2128,7 @@ class gltfRenderer {
             {
                 continue; // only skip this attribute
             }
-            if (!this.webGl.enableAttribute(state.gltf, location, gltfAccessor))
+            if (!this.webGl.enableAttribute(gltf, location, gltfAccessor))
             {
                 return; // skip this primitive
             }
@@ -1837,25 +2167,30 @@ class gltfRenderer {
         // Update material uniforms
         material.updateTextureTransforms(this.shader);
 
+        // glTF 2.1 texture coordinate sets need not start at 0 or be consecutive, so a
+        // material's texCoord index is translated into the shader slot this primitive
+        // actually carries it in.
+        const uvSet = (textureInfo) => primitive.mapTexCoord(textureInfo?.texCoord);
+
         this.shader.updateUniform("u_EmissiveFactor", jsToGl(material.emissiveFactor));
         this.shader.updateUniform("u_AlphaCutoff", material.alphaCutoff);
 
         this.shader.updateUniform("u_NormalScale", material.normalTexture?.scale);
-        this.shader.updateUniform("u_NormalUVSet", material.normalTexture?.texCoord);
+        this.shader.updateUniform("u_NormalUVSet", uvSet(material.normalTexture));
 
         this.shader.updateUniform("u_OcclusionStrength", material.occlusionTexture?.strength);
-        this.shader.updateUniform("u_OcclusionUVSet", material.occlusionTexture?.texCoord);
+        this.shader.updateUniform("u_OcclusionUVSet", uvSet(material.occlusionTexture));
 
-        this.shader.updateUniform("u_EmissiveUVSet", material.emissiveTexture?.texCoord);
+        this.shader.updateUniform("u_EmissiveUVSet", uvSet(material.emissiveTexture));
 
-        this.shader.updateUniform("u_BaseColorUVSet", material.pbrMetallicRoughness?.baseColorTexture?.texCoord);
+        this.shader.updateUniform("u_BaseColorUVSet", uvSet(material.pbrMetallicRoughness?.baseColorTexture));
         
-        this.shader.updateUniform("u_MetallicRoughnessUVSet", material.pbrMetallicRoughness?.metallicRoughnessTexture?.texCoord);
+        this.shader.updateUniform("u_MetallicRoughnessUVSet", uvSet(material.pbrMetallicRoughness?.metallicRoughnessTexture));
         this.shader.updateUniform("u_MetallicFactor", material.pbrMetallicRoughness?.metallicFactor);
         this.shader.updateUniform("u_RoughnessFactor", material.pbrMetallicRoughness?.roughnessFactor);
         this.shader.updateUniform("u_BaseColorFactor", jsToGl(material.pbrMetallicRoughness?.baseColorFactor));
 
-        this.shader.updateUniform("u_AnisotropyUVSet", material.extensions?.KHR_materials_anisotropy?.anisotropyTexture?.texCoord);
+        this.shader.updateUniform("u_AnisotropyUVSet", uvSet(material.extensions?.KHR_materials_anisotropy?.anisotropyTexture));
 
         const factor = material.extensions?.KHR_materials_anisotropy?.anisotropyStrength;
         const rotation = material.extensions?.KHR_materials_anisotropy?.anisotropyRotation;
@@ -1864,55 +2199,55 @@ class gltfRenderer {
 
         this.shader.updateUniform("u_ClearcoatFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatFactor);
         this.shader.updateUniform("u_ClearcoatRoughnessFactor", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessFactor);
-        this.shader.updateUniform("u_ClearcoatUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatTexture?.texCoord);
-        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture?.texCoord);
-        this.shader.updateUniform("u_ClearcoatNormalUVSet", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.texCoord);
+        this.shader.updateUniform("u_ClearcoatUVSet", uvSet(material.extensions?.KHR_materials_clearcoat?.clearcoatTexture));
+        this.shader.updateUniform("u_ClearcoatRoughnessUVSet", uvSet(material.extensions?.KHR_materials_clearcoat?.clearcoatRoughnessTexture));
+        this.shader.updateUniform("u_ClearcoatNormalUVSet", uvSet(material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture));
         this.shader.updateUniform("u_ClearcoatNormalScale", material.extensions?.KHR_materials_clearcoat?.clearcoatNormalTexture?.scale);
 
         this.shader.updateUniform("u_Dispersion", material.extensions?.KHR_materials_dispersion?.dispersion);
 
-        this.shader.updateUniform("u_EmissiveStrength", material.extensions?.KHR_materials_emissive_strength?.emissiveStrength);
+        this.shader.updateUniform("u_EmissiveStrength", material.emissiveStrength);
 
         this.shader.updateUniform("u_Ior", material.extensions?.KHR_materials_ior?.ior);
 
         this.shader.updateUniform("u_IridescenceFactor", material.extensions?.KHR_materials_iridescence?.iridescenceFactor);
         this.shader.updateUniform("u_IridescenceIor", material.extensions?.KHR_materials_iridescence?.iridescenceIor);
         this.shader.updateUniform("u_IridescenceThicknessMaximum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMaximum);
-        this.shader.updateUniform("u_IridescenceUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceTexture?.texCoord);
-        this.shader.updateUniform("u_IridescenceThicknessUVSet", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture?.texCoord);
+        this.shader.updateUniform("u_IridescenceUVSet", uvSet(material.extensions?.KHR_materials_iridescence?.iridescenceTexture));
+        this.shader.updateUniform("u_IridescenceThicknessUVSet", uvSet(material.extensions?.KHR_materials_iridescence?.iridescenceThicknessTexture));
         this.shader.updateUniform("u_IridescenceThicknessMinimum", material.extensions?.KHR_materials_iridescence?.iridescenceThicknessMinimum);
 
         this.shader.updateUniform("u_RetroreflectionFactor", material.extensions?.KHR_materials_retroreflection?.retroreflectionFactor);
-        this.shader.updateUniform("u_RetroreflectionUVSet", material.extensions?.KHR_materials_retroreflection?.retroreflectionTexture?.texCoord);
+        this.shader.updateUniform("u_RetroreflectionUVSet", uvSet(material.extensions?.KHR_materials_retroreflection?.retroreflectionTexture));
 
         this.shader.updateUniform("u_SheenRoughnessFactor", material.extensions?.KHR_materials_sheen?.sheenRoughnessFactor);
         this.shader.updateUniform("u_SheenColorFactor", jsToGl(material.extensions?.KHR_materials_sheen?.sheenColorFactor));
-        this.shader.updateUniform("u_SheenRoughnessUVSet", material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture?.texCoord);
-        this.shader.updateUniform("u_SheenColorUVSet", material.extensions?.KHR_materials_sheen?.sheenColorTexture?.texCoord);
+        this.shader.updateUniform("u_SheenRoughnessUVSet", uvSet(material.extensions?.KHR_materials_sheen?.sheenRoughnessTexture));
+        this.shader.updateUniform("u_SheenColorUVSet", uvSet(material.extensions?.KHR_materials_sheen?.sheenColorTexture));
         
         this.shader.updateUniform("u_KHR_materials_specular_specularColorFactor", jsToGl(material.extensions?.KHR_materials_specular?.specularColorFactor));
         this.shader.updateUniform("u_KHR_materials_specular_specularFactor", material.extensions?.KHR_materials_specular?.specularFactor);
-        this.shader.updateUniform("u_SpecularUVSet", material.extensions?.KHR_materials_specular?.specularTexture?.texCoord);
-        this.shader.updateUniform("u_SpecularColorUVSet", material.extensions?.KHR_materials_specular?.specularColorTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularUVSet", uvSet(material.extensions?.KHR_materials_specular?.specularTexture));
+        this.shader.updateUniform("u_SpecularColorUVSet", uvSet(material.extensions?.KHR_materials_specular?.specularColorTexture));
 
         this.shader.updateUniform("u_TransmissionFactor", material.extensions?.KHR_materials_transmission?.transmissionFactor);
-        this.shader.updateUniform("u_TransmissionUVSet", material.extensions?.KHR_materials_transmission?.transmissionTexture?.texCoord);
+        this.shader.updateUniform("u_TransmissionUVSet", uvSet(material.extensions?.KHR_materials_transmission?.transmissionTexture));
 
         this.shader.updateUniform("u_AttenuationColor", jsToGl(material.extensions?.KHR_materials_volume?.attenuationColor));
         this.shader.updateUniform("u_AttenuationDistance", material.extensions?.KHR_materials_volume?.attenuationDistance);
         this.shader.updateUniform("u_ThicknessFactor", material.extensions?.KHR_materials_volume?.thicknessFactor);
-        this.shader.updateUniform("u_ThicknessUVSet", material.extensions?.KHR_materials_volume?.thicknessTexture?.texCoord);
+        this.shader.updateUniform("u_ThicknessUVSet", uvSet(material.extensions?.KHR_materials_volume?.thicknessTexture));
 
         this.shader.updateUniform("u_DiffuseTransmissionFactor", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionFactor);
         this.shader.updateUniform("u_DiffuseTransmissionColorFactor", jsToGl(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorFactor));
-        this.shader.updateUniform("u_DiffuseTransmissionUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture?.texCoord);
-        this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture?.texCoord);
+        this.shader.updateUniform("u_DiffuseTransmissionUVSet", uvSet(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionTexture));
+        this.shader.updateUniform("u_DiffuseTransmissionColorUVSet", uvSet(material.extensions?.KHR_materials_diffuse_transmission?.diffuseTransmissionColorTexture));
 
         this.shader.updateUniform("u_DiffuseFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseFactor));
         this.shader.updateUniform("u_SpecularFactor", jsToGl(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularFactor));
         this.shader.updateUniform("u_GlossinessFactor", material.extensions?.KHR_materials_pbrSpecularGlossiness?.glossinessFactor);
-        this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
-        this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
+        this.shader.updateUniform("u_SpecularGlossinessUVSet", uvSet(material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture));
+        this.shader.updateUniform("u_DiffuseUVSet", uvSet(material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture));
 
         this.shader.updateUniform("u_MultiScatterColor", jsToGl(material.extensions?.KHR_materials_volume_scatter?.multiscatterColor));
     
@@ -1921,7 +2256,7 @@ class gltfRenderer {
         {
             let info = material.textures[textureIndex];
             const location = this.shader.getUniformLocation(info.samplerName);
-            if (!this.webGl.setTexture(location, state.gltf, info, textureIndex))
+            if (!this.webGl.setTexture(location, gltf, info, textureIndex))
             {
                 continue;
             }
@@ -1932,16 +2267,16 @@ class gltfRenderer {
         if (primitive.morphTargetTextureInfo !== undefined) 
         {
             const location = this.shader.getUniformLocation(primitive.morphTargetTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
+            this.webGl.setTexture(location, gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
             textureIndex++;
         }
 
         // set the joints texture
         if (state.renderingParameters.skinning && node.skin !== undefined && primitive.hasWeights && primitive.hasJoints) 
         {
-            const skin = state.gltf.skins[node.skin];
+            const skin = gltf.skins[node.skin];
             const location = this.shader.getUniformLocation(skin.jointTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
+            this.webGl.setTexture(location, gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
             textureIndex++;
         }
 
@@ -1994,7 +2329,7 @@ class gltfRenderer {
 	    
         if (drawIndexed)
         {
-            const indexAccessor = state.gltf.accessors[primitive.indices];
+            const indexAccessor = gltf.accessors[primitive.indices];
             if (instanceOffset !== undefined) {
                 this.webGl.context.drawElementsInstanced(primitive.mode, indexAccessor.count, indexAccessor.componentType, 0, instanceOffset.length);
             } else {
@@ -2044,7 +2379,9 @@ class gltfRenderer {
             if (lightIndex === undefined) {
                 continue;
             }
-            const light = gltf.extensions?.KHR_lights_punctual?.lights[lightIndex];
+            // A light inside an external asset is declared by that asset, not the root.
+            const owner = node.ownerDocument ?? gltf;
+            const light = owner.extensions?.KHR_lights_punctual?.lights[lightIndex];
             nodeLights.push([node, light]);
         }
 
@@ -2052,9 +2389,9 @@ class gltfRenderer {
     }
 
     updateSkin(state, node) {
-        if (state.renderingParameters.skinning && state.gltf.skins !== undefined) {
-            const skin = state.gltf.skins[node.skin];
-            skin.computeJoints(state.gltf, this.webGl.context);
+        if (state.renderingParameters.skinning && node.ownerDocument.skins !== undefined) {
+            const skin = node.ownerDocument.skins[node.skin];
+            skin.computeJoints(node.ownerDocument, this.webGl.context);
         }
     }
 
@@ -2093,7 +2430,7 @@ class gltfRenderer {
             node.mesh !== undefined &&
             primitive.targets.length > 0
         ) {
-            const weights = node.getWeights(state.gltf);
+            const weights = node.getWeights(node.ownerDocument ?? state.gltf);
             if (weights !== undefined && weights.length > 0) {
                 this.shader.updateUniformArray("u_morphWeights", weights);
             }
@@ -2154,8 +2491,6 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_BITANGENT"
             },
             { debugOutput: GltfState.DebugOutput.generic.ALPHA, shaderDefine: "DEBUG_ALPHA" },
-            { debugOutput: GltfState.DebugOutput.generic.UV_COORDS_0, shaderDefine: "DEBUG_UV_0" },
-            { debugOutput: GltfState.DebugOutput.generic.UV_COORDS_1, shaderDefine: "DEBUG_UV_1" },
             {
                 debugOutput: GltfState.DebugOutput.generic.OCCLUSION,
                 shaderDefine: "DEBUG_OCCLUSION"
@@ -2259,6 +2594,17 @@ class gltfRenderer {
             }
         }
 
+        // Every texture coordinate slot shares one define and picks its set through a
+        // uniform, so adding slots does not multiply shader permutations.
+        fragDefines.push("DEBUG_UV " + mappingCount++);
+        this.debugUVSetIndex = GltfState.textureCoordinateDebugSetIndex(
+            state.renderingParameters.debugOutput
+        );
+        if (this.debugUVSetIndex !== undefined) {
+            fragDefines.push("DEBUG DEBUG_UV");
+            mappingFound = true;
+        }
+
         if (mappingFound == false) {
             // fallback
             fragDefines.push("DEBUG DEBUG_NONE");
@@ -2338,6 +2684,10 @@ class gltfRenderer {
     }
 
     destroy() {
+        for (const cached of this.debugShapeCache?.values() ?? []) {
+            this.deleteDebugShapeBuffers(cached.buffers);
+        }
+        this.debugShapeCache = undefined;
         this.shaderCache.destroy();
     }
 }

@@ -11,6 +11,7 @@ import { gltfBufferView } from "./buffer_view.js";
 import { DracoDecoder } from "../ResourceLoader/draco.js";
 import { GL } from "../Renderer/webgl.js";
 import { generateTangents } from "../libs/mikktspace.js";
+import { MAX_COLOR_SLOTS, MAX_TEXCOORD_SLOTS } from "./attribute_limits.js";
 
 // Reading the decoded data straight out of the wasm heap is the fast path, but only
 // Draco builds configured to export the heap views offer it. The decoder currently
@@ -71,6 +72,9 @@ const DRACO_ATTRIBUTE_TYPES = {
 class gltfPrimitive extends GltfObject {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["material"];
+    // Clamped at startup if the GPU affords fewer; see attribute_limits.js.
+    static maxTexCoordSlots = MAX_TEXCOORD_SLOTS;
+    static maxColorSlots = MAX_COLOR_SLOTS;
     constructor() {
         super();
         this.attributes = {};
@@ -90,6 +94,10 @@ class gltfPrimitive extends GltfObject {
         this.hasTangents = false;
         this.hasTexcoord = false;
         this.hasColor = false;
+        // glTF set index -> shader slot, since 2.1 allows non-sequential set indices.
+        this.texCoordSlots = new Map();
+        this.colorSlots = new Map();
+        this.warnedMissingTexCoords = new Set();
 
         // Gaussian Splatting
         this.hasDegree1 = false;
@@ -371,18 +379,22 @@ class gltfPrimitive extends GltfObject {
             }
         }
 
+        // Must run after Draco decoding, which is what adds the decompressed attributes.
+        this.assignIndexedAttributeSlots();
+
         // Generate tangents with Mikktspace which needs normals and texcoords as inputs for triangles
+        const primaryTexCoord = this.primaryTexCoordAttribute();
         if (
             this.attributes.TANGENT === undefined &&
             this.attributes.NORMAL !== undefined &&
-            this.attributes.TEXCOORD_0 !== undefined &&
+            primaryTexCoord !== undefined &&
             this.mode > 3
         ) {
             console.info("Generating tangents using the MikkTSpace algorithm.");
             console.time("Tangent generation");
-            const tangentHash = `${this.indices}_${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes.TEXCOORD_0}`;
+            const tangentHash = `${this.indices}_${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes[primaryTexCoord]}`;
             this.unweld(gltf);
-            this.generateTangents(gltf, tangentHash);
+            this.generateTangents(gltf, tangentHash, primaryTexCoord);
             console.timeEnd("Tangent generation");
         }
 
@@ -396,6 +408,35 @@ class gltfPrimitive extends GltfObject {
             }
             let knownAttribute = true;
             let isTexture = false;
+            const indexedAttribute = /^(TEXCOORD|COLOR)_(\d+)$/.exec(attribute);
+            if (indexedAttribute !== null) {
+                // glTF 2.1 no longer requires these to start at 0 or be consecutive, so
+                // the set index in the file is mapped onto a shader slot instead of
+                // being used directly.
+                const slot =
+                    indexedAttribute[1] === "TEXCOORD"
+                        ? this.texCoordSlots.get(Number(indexedAttribute[2]))
+                        : this.colorSlots.get(Number(indexedAttribute[2]));
+                if (slot === undefined) {
+                    continue;
+                }
+                const idx = this.attributes[attribute];
+                const name = `a_${indexedAttribute[1].toLowerCase()}_${slot}`;
+                this.glAttributes.push({
+                    attribute,
+                    name,
+                    accessor: idx
+                });
+                this.defines.push(
+                    `HAS_${indexedAttribute[1]}_${slot}_${gltf.accessors[idx].type} 1`
+                );
+                if (indexedAttribute[1] === "TEXCOORD") {
+                    this.hasTexcoord = true;
+                } else {
+                    this.hasColor = true;
+                }
+                continue;
+            }
             switch (attribute) {
                 case "POSITION":
                     this.skip = false;
@@ -405,15 +446,6 @@ class gltfPrimitive extends GltfObject {
                     break;
                 case "TANGENT":
                     this.hasTangents = true;
-                    break;
-                case "TEXCOORD_0":
-                    this.hasTexcoord = true;
-                    break;
-                case "TEXCOORD_1":
-                    this.hasTexcoord = true;
-                    break;
-                case "COLOR_0":
-                    this.hasColor = true;
                     break;
                 case "JOINTS_0":
                     this.hasJoints = true;
@@ -654,9 +686,13 @@ class gltfPrimitive extends GltfObject {
             }
 
             for (const attribute of attributes) {
+                // Morph target semantics are remapped onto shader slots the same way the
+                // primitive's own attributes are, otherwise a displacement on, say,
+                // TEXCOORD_3 would emit a define no shader knows about.
+                const shaderName = this.shaderAttributeName(attribute);
                 // Add morph target defines
-                this.defines.push(`HAS_MORPH_TARGET_${attribute} 1`);
-                this.defines.push(`MORPH_TARGET_${attribute}_OFFSET ${attributeOffset}`);
+                this.defines.push(`HAS_MORPH_TARGET_${shaderName} 1`);
+                this.defines.push(`MORPH_TARGET_${shaderName}_OFFSET ${attributeOffset}`);
                 // Store the attribute offset so that later the
                 // morph target texture can be assembled.
                 attributeOffsets[attribute] = attributeOffset;
@@ -1335,6 +1371,111 @@ class gltfPrimitive extends GltfObject {
     }
 
     /**
+     * Maps the TEXCOORD_n and COLOR_n set indices present on this primitive onto the
+     * contiguous shader slots the shaders declare varyings for.
+     *
+     * glTF 2.0 required these to start at 0 and be consecutive, so the file index and
+     * the shader slot were always the same. glTF 2.1 relaxes that, so a primitive may
+     * carry TEXCOORD_1 and TEXCOORD_3 and nothing else. Sets are assigned to slots in
+     * ascending index order, which keeps the lowest-numbered set primary as the spec
+     * recommends.
+     */
+    assignIndexedAttributeSlots() {
+        const collect = (semantic) =>
+            Object.keys(this.attributes)
+                .map((name) => new RegExp(`^${semantic}_(\\d+)$`).exec(name))
+                .filter((match) => match !== null)
+                .map((match) => Number(match[1]))
+                .sort((a, b) => a - b);
+
+        const assign = (indices, limit, semantic) => {
+            const slots = new Map();
+            indices.forEach((index, position) => {
+                if (position < limit) {
+                    slots.set(index, position);
+                }
+            });
+            if (indices.length > limit) {
+                console.warn(
+                    `Primitive has ${indices.length} ${semantic} sets but only ${limit} ` +
+                        `can be used; ignoring ${indices
+                            .slice(limit)
+                            .map((i) => `${semantic}_${i}`)
+                            .join(", ")}`
+                );
+            }
+            return slots;
+        };
+
+        this.texCoordSlots = assign(
+            collect("TEXCOORD"),
+            gltfPrimitive.maxTexCoordSlots,
+            "TEXCOORD"
+        );
+        this.colorSlots = assign(collect("COLOR"), gltfPrimitive.maxColorSlots, "COLOR");
+
+        // The shaders size their varying array from this. It goes in defines, which is the
+        // one list reaching both the vertex and the fragment stage, so the two cannot
+        // disagree about how many sets exist.
+        //
+        // The array is never empty: a material may address a set the primitive does not
+        // provide, and that has to sample a zeroed coordinate rather than fail to compile.
+        this.defines.push(`TEXCOORD_ARRAY_SIZE ${Math.max(1, this.texCoordSlots.size)}`);
+        this.defines.push(`TEXCOORD_SET_COUNT ${this.texCoordSlots.size}`);
+    }
+
+    /**
+     * Translates a material's `texCoord` set index into the shader slot carrying it.
+     * Returns undefined for an undefined input so callers can leave the uniform unset.
+     */
+    mapTexCoord(texCoord) {
+        if (texCoord === undefined) {
+            return undefined;
+        }
+        const slot = this.texCoordSlots.get(texCoord);
+        if (slot !== undefined) {
+            return slot;
+        }
+        if (!this.warnedMissingTexCoords.has(texCoord)) {
+            this.warnedMissingTexCoords.add(texCoord);
+            console.warn(
+                `Material references TEXCOORD_${texCoord}, which this primitive does not ` +
+                    `provide; falling back to the first available set`
+            );
+        }
+        return 0;
+    }
+
+    /**
+     * The semantic carrying this primitive's primary texture coordinates, i.e. whichever
+     * set landed in shader slot 0. Under glTF 2.0 that is always TEXCOORD_0, but 2.1
+     * lets the lowest set be any index.
+     */
+    primaryTexCoordAttribute() {
+        for (const [setIndex, slot] of this.texCoordSlots) {
+            if (slot === 0) {
+                return `TEXCOORD_${setIndex}`;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Maps a glTF attribute semantic onto the name the shaders use for it. Only the
+     * indexed semantics differ, and only when the file's set indices are not already
+     * contiguous from zero.
+     */
+    shaderAttributeName(semantic) {
+        const match = /^(TEXCOORD|COLOR)_(\d+)$/.exec(semantic);
+        if (match === null) {
+            return semantic;
+        }
+        const slots = match[1] === "TEXCOORD" ? this.texCoordSlots : this.colorSlots;
+        const slot = slots.get(Number(match[2]));
+        return slot === undefined ? semantic : `${match[1]}_${slot}`;
+    }
+
+    /**
      * Unwelds this primitive, i.e. applies the index mapping.
      * This is required for generating tangents using the MikkTSpace algorithm,
      * because the same vertex might be mapped to different tangents.
@@ -1423,8 +1564,11 @@ class gltfPrimitive extends GltfObject {
         return gltf.accessors.length - 1;
     }
 
-    generateTangents(gltf, tangentHash) {
-        if (this.attributes.NORMAL === undefined || this.attributes.TEXCOORD_0 === undefined) {
+    generateTangents(gltf, tangentHash, texCoordAttribute = "TEXCOORD_0") {
+        if (
+            this.attributes.NORMAL === undefined ||
+            this.attributes[texCoordAttribute] === undefined
+        ) {
             return;
         }
         if (gltf.tangentCache[tangentHash] !== undefined) {
@@ -1437,7 +1581,7 @@ class gltfPrimitive extends GltfObject {
             gltf.accessors[this.attributes.POSITION].getNormalizedDeinterlacedView(gltf);
         const normals = gltf.accessors[this.attributes.NORMAL].getNormalizedDeinterlacedView(gltf);
         let texcoords =
-            gltf.accessors[this.attributes.TEXCOORD_0].getNormalizedDeinterlacedView(gltf);
+            gltf.accessors[this.attributes[texCoordAttribute]].getNormalizedDeinterlacedView(gltf);
 
         if (positions instanceof Float64Array) {
             console.warn(

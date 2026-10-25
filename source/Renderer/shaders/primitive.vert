@@ -26,16 +26,27 @@ out vec3 v_Normal;
 out float v_TangentWSign;
 #endif
 
-#ifdef HAS_TEXCOORD_0_VEC2
+// GLSL ES 3.00 forbids arrays of vertex inputs, so the attributes are named one by one
+// even though the varyings they feed are an array. An asset supplying more sets than are
+// declared here fails to compile rather than silently sampling the wrong set.
+#if TEXCOORD_SET_COUNT > 4
+#error Declare more a_texcoord attributes to match MAX_TEXCOORD_SLOTS
+#endif
+
+#if TEXCOORD_SET_COUNT > 0
 in vec2 a_texcoord_0;
 #endif
-
-#ifdef HAS_TEXCOORD_1_VEC2
+#if TEXCOORD_SET_COUNT > 1
 in vec2 a_texcoord_1;
 #endif
+#if TEXCOORD_SET_COUNT > 2
+in vec2 a_texcoord_2;
+#endif
+#if TEXCOORD_SET_COUNT > 3
+in vec2 a_texcoord_3;
+#endif
 
-out vec2 v_texcoord_0;
-out vec2 v_texcoord_1;
+out vec2 v_texcoord[TEXCOORD_ARRAY_SIZE];
 
 #ifdef HAS_COLOR_0_VEC3
 in vec3 a_color_0;
@@ -153,20 +164,41 @@ void main()
 #endif
 #endif
 
-    v_texcoord_0 = vec2(0.0, 0.0);
-    v_texcoord_1 = vec2(0.0, 0.0);
+    for (int i = 0; i < TEXCOORD_ARRAY_SIZE; ++i)
+    {
+        v_texcoord[i] = vec2(0.0, 0.0);
+    }
 
-#ifdef HAS_TEXCOORD_0_VEC2
-    v_texcoord_0 = a_texcoord_0;
+#if TEXCOORD_SET_COUNT > 0
+    v_texcoord[0] = a_texcoord_0;
+#endif
+#if TEXCOORD_SET_COUNT > 1
+    v_texcoord[1] = a_texcoord_1;
+#endif
+#if TEXCOORD_SET_COUNT > 2
+    v_texcoord[2] = a_texcoord_2;
+#endif
+#if TEXCOORD_SET_COUNT > 3
+    v_texcoord[3] = a_texcoord_3;
 #endif
 
-#ifdef HAS_TEXCOORD_1_VEC2
-    v_texcoord_1 = a_texcoord_1;
-#endif
-
+// Each slot is spelled out for the same reason as the attributes above: the offset of a
+// slot's targets is a macro, so it cannot be looked up by a loop variable. The array
+// bound is checked too, because a morph target may name a set the primitive itself does
+// not carry, which has no slot to displace.
 #ifdef USE_MORPHING
-    v_texcoord_0 += getTargetTexCoord0(gl_VertexID);
-    v_texcoord_1 += getTargetTexCoord1(gl_VertexID);
+#if defined(HAS_MORPH_TARGET_TEXCOORD_0) && TEXCOORD_ARRAY_SIZE > 0
+    v_texcoord[0] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_0_OFFSET);
+#endif
+#if defined(HAS_MORPH_TARGET_TEXCOORD_1) && TEXCOORD_ARRAY_SIZE > 1
+    v_texcoord[1] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_1_OFFSET);
+#endif
+#if defined(HAS_MORPH_TARGET_TEXCOORD_2) && TEXCOORD_ARRAY_SIZE > 2
+    v_texcoord[2] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_2_OFFSET);
+#endif
+#if defined(HAS_MORPH_TARGET_TEXCOORD_3) && TEXCOORD_ARRAY_SIZE > 3
+    v_texcoord[3] += getTargetTexCoord(gl_VertexID, MORPH_TARGET_TEXCOORD_3_OFFSET);
+#endif
 #endif
 
 

@@ -160,37 +160,23 @@ vec3 getTargetTangent(int vertexID)
     return tangent;
 }
 
-vec2 getTargetTexCoord0(int vertexID)
+// Displacement for one texture coordinate slot. The slot's offset is a parameter
+// because the preprocessor cannot index MORPH_TARGET_TEXCOORD_n_OFFSET by a variable.
+#ifdef HAS_MORPH_TARGETS
+vec2 getTargetTexCoord(int vertexID, int targetOffset)
 {
     vec2 uv = vec2(0);
 
-#ifdef HAS_MORPH_TARGET_TEXCOORD_0
     int texSize = textureSize(u_MorphTargetsSampler, 0)[0];
     for(int i = 0; i < WEIGHT_COUNT; i++)
     {
-        vec2 displacement = getDisplacement(vertexID, MORPH_TARGET_TEXCOORD_0_OFFSET + i, texSize).xy;
+        vec2 displacement = getDisplacement(vertexID, targetOffset + i, texSize).xy;
         uv += u_morphWeights[i] * displacement;
     }
-#endif
 
     return uv;
 }
-
-vec2 getTargetTexCoord1(int vertexID)
-{
-    vec2 uv = vec2(0);
-
-#ifdef HAS_MORPH_TARGET_TEXCOORD_1
-    int texSize = textureSize(u_MorphTargetsSampler, 0)[0];
-    for(int i = 0; i < WEIGHT_COUNT; i++)
-    {
-        vec2 displacement = getDisplacement(vertexID, MORPH_TARGET_TEXCOORD_1_OFFSET + i, texSize).xy;
-        uv += u_morphWeights[i] * displacement;
-    }
 #endif
-
-    return uv;
-}
 
 vec4 getTargetColor0(int vertexID)
 {

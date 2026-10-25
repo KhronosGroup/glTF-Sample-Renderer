@@ -2,6 +2,7 @@ import { GltfState } from "../GltfState/gltf_state.js";
 import { gltfRenderer } from "../Renderer/renderer.js";
 import { GL } from "../Renderer/webgl.js";
 import { ResourceLoader } from "../ResourceLoader/resource_loader.js";
+import { instantiatedDocuments } from "../gltf/clone_document.js";
 
 /**
  * GltfView represents a view on a gltf, e.g. in a canvas
@@ -129,15 +130,23 @@ class GltfView {
             state.gltf,
             state.renderingParameters.enabledExtensions
         ).nodes;
+        // Nodes can come from instantiated external assets, so every index has to be
+        // resolved against the document that declared it.
+        const documentOf = (node) => node.ownerDocument ?? state.gltf;
+        const activePrimitives = nodes
+            .filter((node) => node.mesh !== undefined)
+            .flatMap((node) =>
+                documentOf(node).meshes[node.mesh].primitives.map((primitive) => {
+                    return { gltf: documentOf(node), primitive };
+                })
+            )
+            .filter(({ primitive }) => primitive.material !== undefined);
         const activeMeshes = nodes
             .filter((node) => node.mesh !== undefined)
-            .map((node) => state.gltf.meshes[node.mesh]);
-        const activePrimitives = activeMeshes
-            .reduce((acc, mesh) => acc.concat(mesh.primitives), [])
-            .filter((primitive) => primitive.material !== undefined);
+            .map((node) => documentOf(node).meshes[node.mesh]);
         const activeMaterials = [
             ...new Set(
-                activePrimitives.map((primitive) => state.gltf.materials[primitive.material])
+                activePrimitives.map(({ gltf, primitive }) => gltf.materials[primitive.material])
             )
         ];
         const opaqueMaterials = activeMaterials.filter(
@@ -147,12 +156,12 @@ class GltfView {
             (material) => material.alphaMode === "BLEND"
         );
         const faceCount = activePrimitives
-            .map((primitive) => {
+            .map(({ gltf, primitive }) => {
                 let vertexCount = 0;
                 if (primitive.indices !== undefined) {
-                    vertexCount = state.gltf.accessors[primitive.indices].count;
+                    vertexCount = gltf.accessors[primitive.indices].count;
                 } else {
-                    vertexCount = state.gltf.accessors[primitive.attributes["POSITION"]].count;
+                    vertexCount = gltf.accessors[primitive.attributes["POSITION"]].count;
                 }
                 if (vertexCount === 0) {
                     return 0;
@@ -187,7 +196,24 @@ class GltfView {
     }
 
     _animate(state) {
-        if (state.gltf === undefined || state.gltf.animations === undefined) {
+        if (state.gltf === undefined) {
+            return;
+        }
+        const t = state.animationTimer.elapsedSec();
+        this._animateRoot(state, t);
+
+        // An instantiated external asset has no entry in the animation UI, so everything
+        // it declares runs on the shared clock. Each instance owns its animation objects,
+        // so two instances of one asset hold independent state even in lockstep here.
+        for (const document of instantiatedDocuments(state.gltf)) {
+            for (const animation of document.animations ?? []) {
+                animation.advance(document, t);
+            }
+        }
+    }
+
+    _animateRoot(state, t) {
+        if (state.gltf.animations === undefined) {
             return;
         }
         let disabledAnimations = [];
@@ -223,8 +249,6 @@ class GltfView {
         for (const disabledAnimation of disabledAnimations) {
             disabledAnimation.advance(state.gltf, undefined);
         }
-
-        const t = state.animationTimer.elapsedSec();
 
         for (const animation of enabledAnimations) {
             animation.advance(state.gltf, t);

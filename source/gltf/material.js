@@ -2,9 +2,10 @@ import { mat3, vec3, vec4 } from "gl-matrix";
 import { gltfTextureInfo } from "./texture.js";
 import { jsToGl, initGlForMembers } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
+import { linkPromotedProperty } from "./animatable_property.js";
 
 class gltfMaterial extends GltfObject {
-    static animatedProperties = ["alphaCutoff", "emissiveFactor"];
+    static animatedProperties = ["alphaCutoff", "emissiveFactor", "emissiveStrength"];
     static readOnlyAnimatedProperties = ["doubleSided"];
     static scatterSampleCount = 55;
     static scatterSamples = undefined;
@@ -17,6 +18,7 @@ class gltfMaterial extends GltfObject {
         this.occlusionTexture = undefined;
         this.emissiveTexture = undefined;
         this.emissiveFactor = vec3.fromValues(0, 0, 0);
+        this.emissiveStrength = 1.0;
         this.alphaMode = "OPAQUE";
         this.alphaCutoff = 0.5;
         this.doubleSided = false;
@@ -358,11 +360,6 @@ class gltfMaterial extends GltfObject {
                 }
             }
 
-            // KHR Extension: Emissive strength
-            if (this.extensions.KHR_materials_emissive_strength !== undefined) {
-                this.hasEmissiveStrength = true;
-            }
-
             // KHR Extension: Transmission
             if (this.extensions.KHR_materials_transmission !== undefined) {
                 this.hasTransmission = true;
@@ -612,11 +609,25 @@ class gltfMaterial extends GltfObject {
         if (jsonMaterial.extensions !== undefined) {
             this.fromJsonMaterialExtensions(jsonMaterial.extensions);
         }
+        this.promoteEmissiveStrength(jsonMaterial);
         this.pbrMetallicRoughness = new PbrMetallicRoughness();
         if (jsonMaterial.pbrMetallicRoughness !== undefined && this.type !== "SG") {
             this.type = "MR";
             this.pbrMetallicRoughness.fromJson(jsonMaterial.pbrMetallicRoughness);
         }
+    }
+
+    // KHR_materials_emissive_strength became the core `emissiveStrength` property in glTF 2.1.
+    promoteEmissiveStrength(jsonMaterial) {
+        const extension = this.extensions?.KHR_materials_emissive_strength;
+        const hasCoreValue = jsonMaterial.emissiveStrength !== undefined;
+        if (extension !== undefined) {
+            if (!hasCoreValue) {
+                this.emissiveStrength = extension.emissiveStrength;
+            }
+            linkPromotedProperty(this, "emissiveStrength", extension, "emissiveStrength");
+        }
+        this.hasEmissiveStrength = hasCoreValue || extension !== undefined;
     }
 
     fromJsonMaterialExtensions(jsonExtensions) {

@@ -1,6 +1,8 @@
 import { mat4, quat, vec3 } from "gl-matrix";
 import { jsToGl, jsToGlSlice } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
+import { gltfBoundingVolume } from "./bounding_volume.js";
+import { linkPromotedProperty } from "./animatable_property.js";
 import { GL } from "../Renderer/webgl.js";
 
 // contain:
@@ -8,7 +10,7 @@ import { GL } from "../Renderer/webgl.js";
 // child indices (reference to scene array of nodes)
 
 class gltfNode extends GltfObject {
-    static animatedProperties = ["rotation", "scale", "translation", "weights"];
+    static animatedProperties = ["rotation", "scale", "translation", "weights", "visible"];
     static readOnlyAnimatedProperties = ["camera", "children", "mesh", "skin", "weights"];
     static currentPickingColor = 1;
     constructor() {
@@ -19,10 +21,13 @@ class gltfNode extends GltfObject {
         this.rotation = jsToGl([0, 0, 0, 1]);
         this.scale = jsToGl([1, 1, 1]);
         this.translation = jsToGl([0, 0, 0]);
+        this.visible = true;
         this.name = undefined;
         this.mesh = undefined;
         this.skin = undefined;
         this.weights = undefined;
+        this.boundingVolume = undefined;
+        this.externalAsset = undefined;
 
         // non gltf
         this.worldTransform = mat4.create();
@@ -35,8 +40,11 @@ class gltfNode extends GltfObject {
         this.pickingColor = undefined;
         this.parentNode = undefined;
         this.scene = undefined;
+        this.ownerDocument = undefined;
         this.physicsTransform = undefined;
         this.scaledPhysicsTransform = undefined;
+        // The child document instantiated at this node, one clone per referencing node.
+        this.externalAssetInstance = undefined;
 
         // These are set if this or any parent transform changed
         this.dirtyTransform = true;
@@ -111,10 +119,18 @@ class gltfNode extends GltfObject {
         if (jsonNode.matrix !== undefined) {
             this.applyMatrix(jsonNode.matrix);
         }
+        if (jsonNode.boundingVolume !== undefined) {
+            this.boundingVolume = new gltfBoundingVolume();
+            this.boundingVolume.fromJson(jsonNode.boundingVolume);
+        }
+        if (jsonNode.camera !== undefined && jsonNode.externalAsset !== undefined) {
+            console.warn(`Node "${this.name ?? ""}" declares both a camera and an external asset`);
+        }
         if (jsonNode.extensions?.KHR_node_visibility !== undefined) {
             this.extensions.KHR_node_visibility = new KHR_node_visibility();
             this.extensions.KHR_node_visibility.fromJson(jsonNode.extensions.KHR_node_visibility);
         }
+        this.promoteVisibility(jsonNode);
         if (jsonNode.extensions?.KHR_node_selectability !== undefined) {
             this.extensions.KHR_node_selectability = new KHR_node_selectability();
             this.extensions.KHR_node_selectability.fromJson(
@@ -141,6 +157,18 @@ class gltfNode extends GltfObject {
         } else {
             return gltf.meshes[this.mesh].weights;
         }
+    }
+
+    // KHR_node_visibility became the core `visible` property in glTF 2.1.
+    promoteVisibility(jsonNode) {
+        const extension = this.extensions?.KHR_node_visibility;
+        if (extension === undefined) {
+            return;
+        }
+        if (jsonNode.visible === undefined) {
+            this.visible = extension.visible;
+        }
+        linkPromotedProperty(this, "visible", extension, "visible");
     }
 
     applyMatrix(matrixData) {
