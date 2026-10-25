@@ -342,15 +342,15 @@ class SampleViewerDecorator extends interactivity.ADecorator {
         this.world.gltf.resetAnimatedProperties(this.world.sceneIndex ?? -1);
     }
 
-    processNodeStarted(node) {
+    processNodeStarted(_node) {
         // console.log("Node started:", node);
     }
 
-    processAddingNodeToQueue(flow) {
+    processAddingNodeToQueue(_flow) {
         // console.log("Adding node to queue:", flow);
     }
 
-    processExecutingNextNode(flow) {
+    processExecutingNextNode(_flow) {
         // console.log("Executing next node:", flow);
     }
 
@@ -582,7 +582,9 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
         const nodeCount = this.world.gltf.nodes.length;
         const meshCount = this.world.gltf.meshes.length;
-        const primitiveCount = Math.max(...this.world.gltf.meshes.map(mesh => mesh.primitives.length));
+        const primitiveCount = Math.max(
+            ...this.world.gltf.meshes.map((mesh) => mesh.primitives.length)
+        );
 
         // Returns the currently computed global matrix of the node
         this.registerJsonPointer(
@@ -655,7 +657,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "int",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/children/${nodeCount}`,
             (path) => {
@@ -673,7 +675,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "ref",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/camera`,
             (path) => {
@@ -690,7 +692,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "ref",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/mesh`,
             (path) => {
@@ -707,7 +709,7 @@ class SampleViewerDecorator extends interactivity.ADecorator {
             "ref",
             true
         );
-        
+
         this.registerJsonPointer(
             `/nodes/${nodeCount}/skin`,
             (path) => {
@@ -733,7 +735,11 @@ class SampleViewerDecorator extends interactivity.ADecorator {
                 const meshIndex = parseInt(pathParts[2]);
                 const primitiveIndex = parseInt(pathParts[4]);
                 const mesh = this.world.gltf.meshes[meshIndex];
-                if (mesh === undefined || mesh.primitives === undefined || primitiveIndex >= mesh.primitives.length) {
+                if (
+                    mesh === undefined ||
+                    mesh.primitives === undefined ||
+                    primitiveIndex >= mesh.primitives.length
+                ) {
                     return [undefined];
                 }
                 const materialIndex = mesh.primitives[primitiveIndex].material;
