@@ -1,7 +1,7 @@
-import commonjs from '@rollup/plugin-commonjs';
-import glslify from 'rollup-plugin-glslify';
-import resolve from '@rollup/plugin-node-resolve';
-import {wasm} from "@rollup/plugin-wasm";
+import commonjs from "@rollup/plugin-commonjs";
+import glslify from "rollup-plugin-glslify";
+import resolve from "@rollup/plugin-node-resolve";
+import { wasm } from "@rollup/plugin-wasm";
 import license from "rollup-plugin-license";
 import { cpSync, mkdirSync } from "node:fs";
 
@@ -22,30 +22,29 @@ function copyAssets() {
     };
 }
 
-
 export default {
     strictDeprecations: true,
     onwarn(warning, warn) {
         // Harmless: third-party CJS deps reference top-level `this`, which Rollup rewrites to `undefined`.
-        if (warning.code === 'THIS_IS_UNDEFINED') return;
+        if (warning.code === "THIS_IS_UNDEFINED") return;
         warn(warning);
     },
-    input: ['source/gltf-sample-renderer.js'],
-    external: ['gl-matrix'],
+    input: ["source/gltf-sample-renderer.js"],
+    external: ["gl-matrix"],
     output: [
         {
-            file: 'dist/gltf-viewer.js',
-            format: 'cjs',
+            file: "dist/gltf-viewer.js",
+            format: "cjs",
             sourcemap: true
         },
         {
-            file: 'dist/gltf-viewer.module.js',
-            format: 'esm',
-            sourcemap: true,
+            file: "dist/gltf-viewer.module.js",
+            format: "esm",
+            sourcemap: true
         }
     ],
     plugins: [
-        wasm( {fileName: "libs/[name][extname]", publicPath: "./"} ),
+        wasm({ fileName: "libs/[name][extname]", publicPath: "./" }),
         glslify(),
         resolve({
             browser: true,
@@ -56,12 +55,12 @@ export default {
         license({
             banner: {
                 content: {
-                    file: 'LICENSE_BANNER.txt',
+                    file: "LICENSE_BANNER.txt"
                 }
             },
-            thirdParty:{
+            thirdParty: {
                 includeSelf: false
             }
-        }),
+        })
     ]
 };
