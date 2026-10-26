@@ -1,8 +1,44 @@
 import { defineConfig } from "rolldown";
 import glslify from "rollup-plugin-glslify";
 import { wasm } from "@rollup/plugin-wasm";
-import license from "rollup-plugin-license";
-import { cpSync, mkdirSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+
+function readPackage(dir) {
+    const { name, version, license } = JSON.parse(readFileSync(`${dir}/package.json`, "utf8"));
+    const licenseFile = readdirSync(dir).find((file) => /^(licen[cs]e|copying)/i.test(file));
+    const licenseText = licenseFile ? readFileSync(`${dir}/${licenseFile}`, "utf8").trim() : "";
+    return { name, version, license, licenseText };
+}
+
+// "/*!" marks a legal comment, so the banner survives when the webapp minifies the bundle
+function licenseBanner(chunk) {
+    const dependencies = new Map();
+    for (const id of chunk.moduleIds) {
+        const dir = id
+            .replaceAll("\\", "/")
+            .match(/^(.*\/node_modules\/(?:@[^/]+\/)?[^/]+)\//)?.[1];
+        if (dir && !dependencies.has(dir)) {
+            dependencies.set(dir, readPackage(dir));
+        }
+    }
+    const lines = [
+        `Bundle of ${pkg.name}`,
+        `Generated: ${new Date().toISOString().slice(0, 10)}`,
+        `Version: ${pkg.version}`,
+        `License: ${pkg.license}`,
+        "Dependencies:",
+        "",
+        ...[...dependencies.values()].flatMap((dep) => [
+            `${dep.name} -- ${dep.version} -- ${dep.license}`,
+            ...dep.licenseText.split(/\r?\n/),
+            ""
+        ])
+    ];
+    const body = lines.map((line) => ` * ${line.replaceAll("*/", "*\\/")}`.trimEnd());
+    return ["/*!", ...body, " */"].join("\n");
+}
 
 function copyAssets() {
     return {
@@ -29,21 +65,8 @@ export default defineConfig({
     output: {
         file: "dist/gltf-viewer.module.js",
         format: "esm",
-        sourcemap: true
+        sourcemap: true,
+        banner: licenseBanner
     },
-    plugins: [
-        wasm({ fileName: "libs/[name][extname]", publicPath: "./" }),
-        glslify(),
-        copyAssets(),
-        license({
-            banner: {
-                content: {
-                    file: "LICENSE_BANNER.txt"
-                }
-            },
-            thirdParty: {
-                includeSelf: false
-            }
-        })
-    ]
+    plugins: [wasm({ fileName: "libs/[name][extname]", publicPath: "./" }), glslify(), copyAssets()]
 });
