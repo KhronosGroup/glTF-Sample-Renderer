@@ -148,7 +148,7 @@ class GltfView {
         );
         const faceCount = activePrimitives
             .map((primitive) => {
-                let vertexCount = 0;
+                let vertexCount;
                 if (primitive.indices !== undefined) {
                     vertexCount = state.gltf.accessors[primitive.indices].count;
                 } else {
