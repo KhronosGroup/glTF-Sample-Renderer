@@ -17,7 +17,7 @@
         "build_docs": "jsdoc2md source/gltf-sample-renderer.js source/GltfView/gltf_view.js source/GltfState/gltf_state.js source/GltfState/animation_timer.js source/ResourceLoader/resource_loader.js source/gltf/user_camera.js source/gltf/interactivity.js source/GltfState/physics_controller.js source/ResourceLoader/loader_utils.js > API.md",
         "lint": "eslint --no-warn-ignored source/**/*.js",
         "lint:fix": "eslint --no-warn-ignored --fix source/**/*.js",
-        "prettier": "npx prettier source/**/*.js --check",
+        "prettier": "npx prettier source/**/*.js rollup.config.js eslint.config.js --check",
         "prettier:fix": "npm run prettier -- --write",
         "format": "npm run prettier:fix && npm run lint:fix"
     },
