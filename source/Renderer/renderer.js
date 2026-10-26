@@ -2204,7 +2204,6 @@ class gltfRenderer {
         gl.depthMask(false);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
         gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
-        // No slope factor: it can get very large at grazing angles and pull edges through other geometry.
         gl.polygonOffset(0, WIREFRAME_POLYGON_OFFSET_UNITS);
         this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
