@@ -57,7 +57,7 @@ function extentsAlongAxis(min, max, axis) {
 }
 
 // Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
-const WIREFRAME_POLYGON_OFFSET_UNITS = -1.0;
+const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 
