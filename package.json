@@ -33,7 +33,6 @@
         "fast-png": "^6.2.0",
         "gl-matrix": "^3.2.1",
         "jpeg-js": "^0.4.3",
-        "json-ptr": "^3.1.0",
         "meshoptimizer": "^1.0.1",
         "physx-js-webidl": "2.7.2"
     },
