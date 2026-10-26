@@ -49,8 +49,7 @@ export default {
         glslify(),
         resolve({
             browser: true,
-            preferBuiltins: false,
-            dedupe: ['gl-matrix', 'jpeg-js', 'fast-png', '@khronosgroup/gltf-interactivity-engine']
+            preferBuiltins: false
         }),
         copyAssets(),
         commonjs(),
