@@ -12,7 +12,6 @@
     "scripts": {
         "build": "rolldown -c",
         "watch": "rolldown -c -w",
-        "test": "npx playwright test",
         "regression:baseline": "npm run build && node tests/regression/run.js --baseline",
         "regression:compare": "npm run build && node tests/regression/run.js --compare",
         "regression:update-pin": "node tests/regression/update_pin.js",
