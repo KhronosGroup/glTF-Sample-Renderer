@@ -54,38 +54,40 @@ class gltfNode extends GltfObject {
                 this.extensions?.EXT_mesh_gpu_instancing?.attributes
             )[0];
             const count = gltf.accessors[firstAccessor].count;
-            const translationAccessor =
+            const translationIndex =
                 this.extensions?.EXT_mesh_gpu_instancing?.attributes?.TRANSLATION;
             let translationData = undefined;
-            if (translationAccessor !== undefined) {
+            if (translationIndex !== undefined) {
+                const translationAccessor = gltf.accessors[translationIndex];
                 if (translationAccessor.componentType === GL.FLOAT) {
-                    translationData = gltf.accessors[translationAccessor].getDeinterlacedView(gltf);
+                    translationData = translationAccessor.getDeinterlacedView(gltf);
                 } else {
                     console.warn("EXT_mesh_gpu_instancing translation accessor must be a float");
                 }
             }
-            const rotationAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
+            const rotationIndex = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.ROTATION;
             let rotationData = undefined;
-            if (rotationAccessor !== undefined) {
+            if (rotationIndex !== undefined) {
+                const rotationAccessor = gltf.accessors[rotationIndex];
                 if (
                     rotationAccessor.componentType === GL.FLOAT ||
                     (rotationAccessor.normalized &&
                         (rotationAccessor.componentType === GL.BYTE ||
                             rotationAccessor.componentType === GL.SHORT))
                 ) {
-                    rotationData =
-                        gltf.accessors[rotationAccessor].getNormalizedDeinterlacedView(gltf);
+                    rotationData = rotationAccessor.getNormalizedDeinterlacedView(gltf);
                 } else {
                     console.warn(
                         "EXT_mesh_gpu_instancing rotation accessor must be a float, byte normalized, or short normalized"
                     );
                 }
             }
-            const scaleAccessor = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
+            const scaleIndex = this.extensions?.EXT_mesh_gpu_instancing?.attributes?.SCALE;
             let scaleData = undefined;
-            if (scaleAccessor !== undefined) {
+            if (scaleIndex !== undefined) {
+                const scaleAccessor = gltf.accessors[scaleIndex];
                 if (scaleAccessor.componentType === GL.FLOAT) {
-                    scaleData = gltf.accessors[scaleAccessor].getDeinterlacedView(gltf);
+                    scaleData = scaleAccessor.getDeinterlacedView(gltf);
                 } else {
                     console.warn("EXT_mesh_gpu_instancing scale accessor must be a float");
                 }
