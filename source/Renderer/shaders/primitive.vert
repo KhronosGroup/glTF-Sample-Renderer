@@ -1,9 +1,18 @@
+#ifdef USE_CLIPPING
+#extension GL_ANGLE_clip_cull_distance : require
+#endif
+
 #include <animation.glsl>
 
 
 uniform mat4 u_ViewProjectionMatrix;
 uniform mat4 u_ModelMatrix;
 uniform mat4 u_NormalMatrix;
+
+#ifdef USE_CLIPPING
+// Six half spaces forming a cuboid, each pointing at the part that is kept.
+uniform vec4 u_ClippingPlanes[6];
+#endif
 
 
 in vec3 a_position;
@@ -182,6 +191,16 @@ void main()
 #if defined(USE_MORPHING)
     v_Color = clamp(v_Color + getTargetColor0(gl_VertexID), 0.0f, 1.0f);
 #endif
+#endif
+
+#ifdef USE_CLIPPING
+    vec4 clipPosition = vec4(v_Position, 1.0);
+    gl_ClipDistance[0] = dot(clipPosition, u_ClippingPlanes[0]);
+    gl_ClipDistance[1] = dot(clipPosition, u_ClippingPlanes[1]);
+    gl_ClipDistance[2] = dot(clipPosition, u_ClippingPlanes[2]);
+    gl_ClipDistance[3] = dot(clipPosition, u_ClippingPlanes[3]);
+    gl_ClipDistance[4] = dot(clipPosition, u_ClippingPlanes[4]);
+    gl_ClipDistance[5] = dot(clipPosition, u_ClippingPlanes[5]);
 #endif
 
     gl_Position = u_ViewProjectionMatrix * pos;

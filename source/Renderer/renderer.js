@@ -30,6 +30,30 @@ import splatCompositeFragShader from "./shaders/splat_composite.frag";
 import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
+import { getSceneExtents } from "../gltf/gltf_utils.js";
+
+const CLIPPING_PLANE_COUNT = 6;
+
+const WORLD_AXES = [
+    vec3.fromValues(1.0, 0.0, 0.0),
+    vec3.fromValues(0.0, 1.0, 0.0),
+    vec3.fromValues(0.0, 0.0, 1.0)
+];
+
+/** Range the given box covers when projected onto an arbitrary (unit) axis. */
+function extentsAlongAxis(min, max, axis) {
+    let lower = Number.POSITIVE_INFINITY;
+    let upper = Number.NEGATIVE_INFINITY;
+    for (let corner = 0; corner < 8; ++corner) {
+        const distance =
+            (corner & 1 ? max[0] : min[0]) * axis[0] +
+            (corner & 2 ? max[1] : min[1]) * axis[1] +
+            (corner & 4 ? max[2] : min[2]) * axis[2];
+        lower = Math.min(lower, distance);
+        upper = Math.max(upper, distance);
+    }
+    return [lower, upper];
+}
 
 class gltfRenderer {
     constructor(context) {
@@ -107,6 +131,11 @@ class gltfRenderer {
 
         this.maxVertAttributes = undefined;
         this.instanceBuffer = undefined;
+
+        // Plane equations of the clipping cuboid, or undefined while clipping is off.
+        this.clippingPlanes = undefined;
+        this.clippingExtents = undefined;
+        this.clipDistancesEnabled = false;
 
         this.splatVBO = undefined;
         this.currentSortBuffer = undefined;
@@ -726,6 +755,76 @@ class gltfRenderer {
     }
 
     // render complete gltf scene with given camera
+    /**
+     * Derives the world space plane equations of the clipping cuboid from the
+     * scene extents, each plane pointing into the half space that is kept.
+     * Leaves them undefined when clipping is off or unsupported, which is what
+     * the rest of the renderer tests for.
+     */
+    updateClippingPlanes(state) {
+        this.clippingPlanes = undefined;
+
+        const clipping = state.renderingParameters.clipping;
+        if (
+            !clipping.enabled ||
+            !this.webGl.context.supports_WEBGL_clip_cull_distance ||
+            state.gltf?.scenes[state.sceneIndex] === undefined
+        ) {
+            return;
+        }
+
+        if (
+            this.clippingExtents?.gltf !== state.gltf ||
+            this.clippingExtents?.sceneIndex !== state.sceneIndex
+        ) {
+            const min = vec3.create();
+            const max = vec3.create();
+            getSceneExtents(state.gltf, state.sceneIndex, min, max);
+            this.clippingExtents = { gltf: state.gltf, sceneIndex: state.sceneIndex, min, max };
+        }
+
+        // The rows of the view matrix are the camera axes in world space.
+        const axes =
+            clipping.orientation === GltfState.ClippingOrientations.VIEW_ALIGNED
+                ? [
+                      vec3.fromValues(this.viewMatrix[0], this.viewMatrix[4], this.viewMatrix[8]),
+                      vec3.fromValues(this.viewMatrix[1], this.viewMatrix[5], this.viewMatrix[9]),
+                      vec3.fromValues(this.viewMatrix[2], this.viewMatrix[6], this.viewMatrix[10])
+                  ]
+                : WORLD_AXES;
+
+        this.clippingPlanes = [];
+        for (let i = 0; i < axes.length; ++i) {
+            const axis = axes[i];
+            const [lower, upper] = extentsAlongAxis(
+                this.clippingExtents.min,
+                this.clippingExtents.max,
+                axis
+            );
+            const span = upper - lower;
+            const near = lower + clipping.min[i] * span;
+            const far = lower + clipping.max[i] * span;
+
+            this.clippingPlanes.push(vec4.fromValues(axis[0], axis[1], axis[2], -near));
+            this.clippingPlanes.push(vec4.fromValues(-axis[0], -axis[1], -axis[2], far));
+        }
+    }
+
+    setClipDistancesEnabled(enabled) {
+        if (this.clipDistancesEnabled === enabled) {
+            return;
+        }
+        const first = this.webGl.context.WEBGL_clip_cull_distance.CLIP_DISTANCE0_WEBGL;
+        for (let i = 0; i < CLIPPING_PLANE_COUNT; ++i) {
+            if (enabled) {
+                this.webGl.context.enable(first + i);
+            } else {
+                this.webGl.context.disable(first + i);
+            }
+        }
+        this.clipDistancesEnabled = enabled;
+    }
+
     drawScene(state, scene) {
         this.prepareScene(state, scene);
 
@@ -785,6 +884,8 @@ class gltfRenderer {
         }
 
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
+
+        this.updateClippingPlanes(state);
 
         // Update skins.
         for (const node of state.gltf.nodes) {
@@ -1690,6 +1791,12 @@ class gltfRenderer {
         }
 
         this.pushFragParameterDefines(fragDefines, state);
+
+        // Only the vertex stage clips, so this is pushed after the fragment defines are branched off.
+        if (this.clippingPlanes !== undefined)
+        {
+            vertDefines.push("USE_CLIPPING 1");
+        }
         
         const vertexShader = renderpassConfiguration.picking ? "picking.vert" : "primitive.vert";
         let fragmentShader = "pbr.frag";
@@ -1737,6 +1844,9 @@ class gltfRenderer {
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        if (this.clippingPlanes !== undefined) {
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+        }
         if (renderpassConfiguration.picking) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
         } 
@@ -1992,6 +2102,8 @@ class gltfRenderer {
 	        }
 	    }
 	    
+        this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
+
         if (drawIndexed)
         {
             const indexAccessor = state.gltf.accessors[primitive.indices];
@@ -2009,6 +2121,10 @@ class gltfRenderer {
                 this.webGl.context.drawArrays(primitive.mode, 0, vertexCount);
             }
         }
+
+        // No other pass writes gl_ClipDistance, so leaving these on would clip the
+        // background and the fullscreen passes by undefined values.
+        this.setClipDistancesEnabled(false);
 
         for (const attribute of primitive.glAttributes)
         {

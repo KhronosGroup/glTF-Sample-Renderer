@@ -2,6 +2,7 @@ yarn.lock
 
 dist
 node_modules
+/regression/
 npm-debug.log
 debug.log
 
