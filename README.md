@@ -28,6 +28,7 @@ Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-R
     - [Formatting](#formatting)
       - [Visual Studio Code](#visual-studio-code)
     - [Testing](#testing)
+  - [Regression Testing](#regression-testing)
 
 ## Credits
 
@@ -266,3 +267,75 @@ There are extensions for both Prettier and ESLint in Visual Studio Code. They ca
 - [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 
 You are encouraged to run Prettier and ESLint on your code before committing.
+
+## Regression Testing
+
+The regression tests render models from [glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) in headless Chromium and compare a candidate rendering against a previously rendered baseline. Renderings are not checked in, so baseline and candidate are always produced on the same machine and GPU.
+
+Typical workflow:
+
+```bash
+git switch main
+npm run regression:baseline   # render the reference images
+git switch my-feature
+npm run regression:compare    # render again and diff against the baseline
+```
+
+Both scripts run `npm run build` first. To skip the build, or to override options, call the runner directly:
+
+```bash
+node tests/regression/run.js --compare --models DamagedHelmet,BoxAnimated
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--baseline` / `--compare` | | Required, exactly one. |
+| `--models A,B` | `models` from the lock file, plus all local assets | Comma-separated model names from `model-index.json` or local asset names (`<folder>/<file>`). |
+| `--width`, `--height` | `1920`, `1080` | Canvas size. Changing it requires a new baseline. |
+| `--threshold` | `0.1` | Per-pixel color tolerance of [pixelmatch](https://github.com/mapbox/pixelmatch) (0 to 1). |
+| `--max-diff-ratio` | `0.001` | Fraction of differing pixels above which a frame fails. |
+| `--headed` | | Show the browser window. |
+
+The exit code is `1` if any model fails or cannot be rendered.
+
+### Assets
+
+[tests/regression/assets.lock.json](tests/regression/assets.lock.json) pins glTF-Sample-Assets and the environment map ([glTF-Sample-Environments](https://github.com/KhronosGroup/glTF-Sample-Environments)) to fixed commits, so updates to the assets never show up as renderer regressions. `models` lists the models to render; set it to `null` to render every model of the index. Only the `glTF` variant is used; models without it are reported as errors.
+
+`npm run regression:update-pin` moves both pins to the latest commit of their branch. Render a new baseline afterwards.
+
+Assets are downloaded on first use and cached per commit.
+
+`localAssets` lists folders, relative to the lock file, whose `.gltf` and `.glb` files are rendered as well. They are named `<folder name>/<file name without extension>`, e.g. `gaussian-splatting-tests/Blending`. [tests/regression/test-assets](tests/regression/test-assets) holds small checked-in assets for features not covered by glTF-Sample-Assets, currently `KHR_gaussian_splatting`.
+
+### Rendering
+
+Each model is loaded into [tests/regression/page/index.html](tests/regression/page/index.html), a full-size canvas using the built `dist/` package. All models are rendered sequentially in a single browser page that is reloaded per model, so memory use does not grow with the number of models.
+
+The view matches the default of the glTF Sample Viewer: default scene, user camera fitted to the scene, Khronos PBR Neutral tone mapping and the Cannon Exterior environment. All animations that don't target the same properties are played and sampled every 250 ms over the longest animation, capped at 40 frames (10 s). Physics and `KHR_interactivity` graphs are not run. Before a frame is captured, rendering repeats until the Gaussian splat sort worker has finished (at most 10 s, otherwise the model is reported as an error).
+
+### Output
+
+Everything is written to the git-ignored `regression/` folder:
+
+```
+regression/
+  environments/<commit>/Cannon_Exterior.hdr
+  models/<commit>/
+    model-index.json
+    <model>/glTF/...
+  renderings/
+    summary.json
+    <model>/
+      t00000ms.baseline.png
+      t00000ms.candidate.png
+      t00000ms.diff.png
+      t00250ms.baseline.png
+      ...
+```
+
+`diff.png` shows the baseline faded out, differing pixels in red and anti-aliasing differences (which are not counted) in yellow.
+
+`summary.json` records the pinned assets, resolution, tolerances, and per run (`baseline`, `candidate`) the renderer branch and commit, browser, GPU and totals. Per model it lists the status (`baseline`, `pass`, `fail`, `missing-baseline`, `error`), the animation duration, the sampled timepoints and every frame with its file paths and diff result, so no directory listing is needed to find the images. Browser console errors and failed requests are recorded per model as well.
+
+A baseline run deletes the model's previous renderings. A compare run keeps the baseline and replaces candidates and diffs. If the asset pins or the resolution changed since the baseline, a compare run aborts and asks for a new baseline.

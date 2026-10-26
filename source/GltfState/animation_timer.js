@@ -61,7 +61,7 @@ class AnimationTimer {
         if (this.paused) {
             return this.pausedTime / 1000;
         } else {
-            return this.fixedTime || (performance.now() - this.startTime) / 1000;
+            return this.fixedTime ?? (performance.now() - this.startTime) / 1000;
         }
     }
 }

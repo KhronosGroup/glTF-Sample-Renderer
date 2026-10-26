@@ -142,7 +142,23 @@ class GltfState {
             /** MSAA used for cases which are not handled by the browser (e.g. Transmission)*/
             internalMSAA: 4,
             /** Use RGBA16F floating-point main framebuffer instead of RGBA8 */
-            floatingPointFramebuffer: true
+            floatingPointFramebuffer: true,
+            /**
+             * cuboid of six clipping planes that cuts the model open for inspection.
+             * Requires WEBGL_clip_cull_distance, which is not available on all
+             * browsers/platforms; setting enabled to true has no effect where it
+             * is unsupported.
+             */
+            clipping: {
+                /** discard everything outside the cuboid. Requires WEBGL_clip_cull_distance */
+                enabled: false,
+                /** space the cuboid is aligned to @see GltfState.ClippingOrientations */
+                orientation: GltfState.ClippingOrientations.AXIS_ALIGNED,
+                /** per axis lower bound of the kept region, as a fraction of the scene extents in [0, 1] */
+                min: [0.0, 0.0, 0.0],
+                /** per axis upper bound of the kept region, as a fraction of the scene extents in [0, 1] */
+                max: [1.0, 1.0, 1.0]
+            }
         };
 
         // retain a reference to the view with which the state was created, so that it can be validated
@@ -165,6 +181,16 @@ GltfState.ToneMaps = {
     ACES_HILL: "ACES Filmic Tone Mapping (Hill)",
     /** Linear mapping, clamped at 1.0 per channel */
     NONE: "None (Linear mapping, clamped at 1.0)"
+};
+
+/**
+ * ClippingOrientations enum for the space the clipping cuboid is aligned to
+ */
+GltfState.ClippingOrientations = {
+    /** the cuboid is aligned to the world axes */
+    AXIS_ALIGNED: "Axis Aligned",
+    /** the cuboid is aligned to the camera, so it cuts towards the viewer */
+    VIEW_ALIGNED: "View Aligned"
 };
 
 /**

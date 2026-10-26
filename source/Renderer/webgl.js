@@ -33,6 +33,13 @@ class gltfWebGl {
             this.context.supports_EXT_color_buffer_float ||
             (this.context.getExtension("EXT_color_buffer_half_float") ? true : false);
         this.polygonModeExtension = this.context.getExtension("WEBGL_polygon_mode") ?? undefined;
+
+        const clipCullDistance = this.context.getExtension("WEBGL_clip_cull_distance");
+        this.context.WEBGL_clip_cull_distance = clipCullDistance;
+        // The clipping cuboid needs six planes; the extension guarantees at least eight.
+        this.context.supports_WEBGL_clip_cull_distance =
+            clipCullDistance != null &&
+            this.context.getParameter(clipCullDistance.MAX_CLIP_DISTANCES_WEBGL) >= 6;
     }
 
     setTexture(loc, gltf, textureInfo, texSlot) {

@@ -150,10 +150,12 @@ GltfState containing a state for visualization in GltfView
                 * [.KHR_materials_anisotropy](#GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy)
                 * [.KHR_materials_dispersion](#GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion)
                 * [.KHR_materials_emissive_strength](#GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength)
+                * [.KHR_materials_retroreflection](#GltfState+renderingParameters.enabledExtensions.KHR_materials_retroreflection)
                 * [.KHR_interactivity](#GltfState+renderingParameters.enabledExtensions.KHR_interactivity)
                 * [.KHR_node_hoverability](#GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability)
                 * [.KHR_node_selectability](#GltfState+renderingParameters.enabledExtensions.KHR_node_selectability)
                 * [.KHR_node_visibility](#GltfState+renderingParameters.enabledExtensions.KHR_node_visibility)
+                * [.KHR_gaussian_splatting](#GltfState+renderingParameters.enabledExtensions.KHR_gaussian_splatting)
             * [.clearColor](#GltfState+renderingParameters.clearColor)
             * [.exposure](#GltfState+renderingParameters.exposure)
             * [.usePunctual](#GltfState+renderingParameters.usePunctual)
@@ -167,6 +169,11 @@ GltfState containing a state for visualization in GltfView
             * [.useDirectionalLightsWithDisabledIBL](#GltfState+renderingParameters.useDirectionalLightsWithDisabledIBL)
             * [.internalMSAA](#GltfState+renderingParameters.internalMSAA)
             * [.floatingPointFramebuffer](#GltfState+renderingParameters.floatingPointFramebuffer)
+            * [.clipping](#GltfState+renderingParameters.clipping)
+                * [.enabled](#GltfState+renderingParameters.clipping.enabled)
+                * [.orientation](#GltfState+renderingParameters.clipping.orientation)
+                * [.min](#GltfState+renderingParameters.clipping.min)
+                * [.max](#GltfState+renderingParameters.clipping.max)
     * _static_
         * [.ToneMaps](#GltfState.ToneMaps)
             * [.KHR_PBR_NEUTRAL](#GltfState.ToneMaps.KHR_PBR_NEUTRAL)
@@ -174,6 +181,9 @@ GltfState containing a state for visualization in GltfView
             * [.ACES_NARKOWICZ](#GltfState.ToneMaps.ACES_NARKOWICZ)
             * [.ACES_HILL](#GltfState.ToneMaps.ACES_HILL)
             * [.NONE](#GltfState.ToneMaps.NONE)
+        * [.ClippingOrientations](#GltfState.ClippingOrientations)
+            * [.AXIS_ALIGNED](#GltfState.ClippingOrientations.AXIS_ALIGNED)
+            * [.VIEW_ALIGNED](#GltfState.ClippingOrientations.VIEW_ALIGNED)
         * [.DebugOutput](#GltfState.DebugOutput)
             * [.NONE](#GltfState.DebugOutput.NONE)
             * [.generic](#GltfState.DebugOutput.generic)
@@ -211,6 +221,8 @@ GltfState containing a state for visualization in GltfView
             * [.iridescence](#GltfState.DebugOutput.iridescence)
                 * [.IRIDESCENCE_FACTOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_FACTOR)
                 * [.IRIDESCENCE_THICKNESS](#GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS)
+            * [.retroreflection](#GltfState.DebugOutput.retroreflection)
+                * [.RETROREFLECTION_FACTOR](#GltfState.DebugOutput.retroreflection.RETROREFLECTION_FACTOR)
             * [.anisotropy](#GltfState.DebugOutput.anisotropy)
                 * [.ANISOTROPIC_STRENGTH](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_STRENGTH)
                 * [.ANISOTROPIC_DIRECTION](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_DIRECTION)
@@ -338,10 +350,12 @@ parameters used to configure the rendering
         * [.KHR_materials_anisotropy](#GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy)
         * [.KHR_materials_dispersion](#GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion)
         * [.KHR_materials_emissive_strength](#GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength)
+        * [.KHR_materials_retroreflection](#GltfState+renderingParameters.enabledExtensions.KHR_materials_retroreflection)
         * [.KHR_interactivity](#GltfState+renderingParameters.enabledExtensions.KHR_interactivity)
         * [.KHR_node_hoverability](#GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability)
         * [.KHR_node_selectability](#GltfState+renderingParameters.enabledExtensions.KHR_node_selectability)
         * [.KHR_node_visibility](#GltfState+renderingParameters.enabledExtensions.KHR_node_visibility)
+        * [.KHR_gaussian_splatting](#GltfState+renderingParameters.enabledExtensions.KHR_gaussian_splatting)
     * [.clearColor](#GltfState+renderingParameters.clearColor)
     * [.exposure](#GltfState+renderingParameters.exposure)
     * [.usePunctual](#GltfState+renderingParameters.usePunctual)
@@ -355,6 +369,11 @@ parameters used to configure the rendering
     * [.useDirectionalLightsWithDisabledIBL](#GltfState+renderingParameters.useDirectionalLightsWithDisabledIBL)
     * [.internalMSAA](#GltfState+renderingParameters.internalMSAA)
     * [.floatingPointFramebuffer](#GltfState+renderingParameters.floatingPointFramebuffer)
+    * [.clipping](#GltfState+renderingParameters.clipping)
+        * [.enabled](#GltfState+renderingParameters.clipping.enabled)
+        * [.orientation](#GltfState+renderingParameters.clipping.orientation)
+        * [.min](#GltfState+renderingParameters.clipping.min)
+        * [.max](#GltfState+renderingParameters.clipping.max)
 
 <a name="GltfState+renderingParameters.morphing"></a>
 
@@ -394,10 +413,12 @@ enabled extensions
     * [.KHR_materials_anisotropy](#GltfState+renderingParameters.enabledExtensions.KHR_materials_anisotropy)
     * [.KHR_materials_dispersion](#GltfState+renderingParameters.enabledExtensions.KHR_materials_dispersion)
     * [.KHR_materials_emissive_strength](#GltfState+renderingParameters.enabledExtensions.KHR_materials_emissive_strength)
+    * [.KHR_materials_retroreflection](#GltfState+renderingParameters.enabledExtensions.KHR_materials_retroreflection)
     * [.KHR_interactivity](#GltfState+renderingParameters.enabledExtensions.KHR_interactivity)
     * [.KHR_node_hoverability](#GltfState+renderingParameters.enabledExtensions.KHR_node_hoverability)
     * [.KHR_node_selectability](#GltfState+renderingParameters.enabledExtensions.KHR_node_selectability)
     * [.KHR_node_visibility](#GltfState+renderingParameters.enabledExtensions.KHR_node_visibility)
+    * [.KHR_gaussian_splatting](#GltfState+renderingParameters.enabledExtensions.KHR_gaussian_splatting)
 
 <a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat"></a>
 
@@ -471,6 +492,12 @@ KHR_materials_dispersion defines configuring the strength of the angular separat
 KHR_materials_emissive_strength enables emissive factors larger than 1.0
 
 **Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_retroreflection"></a>
+
+##### enabledExtensions.KHR\_materials\_retroreflection
+KHR_materials_retroreflection adds a retroreflective response to the metallic and dielectric BRDFs
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
 <a name="GltfState+renderingParameters.enabledExtensions.KHR_interactivity"></a>
 
 ##### enabledExtensions.KHR\_interactivity
@@ -493,6 +520,12 @@ KHR_node_selectability enables selecting nodes
 
 ##### enabledExtensions.KHR\_node\_visibility
 KHR_node_visibility enables controlling the visibility of nodes
+
+**Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_gaussian_splatting"></a>
+
+##### enabledExtensions.KHR\_gaussian\_splatting
+KHR_gaussian_splatting
 
 **Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
 <a name="GltfState+renderingParameters.clearColor"></a>
@@ -578,6 +611,46 @@ MSAA used for cases which are not handled by the browser (e.g. Transmission)
 Use RGBA16F floating-point main framebuffer instead of RGBA8
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.clipping"></a>
+
+#### renderingParameters.clipping
+cuboid of six clipping planes that cuts the model open for inspection.
+Requires WEBGL_clip_cull_distance, which is not available on all
+browsers/platforms; setting enabled to true has no effect where it
+is unsupported.
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+
+* [.clipping](#GltfState+renderingParameters.clipping)
+    * [.enabled](#GltfState+renderingParameters.clipping.enabled)
+    * [.orientation](#GltfState+renderingParameters.clipping.orientation)
+    * [.min](#GltfState+renderingParameters.clipping.min)
+    * [.max](#GltfState+renderingParameters.clipping.max)
+
+<a name="GltfState+renderingParameters.clipping.enabled"></a>
+
+##### clipping.enabled
+discard everything outside the cuboid. Requires WEBGL_clip_cull_distance
+
+**Kind**: static property of [<code>clipping</code>](#GltfState+renderingParameters.clipping)  
+<a name="GltfState+renderingParameters.clipping.orientation"></a>
+
+##### clipping.orientation
+space the cuboid is aligned to @see GltfState.ClippingOrientations
+
+**Kind**: static property of [<code>clipping</code>](#GltfState+renderingParameters.clipping)  
+<a name="GltfState+renderingParameters.clipping.min"></a>
+
+##### clipping.min
+per axis lower bound of the kept region, as a fraction of the scene extents in [0, 1]
+
+**Kind**: static property of [<code>clipping</code>](#GltfState+renderingParameters.clipping)  
+<a name="GltfState+renderingParameters.clipping.max"></a>
+
+##### clipping.max
+per axis upper bound of the kept region, as a fraction of the scene extents in [0, 1]
+
+**Kind**: static property of [<code>clipping</code>](#GltfState+renderingParameters.clipping)  
 <a name="GltfState.ToneMaps"></a>
 
 ### GltfState.ToneMaps
@@ -623,6 +696,29 @@ more accurate implementation of the ACES sRGB RRT+ODT based on Stephen Hill's im
 Linear mapping, clamped at 1.0 per channel
 
 **Kind**: static property of [<code>ToneMaps</code>](#GltfState.ToneMaps)  
+<a name="GltfState.ClippingOrientations"></a>
+
+### GltfState.ClippingOrientations
+ClippingOrientations enum for the space the clipping cuboid is aligned to
+
+**Kind**: static property of [<code>GltfState</code>](#GltfState)  
+
+* [.ClippingOrientations](#GltfState.ClippingOrientations)
+    * [.AXIS_ALIGNED](#GltfState.ClippingOrientations.AXIS_ALIGNED)
+    * [.VIEW_ALIGNED](#GltfState.ClippingOrientations.VIEW_ALIGNED)
+
+<a name="GltfState.ClippingOrientations.AXIS_ALIGNED"></a>
+
+#### ClippingOrientations.AXIS\_ALIGNED
+the cuboid is aligned to the world axes
+
+**Kind**: static property of [<code>ClippingOrientations</code>](#GltfState.ClippingOrientations)  
+<a name="GltfState.ClippingOrientations.VIEW_ALIGNED"></a>
+
+#### ClippingOrientations.VIEW\_ALIGNED
+the cuboid is aligned to the camera, so it cuts towards the viewer
+
+**Kind**: static property of [<code>ClippingOrientations</code>](#GltfState.ClippingOrientations)  
 <a name="GltfState.DebugOutput"></a>
 
 ### GltfState.DebugOutput
@@ -668,6 +764,8 @@ such as "NORMAL"
     * [.iridescence](#GltfState.DebugOutput.iridescence)
         * [.IRIDESCENCE_FACTOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_FACTOR)
         * [.IRIDESCENCE_THICKNESS](#GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS)
+    * [.retroreflection](#GltfState.DebugOutput.retroreflection)
+        * [.RETROREFLECTION_FACTOR](#GltfState.DebugOutput.retroreflection.RETROREFLECTION_FACTOR)
     * [.anisotropy](#GltfState.DebugOutput.anisotropy)
         * [.ANISOTROPIC_STRENGTH](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_STRENGTH)
         * [.ANISOTROPIC_DIRECTION](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_DIRECTION)
@@ -939,6 +1037,18 @@ output the iridescence strength
 output the iridescence thickness
 
 **Kind**: static property of [<code>iridescence</code>](#GltfState.DebugOutput.iridescence)  
+<a name="GltfState.DebugOutput.retroreflection"></a>
+
+#### DebugOutput.retroreflection
+KHR_materials_retroreflection
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+<a name="GltfState.DebugOutput.retroreflection.RETROREFLECTION_FACTOR"></a>
+
+##### retroreflection.RETROREFLECTION\_FACTOR
+output the retroreflection strength
+
+**Kind**: static property of [<code>retroreflection</code>](#GltfState.DebugOutput.retroreflection)  
 <a name="GltfState.DebugOutput.anisotropy"></a>
 
 #### DebugOutput.anisotropy
@@ -1038,7 +1148,7 @@ that are then used to display the loaded data with GltfView
     * [.loadGltf(gltfFile, [externalFiles], allowResourceAbsolutePath)](#ResourceLoader+loadGltf) ⇒ <code>Promise</code>
     * [.loadEnvironment(environmentFile, [lutFiles])](#ResourceLoader+loadEnvironment) ⇒ <code>Promise</code>
     * [.initKtxLib([externalKtxLib])](#ResourceLoader+initKtxLib)
-    * [.initDracoLib([externalDracoLib])](#ResourceLoader+initDracoLib)
+    * [.initDracoLib([externalDracoLib])](#ResourceLoader+initDracoLib) ⇒ <code>Promise</code>
 
 <a name="new_ResourceLoader_new"></a>
 
@@ -1094,10 +1204,11 @@ initKtxLib must be called before loading gltf files with ktx2 assets
 
 <a name="ResourceLoader+initDracoLib"></a>
 
-### resourceLoader.initDracoLib([externalDracoLib])
+### resourceLoader.initDracoLib([externalDracoLib]) ⇒ <code>Promise</code>
 initDracoLib must be called before loading gltf files with draco meshes
 
 **Kind**: instance method of [<code>ResourceLoader</code>](#ResourceLoader)  
+**Returns**: <code>Promise</code> - a promise that fulfills once the draco decoder is usable  
 
 | Param | Type | Description |
 | --- | --- | --- |
