@@ -36,18 +36,12 @@ class KtxDecoder {
         if (ktexture.needsTranscoding) {
             let format;
 
-            let astcSupported = false;
-            let etcSupported = false;
-            let dxtSupported = false;
-            let bptcSupported = false;
-            let pvrtcSupported = false;
+            const astcSupported = !!this.gl.getExtension("WEBGL_compressed_texture_astc");
+            const etcSupported = !!this.gl.getExtension("WEBGL_compressed_texture_etc1");
+            const dxtSupported = !!this.gl.getExtension("WEBGL_compressed_texture_s3tc");
+            const bptcSupported = !!this.gl.getExtension("EXT_texture_compression_bptc");
 
-            astcSupported = !!this.gl.getExtension("WEBGL_compressed_texture_astc");
-            etcSupported = !!this.gl.getExtension("WEBGL_compressed_texture_etc1");
-            dxtSupported = !!this.gl.getExtension("WEBGL_compressed_texture_s3tc");
-            bptcSupported = !!this.gl.getExtension("EXT_texture_compression_bptc");
-
-            pvrtcSupported =
+            const pvrtcSupported =
                 !!this.gl.getExtension("WEBGL_compressed_texture_pvrtc") ||
                 !!this.gl.getExtension("WEBKIT_WEBGL_compressed_texture_pvrtc");
 

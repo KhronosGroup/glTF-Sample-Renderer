@@ -44,7 +44,7 @@ class ResourceLoader {
      * @returns {Promise} a promise that fulfills when the gltf file was loaded
      */
     async loadGltf(gltfFile, externalFiles, allowResourceAbsolutePath = true) {
-        let isGlb = undefined;
+        let isGlb;
         let buffers = undefined;
         let json = undefined;
         let data = undefined;
@@ -212,7 +212,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
     environment.samplers.push(
         new gltfSampler(GL.LINEAR, GL.LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "LUTSampler")
     );
-    const lutSamplerIdx = samplerIdx++;
+    const lutSamplerIdx = samplerIdx;
 
     //
     // Prepare images and textures.
@@ -389,7 +389,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
             ImageMimeType.PNG
         )
     );
-    const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
+    const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx], GL.TEXTURE_2D);
     sheenELut.initialized = false; // iblsampler does not create this texture
     environment.textures.push(sheenELut);
 

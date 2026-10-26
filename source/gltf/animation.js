@@ -1,10 +1,9 @@
 import { GltfObject } from "./gltf_object.js";
-import { objectsFromJsons } from "./utils.js";
+import { objectsFromJsons, parseJsonPointer, resolveJsonPointerParent } from "./utils.js";
 import { gltfAnimationChannel, InterpolationPath } from "./channel.js";
 import { gltfAnimationSampler } from "./animation_sampler.js";
 import { gltfInterpolator } from "./interpolator.js";
 import { AnimatableProperty } from "./animatable_property.js";
-import { JsonPointer } from "json-ptr";
 
 class gltfAnimation extends GltfObject {
     static animatedProperties = [];
@@ -179,8 +178,8 @@ class gltfAnimation extends GltfObject {
 
             // Search for the animated property
             if (property != null) {
-                let jsonPointer = JsonPointer.create(property);
-                let parentObject = jsonPointer.parent(gltf);
+                let path = parseJsonPointer(property);
+                let parentObject = resolveJsonPointerParent(gltf, path);
                 if (parentObject === undefined) {
                     if (!this.errors.includes(property)) {
                         console.warn(`Cannot find property ${property}`);
@@ -188,15 +187,15 @@ class gltfAnimation extends GltfObject {
                     }
                     continue;
                 }
-                let back = jsonPointer.path.at(-1);
+                let back = path.at(-1);
                 let animatedArrayElement = undefined;
 
                 // Check if we are animating an array element e.g. weights
                 if (Array.isArray(parentObject)) {
                     animatedArrayElement = Number(back);
-                    jsonPointer = JsonPointer.create(jsonPointer.path.slice(0, -1));
-                    parentObject = jsonPointer.parent(gltf);
-                    back = jsonPointer.path.at(-1);
+                    path = path.slice(0, -1);
+                    parentObject = resolveJsonPointerParent(gltf, path);
+                    back = path.at(-1);
                 }
 
                 let animatedProperty = undefined;

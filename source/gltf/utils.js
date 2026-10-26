@@ -102,6 +102,32 @@ function clamp(number, min, max) {
     return Math.min(Math.max(number, min), max);
 }
 
+// RFC 6901: "~1" must be decoded before "~0"
+function parseJsonPointer(pointer) {
+    if (typeof pointer !== "string" || !pointer.startsWith("/")) {
+        return [];
+    }
+    return pointer
+        .slice(1)
+        .split("/")
+        .map((token) => token.replaceAll("~1", "/").replaceAll("~0", "~"));
+}
+
+// Only own properties are followed so pointers cannot reach prototypes
+function resolveJsonPointerParent(obj, path) {
+    if (path.length === 0) {
+        return undefined;
+    }
+    let current = obj;
+    for (const token of path.slice(0, -1)) {
+        if (current === null || typeof current !== "object" || !Object.hasOwn(current, token)) {
+            return undefined;
+        }
+        current = current[token];
+    }
+    return current;
+}
+
 // marker interface used to for parsing the uniforms
 class UniformStruct {}
 
@@ -133,6 +159,8 @@ export {
     fromParams,
     stringHash,
     clamp,
+    parseJsonPointer,
+    resolveJsonPointerParent,
     UniformStruct,
     Timer,
     initGlForMembers
