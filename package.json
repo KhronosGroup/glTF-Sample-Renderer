@@ -38,13 +38,14 @@
         "physx-js-webidl": "2.7.2"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@playwright/test": "^1.56.0",
         "@rollup/plugin-commonjs": "^29.0.0",
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@rollup/plugin-wasm": "^6.2.2",
         "@types/node": "^24.7.2",
         "concurrently": "^8.2.2",
-        "eslint": "^9.5.0",
+        "eslint": "^10.13.0",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^15.5.0",
         "jsdoc-to-markdown": "^9.1.3",
