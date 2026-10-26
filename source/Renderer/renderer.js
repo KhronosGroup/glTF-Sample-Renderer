@@ -57,7 +57,6 @@ function extentsAlongAxis(min, max, axis) {
 }
 
 // Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
-const WIREFRAME_POLYGON_OFFSET_FACTOR = -1.0;
 const WIREFRAME_POLYGON_OFFSET_UNITS = -1.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
@@ -2205,7 +2204,8 @@ class gltfRenderer {
         gl.depthMask(false);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
         gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
-        gl.polygonOffset(WIREFRAME_POLYGON_OFFSET_FACTOR, WIREFRAME_POLYGON_OFFSET_UNITS);
+        // No slope factor: it can get very large at grazing angles and pull edges through other geometry.
+        gl.polygonOffset(0, WIREFRAME_POLYGON_OFFSET_UNITS);
         this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
         if (indexAccessor !== undefined) {
