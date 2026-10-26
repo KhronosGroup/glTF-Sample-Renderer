@@ -1,9 +1,26 @@
 import commonjs from '@rollup/plugin-commonjs';
 import glslify from 'rollup-plugin-glslify';
 import resolve from '@rollup/plugin-node-resolve';
-import copy from "rollup-plugin-copy";
 import {wasm} from "@rollup/plugin-wasm";
 import license from "rollup-plugin-license";
+import { cpSync, mkdirSync } from "node:fs";
+
+function copyAssets() {
+    return {
+        name: "copy-assets",
+        buildEnd() {
+            mkdirSync("dist/assets", { recursive: true });
+            for (const lut of ["lut_charlie.png", "lut_ggx.png", "lut_sheen_E.png"]) {
+                cpSync(`assets/images/${lut}`, `dist/assets/${lut}`);
+            }
+            // hdrpng.js is imported by the renderer and bundled, not loaded at runtime
+            cpSync("source/libs", "dist/libs", {
+                recursive: true,
+                filter: (src) => !src.endsWith("hdrpng.js")
+            });
+        }
+    };
+}
 
 
 export default {
@@ -35,19 +52,7 @@ export default {
             preferBuiltins: false,
             dedupe: ['gl-matrix', 'jpeg-js', 'fast-png', '@khronosgroup/gltf-interactivity-engine']
         }),
-        copy({
-            targets: [
-                {
-                    src: [
-                        "assets/images/lut_charlie.png",
-                        "assets/images/lut_ggx.png",
-                        "assets/images/lut_sheen_E.png",
-                    ], dest: "dist/assets"
-                },
-                { src: ["source/libs/*", "!source/libs/hdrpng.js"], dest: "dist/libs" },
-                { src: "tests/testApp/*", dest: "dist"}
-            ]
-        }),
+        copyAssets(),
         commonjs(),
         license({
             banner: {
