@@ -43,7 +43,6 @@
         "@rollup/plugin-node-resolve": "^16.0.3",
         "@rollup/plugin-wasm": "^6.2.2",
         "@types/node": "^26.6.5",
-        "concurrently": "^10.0.6",
         "eslint": "^10.13.0",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^17.13.0",
