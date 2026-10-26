@@ -1,5 +1,4 @@
 import { defineConfig } from "rolldown";
-import glslify from "rollup-plugin-glslify";
 import { wasm } from "@rollup/plugin-wasm";
 import { cpSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 
@@ -40,6 +39,26 @@ function licenseBanner(chunk) {
     return ["/*!", ...body, " */"].join("\n");
 }
 
+// Imports shaders as strings; #include is resolved at runtime by shader_cache.js
+function shaders() {
+    return {
+        name: "shaders",
+        transform(code, id) {
+            if (!/\.(glsl|vert|frag)$/.test(id)) {
+                return null;
+            }
+            const stripped = code
+                .replace(/\/\*[\s\S]*?\*\//g, "")
+                .replace(/\/\/.*$/gm, "")
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .filter((line) => line !== "")
+                .join("\n");
+            return { code: `export default ${JSON.stringify(stripped)};`, map: null };
+        }
+    };
+}
+
 function copyAssets() {
     return {
         name: "copy-assets",
@@ -68,5 +87,5 @@ export default defineConfig({
         sourcemap: true,
         banner: licenseBanner
     },
-    plugins: [wasm({ fileName: "libs/[name][extname]", publicPath: "./" }), glslify(), copyAssets()]
+    plugins: [wasm({ fileName: "libs/[name][extname]", publicPath: "./" }), shaders(), copyAssets()]
 });
