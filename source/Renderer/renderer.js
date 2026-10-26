@@ -21,6 +21,7 @@ import cubemapVertShader from "./shaders/cubemap.vert";
 import cubemapFragShader from "./shaders/cubemap.frag";
 import scatterShader from "./shaders/scatter.frag";
 import simpleFragShader from "./shaders/simple.frag";
+import wireframeFragShader from "./shaders/wireframe.frag";
 import specularGlossinesShader from "./shaders/specular_glossiness.frag";
 import splatVertexShader from "./shaders/splat.vert";
 import splatFragmentShader from "./shaders/splat.frag";
@@ -54,6 +55,11 @@ function extentsAlongAxis(min, max, axis) {
     }
     return [lower, upper];
 }
+
+// Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
+const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
+// How far the shaded surface is blended towards white so the black lines stand out.
+const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 
 class gltfRenderer {
     constructor(context) {
@@ -101,6 +107,7 @@ class gltfRenderer {
         shaderSources.set("cubemap.frag", cubemapFragShader);
         shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
         shaderSources.set("simple.frag", simpleFragShader);
+        shaderSources.set("wireframe.frag", wireframeFragShader);
         shaderSources.set("splat.vert", splatVertexShader);
         shaderSources.set("splat.frag", splatFragmentShader);
         shaderSources.set("fullscreen.vert", fullscreenVertShader);
@@ -1780,6 +1787,9 @@ class gltfRenderer {
         {
             fragDefines.push("TRANSMISSION_PASS 1");
         }
+        if (this.drawsWireframe(state, primitive, renderpassConfiguration)) {
+            fragDefines.push(`WIREFRAME_BRIGHTEN ${WIREFRAME_SURFACE_BRIGHTEN.toFixed(2)}`);
+        }
 
         // POINTS, LINES, LINE_LOOP, LINE_STRIP
         if (primitive.mode < 4) {
@@ -1915,33 +1925,7 @@ class gltfRenderer {
         }
 
         if (instanceOffset !== undefined) {
-            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
-            const location2 = location + 1;
-            const location3 = location2 + 1;
-            const location4 = location3 + 1;
-            if (this.instanceBuffer === undefined) {
-                this.instanceBuffer = this.webGl.context.createBuffer();
-            }
-            this.webGl.context.enableVertexAttribArray(location);
-            this.webGl.context.enableVertexAttribArray(location2);
-            this.webGl.context.enableVertexAttribArray(location3);
-            this.webGl.context.enableVertexAttribArray(location4);
-
-            this.webGl.context.bindBuffer(GL.ARRAY_BUFFER, this.instanceBuffer);
-            const data = new Float32Array(instanceOffset.length * 16);
-            instanceOffset.forEach((element, index) => {
-                data.set(element, 16 * index);
-            });
-            this.webGl.context.bufferData(GL.ARRAY_BUFFER, data, GL.DYNAMIC_DRAW);
-            this.webGl.context.vertexAttribPointer(location, 4, GL.FLOAT, GL.FALSE, 4 * 16, 0);
-            this.webGl.context.vertexAttribPointer(location2, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 4);
-            this.webGl.context.vertexAttribPointer(location3, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 8);
-            this.webGl.context.vertexAttribPointer(location4, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 12);
-            
-            this.webGl.context.vertexAttribDivisor(location, 1);
-            this.webGl.context.vertexAttribDivisor(location2, 1);
-            this.webGl.context.vertexAttribDivisor(location3, 1);
-            this.webGl.context.vertexAttribDivisor(location4, 1);
+            this.enableInstanceAttributes(instanceOffset);
         }
 
         // Update material uniforms
@@ -2038,22 +2022,7 @@ class gltfRenderer {
         }
 
 
-        // set the morph target texture
-        if (primitive.morphTargetTextureInfo !== undefined) 
-        {
-            const location = this.shader.getUniformLocation(primitive.morphTargetTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
-            textureIndex++;
-        }
-
-        // set the joints texture
-        if (state.renderingParameters.skinning && node.skin !== undefined && primitive.hasWeights && primitive.hasJoints) 
-        {
-            const skin = state.gltf.skins[node.skin];
-            const location = this.shader.getUniformLocation(skin.jointTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
-            textureIndex++;
-        }
+        textureIndex = this.applyAnimationTextures(state, node, primitive, textureIndex);
 
         if (!renderpassConfiguration.picking) {
             let textureCount = textureIndex;
@@ -2139,16 +2108,175 @@ class gltfRenderer {
             this.webGl.context.disableVertexAttribArray(location);
         }
         if (instanceOffset !== undefined) {
-            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
-            this.webGl.context.vertexAttribDivisor(location, 0);
-            this.webGl.context.vertexAttribDivisor(location + 1, 0);
-            this.webGl.context.vertexAttribDivisor(location + 2, 0);
-            this.webGl.context.vertexAttribDivisor(location + 3, 0);
-            this.webGl.context.disableVertexAttribArray(location);
-            this.webGl.context.disableVertexAttribArray(location + 1);
-            this.webGl.context.disableVertexAttribArray(location + 2);
-            this.webGl.context.disableVertexAttribArray(location + 3);
+            this.disableInstanceAttributes();
         }
+
+        if (this.drawsWireframe(state, primitive, renderpassConfiguration)) {
+            this.drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset);
+        }
+    }
+
+    drawsWireframe(state, primitive, renderpassConfiguration) {
+        return (
+            state.renderingParameters.wireframe &&
+            this.webGl.polygonModeExtension !== undefined &&
+            primitive.mode >= GL.TRIANGLES &&
+            !renderpassConfiguration.picking &&
+            !renderpassConfiguration.scatter &&
+            !renderpassConfiguration.transmission
+        );
+    }
+
+    /// Draws the triangle edges of a primitive as black lines on top of the already rendered surface.
+    drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset = undefined) {
+        const gl = this.webGl.context;
+
+        let vertDefines = [];
+        this.pushVertParameterDefines(
+            vertDefines,
+            state.renderingParameters,
+            state.gltf,
+            node,
+            primitive,
+            state.renderingParameters.debugOutput
+        );
+        vertDefines = primitive.defines.concat(vertDefines);
+        if (instanceOffset !== undefined) {
+            vertDefines.push("USE_INSTANCING 1");
+        }
+        if (this.clippingPlanes !== undefined) {
+            vertDefines.push("USE_CLIPPING 1");
+        }
+
+        const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
+        const fragmentHash = this.shaderCache.selectShader("wireframe.frag", []);
+        if (!vertexHash || !fragmentHash) {
+            return;
+        }
+        this.shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+        if (this.shader === undefined) {
+            return;
+        }
+        gl.useProgram(this.shader.program);
+
+        const worldTransform = node.getRenderedWorldTransform();
+        const normalMatrix = mat4.create();
+        mat4.invert(normalMatrix, worldTransform);
+        mat4.transpose(normalMatrix, normalMatrix);
+
+        this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
+        this.shader.updateUniform("u_ModelMatrix", worldTransform);
+        this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
+        this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
+        if (this.clippingPlanes !== undefined) {
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+        }
+        this.updateAnimationUniforms(state, node, primitive);
+        this.applyAnimationTextures(state, node, primitive, 0);
+
+        let indexAccessor = undefined;
+        if (primitive.indices !== undefined) {
+            if (!this.webGl.setIndices(state.gltf, primitive.indices)) {
+                return;
+            }
+            indexAccessor = state.gltf.accessors[primitive.indices];
+        }
+
+        const enabledLocations = [];
+        for (const attribute of primitive.glAttributes) {
+            const location = this.shader.attributes.get(attribute.name);
+            if (location === undefined) {
+                continue;
+            }
+            const gltfAccessor = state.gltf.accessors[attribute.accessor];
+            if (!this.webGl.enableAttribute(state.gltf, location, gltfAccessor)) {
+                enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));
+                return;
+            }
+            enabledLocations.push(location);
+        }
+        if (instanceOffset !== undefined) {
+            this.enableInstanceAttributes(instanceOffset);
+        }
+
+        const polygonMode = this.webGl.polygonModeExtension;
+        gl.disable(GL.BLEND);
+        gl.depthMask(false);
+        polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
+        gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
+        gl.polygonOffset(0, WIREFRAME_POLYGON_OFFSET_UNITS);
+        this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
+
+        if (indexAccessor !== undefined) {
+            const { count, componentType } = indexAccessor;
+            if (instanceOffset !== undefined) {
+                gl.drawElementsInstanced(primitive.mode, count, componentType, 0, instanceOffset.length);
+            } else {
+                gl.drawElements(primitive.mode, count, componentType, 0);
+            }
+        } else {
+            const vertexCount = state.gltf.accessors[primitive.attributes.POSITION].count;
+            if (instanceOffset !== undefined) {
+                gl.drawArraysInstanced(primitive.mode, 0, vertexCount, instanceOffset.length);
+            } else {
+                gl.drawArrays(primitive.mode, 0, vertexCount);
+            }
+        }
+
+        this.setClipDistancesEnabled(false);
+        gl.disable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
+        polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
+        gl.depthMask(true);
+        enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));
+        if (instanceOffset !== undefined) {
+            this.disableInstanceAttributes();
+        }
+    }
+
+    enableInstanceAttributes(instanceOffset) {
+        const gl = this.webGl.context;
+        const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+        if (this.instanceBuffer === undefined) {
+            this.instanceBuffer = gl.createBuffer();
+        }
+        gl.bindBuffer(GL.ARRAY_BUFFER, this.instanceBuffer);
+        const data = new Float32Array(instanceOffset.length * 16);
+        instanceOffset.forEach((element, index) => {
+            data.set(element, 16 * index);
+        });
+        gl.bufferData(GL.ARRAY_BUFFER, data, GL.DYNAMIC_DRAW);
+        for (let i = 0; i < 4; i++) {
+            gl.enableVertexAttribArray(location + i);
+            gl.vertexAttribPointer(location + i, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 4 * i);
+            gl.vertexAttribDivisor(location + i, 1);
+        }
+    }
+
+    disableInstanceAttributes() {
+        const gl = this.webGl.context;
+        const location = this.shader.getAttributeLocation("a_instance_model_matrix");
+        for (let i = 0; i < 4; i++) {
+            gl.vertexAttribDivisor(location + i, 0);
+            gl.disableVertexAttribArray(location + i);
+        }
+    }
+
+    /// Binds the morph target and joint textures, starting at the given texture unit. Returns the next free unit.
+    applyAnimationTextures(state, node, primitive, textureIndex) {
+        if (primitive.morphTargetTextureInfo !== undefined) {
+            const location = this.shader.getUniformLocation(primitive.morphTargetTextureInfo.samplerName);
+            this.webGl.setTexture(location, state.gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
+            textureIndex++;
+        }
+
+        if (state.renderingParameters.skinning && node.skin !== undefined && primitive.hasWeights && primitive.hasJoints) {
+            const skin = state.gltf.skins[node.skin];
+            const location = this.shader.getUniformLocation(skin.jointTextureInfo.samplerName);
+            this.webGl.setTexture(location, state.gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
+            textureIndex++;
+        }
+
+        return textureIndex;
     }
 
     /// Compute a list of lights instantiated by one or more nodes as a list of node-light tuples.
