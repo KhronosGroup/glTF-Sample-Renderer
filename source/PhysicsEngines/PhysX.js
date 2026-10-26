@@ -1,5 +1,5 @@
 import PhysX from "physx-js-webidl";
-// The import is needed for rollup to include the wasm file in the build output
+// The import is needed for the bundler to include the wasm file in the build output
 // eslint-disable-next-line no-unused-vars
 import PhysXBinaryFile from "physx-js-webidl/physx-js-webidl.wasm";
 import { gltfPhysicsMaterial } from "../gltf/rigid_bodies";
