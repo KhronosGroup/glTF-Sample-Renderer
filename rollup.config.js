@@ -31,18 +31,11 @@ export default {
     },
     input: ["source/gltf-sample-renderer.js"],
     external: ["gl-matrix"],
-    output: [
-        {
-            file: "dist/gltf-viewer.js",
-            format: "cjs",
-            sourcemap: true
-        },
-        {
-            file: "dist/gltf-viewer.module.js",
-            format: "esm",
-            sourcemap: true
-        }
-    ],
+    output: {
+        file: "dist/gltf-viewer.module.js",
+        format: "esm",
+        sourcemap: true
+    },
     plugins: [
         wasm({ fileName: "libs/[name][extname]", publicPath: "./" }),
         glslify(),
