@@ -2145,6 +2145,9 @@ class gltfRenderer {
         if (instanceOffset !== undefined) {
             vertDefines.push("USE_INSTANCING 1");
         }
+        if (this.clippingPlanes !== undefined) {
+            vertDefines.push("USE_CLIPPING 1");
+        }
 
         const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
         const fragmentHash = this.shaderCache.selectShader("wireframe.frag", []);
@@ -2166,6 +2169,9 @@ class gltfRenderer {
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
+        if (this.clippingPlanes !== undefined) {
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+        }
         this.updateAnimationUniforms(state, node, primitive);
         this.applyAnimationTextures(state, node, primitive, 0);
 
@@ -2200,6 +2206,7 @@ class gltfRenderer {
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
         gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
         gl.polygonOffset(WIREFRAME_POLYGON_OFFSET_FACTOR, WIREFRAME_POLYGON_OFFSET_UNITS);
+        this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
         if (indexAccessor !== undefined) {
             const { count, componentType } = indexAccessor;
@@ -2217,6 +2224,7 @@ class gltfRenderer {
             }
         }
 
+        this.setClipDistancesEnabled(false);
         gl.disable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
         gl.depthMask(true);
