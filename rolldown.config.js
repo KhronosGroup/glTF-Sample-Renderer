@@ -1,6 +1,5 @@
-import commonjs from "@rollup/plugin-commonjs";
+import { defineConfig } from "rolldown";
 import glslify from "rollup-plugin-glslify";
-import resolve from "@rollup/plugin-node-resolve";
 import { wasm } from "@rollup/plugin-wasm";
 import license from "rollup-plugin-license";
 import { cpSync, mkdirSync } from "node:fs";
@@ -22,15 +21,11 @@ function copyAssets() {
     };
 }
 
-export default {
-    strictDeprecations: true,
-    onwarn(warning, warn) {
-        // Harmless: third-party CJS deps reference top-level `this`, which Rollup rewrites to `undefined`.
-        if (warning.code === "THIS_IS_UNDEFINED") return;
-        warn(warning);
-    },
+export default defineConfig({
     input: ["source/gltf-sample-renderer.js"],
-    external: ["gl-matrix"],
+    platform: "browser",
+    // Node built-ins are only reached in Node-only branches of the wasm helper, PhysX and mikktspace
+    external: ["gl-matrix", "fs", "path", "url"],
     output: {
         file: "dist/gltf-viewer.module.js",
         format: "esm",
@@ -39,12 +34,7 @@ export default {
     plugins: [
         wasm({ fileName: "libs/[name][extname]", publicPath: "./" }),
         glslify(),
-        resolve({
-            browser: true,
-            preferBuiltins: false
-        }),
         copyAssets(),
-        commonjs(),
         license({
             banner: {
                 content: {
@@ -56,4 +46,4 @@ export default {
             }
         })
     ]
-};
+});
