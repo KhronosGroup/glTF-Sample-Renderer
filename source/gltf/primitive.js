@@ -1,3 +1,4 @@
+import { mat4 } from "gl-matrix";
 import { initGlForMembers } from "./utils.js";
 import { GltfObject } from "./gltf_object.js";
 import { gltfBuffer } from "./buffer.js";
@@ -107,12 +108,10 @@ class gltfPrimitive extends GltfObject {
         // Worker-based sort state
         this.sortWorker = undefined;
         this.sortWorkerReady = false;
-        this.sortPending = false;
-
-        // Store the view matrix if sort is currently running
-        this.queuedViewMatrix = undefined;
-        // Compare against a stored value to detect whether a redraw is needed.
-        this.lastSortViewMatrix = undefined;
+        // Keyed by node, since several nodes can instance the same primitive.
+        this.sortStates = new Map();
+        // The sort state whose request is currently running in the worker.
+        this.sortInFlight = undefined;
 
         // The primitive centroid is used for depth sorting.
         this.centroid = undefined;
@@ -773,33 +772,14 @@ class gltfPrimitive extends GltfObject {
             const { type } = e.data;
             if (type === "ready") {
                 this.sortWorkerReady = true;
-                this.sortPending = false;
-                // Fire any sort that was queued while the worker was initialising.
-                if (this.queuedViewMatrix !== undefined) {
-                    // Skip if the view matrix hasn't changed since the last dispatched sort.
-                    if (this.lastSortViewMatrix !== undefined) {
-                        let same = true;
-                        for (let i = 0; i < 16; i++) {
-                            if (this.lastSortViewMatrix[i] !== this.queuedViewMatrix[i]) {
-                                same = false;
-                                break;
-                            }
-                        }
-                        if (same) return;
-                    }
-                    this.sortPending = true;
-                    this.sortWorker.postMessage({
-                        type: "sort",
-                        viewMatrix: this.queuedViewMatrix
-                    });
-                    this.queuedViewMatrix = undefined;
-                }
+                this.dispatchSort();
             } else if (type === "sorted") {
-                this.sortOrder = e.data.indices;
-                this.sortPending = false;
+                this.sortInFlight.order = e.data.indices;
+                this.sortInFlight = undefined;
+                this.dispatchSort();
             } else if (type === "error") {
                 console.error("Sort worker error:", e.data.message);
-                this.sortPending = false;
+                this.handleSortWorkerFailure();
             }
         };
 
@@ -812,46 +792,91 @@ class gltfPrimitive extends GltfObject {
                 err.lineno,
                 err
             );
-            this.sortPending = false;
+            this.handleSortWorkerFailure();
         };
 
         // Transfer positions buffer to the worker (zero-copy).
         this.sortWorker.postMessage({ type: "init", posOp: posOp, splatCount: vertexCount }, [
             posOp.buffer
         ]);
-        this.sortPending = true;
+    }
+
+    handleSortWorkerFailure() {
+        this.sortInFlight = undefined;
+        if (!this.sortWorkerReady) {
+            // Initialisation failed, so no sort will ever complete.
+            this.sortWorker.terminate();
+            this.sortWorker = undefined;
+        }
     }
 
     /**
-     * Request an asynchronous back-to-front sort of the splat indices.
-     * Safe to call every frame — the request is dropped while a previous sort
-     * is still in flight.
+     * Request an asynchronous back-to-front sort of the splat indices for one node.
+     * Safe to call every frame — while the worker is busy only the latest matrix
+     * per node is kept and sorted once the worker is free.
+     * @param {gltfNode} node  Node instancing this primitive.
      * @param {Float32Array} modelViewMatrix  Column-major 4×4 model-view matrix (view * world).
      */
-    requestSort(modelViewMatrix) {
+    requestSort(node, modelViewMatrix) {
         if (this.sortWorker === undefined) {
             return;
         }
-        if (!this.sortWorkerReady || this.sortPending) {
-            // Worker is busy — keep the latest matrix so it sorts immediately once ready
-            this.queuedViewMatrix = new Float32Array(modelViewMatrix);
+        let state = this.sortStates.get(node);
+        if (state === undefined) {
+            state = {
+                order: undefined,
+                dispatchedViewMatrix: undefined,
+                queuedViewMatrix: undefined
+            };
+            this.sortStates.set(node, state);
+        }
+        if (
+            state.dispatchedViewMatrix !== undefined &&
+            mat4.exactEquals(state.dispatchedViewMatrix, modelViewMatrix)
+        ) {
+            state.queuedViewMatrix = undefined;
+        } else {
+            state.queuedViewMatrix = new Float32Array(modelViewMatrix);
+        }
+        this.dispatchSort();
+    }
+
+    dispatchSort() {
+        if (!this.sortWorkerReady || this.sortInFlight !== undefined) {
             return;
         }
-        // Skip if the view matrix hasn't changed since the last dispatched sort.
-        if (this.lastSortViewMatrix !== undefined) {
-            let same = true;
-            for (let i = 0; i < 16; i++) {
-                if (this.lastSortViewMatrix[i] !== modelViewMatrix[i]) {
-                    same = false;
-                    break;
-                }
+        for (const [node, state] of this.sortStates) {
+            if (state.queuedViewMatrix === undefined) {
+                continue;
             }
-            if (same) return;
+            // Move to the back so other nodes get their turn while this one keeps moving.
+            this.sortStates.delete(node);
+            this.sortStates.set(node, state);
+            state.dispatchedViewMatrix = state.queuedViewMatrix;
+            state.queuedViewMatrix = undefined;
+            this.sortInFlight = state;
+            this.sortWorker.postMessage({ type: "sort", viewMatrix: state.dispatchedViewMatrix });
+            return;
         }
-        const vm = new Float32Array(modelViewMatrix);
-        this.lastSortViewMatrix = vm;
-        this.sortPending = true;
-        this.sortWorker.postMessage({ type: "sort", viewMatrix: vm });
+    }
+
+    get sortPending() {
+        if (this.sortWorker === undefined) {
+            return false;
+        }
+        if (!this.sortWorkerReady || this.sortInFlight !== undefined) {
+            return true;
+        }
+        for (const state of this.sortStates.values()) {
+            if (state.queuedViewMatrix !== undefined) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    getSortOrder(node) {
+        return this.sortStates.get(node)?.order ?? this.sortOrder;
     }
 
     computeCentroid(gltf) {
