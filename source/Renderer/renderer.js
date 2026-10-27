@@ -140,6 +140,9 @@ class gltfRenderer {
         // primitive -> { signature, byMaterial: material -> pass key -> program }
         this.programCache = new WeakMap();
         this.programSignature = undefined;
+        // Bumped whenever the frame uniforms change; see applyFrameUniforms().
+        this.uniformEpoch = 0;
+        this.lightUniforms = [];
 
         this.splatVBO = undefined;
         this.currentSortBuffer = undefined;
@@ -886,6 +889,8 @@ class gltfRenderer {
             this.visibleLights.push([null, this.lightKey]);
             this.visibleLights.push([null, this.lightFill]);
         }
+        this.lightUniforms = this.visibleLights.map(([node, light]) => light.toUniform(node));
+        this.uniformEpoch++;
 
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
 
@@ -1023,6 +1028,8 @@ class gltfRenderer {
                     aspectHeight
                 );
                 mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
+                // The picking programs hold the selection matrix uploaded above.
+                this.uniformEpoch++;
             }
             this.clearPickingFramebuffer(this.hoverFramebuffer, false);
             this.webGl.context.viewport(0, 0, 1, 1);
@@ -1862,9 +1869,11 @@ class gltfRenderer {
 
         this.webGl.context.useProgram(this.shader.program);
 
-        if (state.renderingParameters.usePunctual && !renderpassConfiguration.picking)
+        // Programs keep their uniform values, so frame constants are uploaded once per frame.
+        if (this.shader.uniformEpoch !== this.uniformEpoch)
         {
-            this.applyLights();
+            this.shader.uniformEpoch = this.uniformEpoch;
+            this.applyFrameUniforms(state, viewProjectionMatrix, renderpassConfiguration.picking);
         }
 
         if (renderpassConfiguration.scatter) {
@@ -1878,14 +1887,8 @@ class gltfRenderer {
         mat4.transpose(normalMatrix, normalMatrix);
 
         // update model dependant matrices once per node
-        this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
-        this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
-        this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
-        if (this.clippingPlanes !== undefined) {
-            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
-        }
         if (renderpassConfiguration.picking) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
         } 
@@ -2419,14 +2422,43 @@ class gltfRenderer {
         }
     }
 
-    applyLights() {
-        const uniforms = [];
-        for (const [node, light] of this.visibleLights) {
-            uniforms.push(light.toUniform(node));
+    applyFrameUniforms(state, viewProjectionMatrix, picking) {
+        this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
+        this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        if (this.clippingPlanes !== undefined) {
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
         }
-        if (uniforms.length > 0) {
-            this.shader.updateUniform("u_Lights", uniforms);
+        if (picking) {
+            return;
         }
+        if (state.renderingParameters.usePunctual && this.lightUniforms.length > 0) {
+            this.shader.updateUniform("u_Lights", this.lightUniforms);
+        }
+
+        const environment = state.environment;
+        if (environment === undefined) {
+            return;
+        }
+        this.shader.updateUniform("u_MipCount", environment.mipCount);
+
+        let rotMatrix4 = mat4.create();
+        mat4.rotateY(
+            rotMatrix4,
+            rotMatrix4,
+            (state.renderingParameters.environmentRotation / 180.0) * Math.PI
+        );
+        let rotMatrix3 = mat3.create();
+        mat3.fromMat4(rotMatrix3, rotMatrix4);
+        this.shader.updateUniform("u_EnvRotation", rotMatrix3);
+
+        let envIntensity = state.renderingParameters.iblIntensity * environment.iblIntensityScale;
+
+        if (state.renderingParameters.useIBL === false) {
+            envIntensity = 0.0;
+        }
+
+        this.shader.updateUniform("u_EnvIntensity", envIntensity);
     }
 
     applyEnvironmentMap(state, texSlotOffset) {
@@ -2466,27 +2498,6 @@ class gltfRenderer {
             environment.sheenLUT,
             texSlotOffset++
         );
-
-        this.shader.updateUniform("u_MipCount", environment.mipCount);
-
-        let rotMatrix4 = mat4.create();
-        mat4.rotateY(
-            rotMatrix4,
-            rotMatrix4,
-            (state.renderingParameters.environmentRotation / 180.0) * Math.PI
-        );
-        let rotMatrix3 = mat3.create();
-        mat3.fromMat4(rotMatrix3, rotMatrix4);
-        this.shader.updateUniform("u_EnvRotation", rotMatrix3);
-
-        let envIntensity =
-            state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
-
-        if (state.renderingParameters.useIBL === false) {
-            envIntensity = 0.0;
-        }
-
-        this.shader.updateUniform("u_EnvIntensity", envIntensity);
 
         return texSlotOffset;
     }
