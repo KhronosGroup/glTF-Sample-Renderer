@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, styleText } from "node:util";
@@ -12,6 +13,11 @@ import { startServer } from "./server.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rendererRoot = path.resolve(here, "../..");
+// Deps may be hoisted to a parent workspace's node_modules.
+const nodeModulesRoot = path.resolve(
+    createRequire(import.meta.url).resolve("gl-matrix/package.json"),
+    "../.."
+);
 const outputRoot = path.join(rendererRoot, "regression");
 const renderingsRoot = path.join(outputRoot, "renderings");
 const summaryFile = path.join(renderingsRoot, "summary.json");
@@ -283,7 +289,7 @@ async function main() {
             "/dist/": path.join(rendererRoot, "dist"),
             "/libs/": path.join(rendererRoot, "dist", "libs"),
             "/assets/images/": path.join(rendererRoot, "assets", "images"),
-            "/node_modules/": path.join(rendererRoot, "node_modules"),
+            "/node_modules/": nodeModulesRoot,
             "/models/": path.join(outputRoot, "models"),
             "/environments/": path.join(outputRoot, "environments"),
             ...local.mounts
