@@ -23,6 +23,8 @@ class gltfNode extends GltfObject {
         this.mesh = undefined;
         this.skin = undefined;
         this.weights = undefined;
+        /** Optional per-target rendering overrides; undefined entries retain the asset/animated weight. */
+        this.morphWeightOverrides = undefined;
 
         // non gltf
         this.worldTransform = mat4.create();
@@ -136,11 +138,16 @@ class gltfNode extends GltfObject {
     }
 
     getWeights(gltf) {
-        if (this.weights !== undefined && this.weights.length > 0) {
-            return this.weights;
-        } else {
-            return gltf.meshes[this.mesh].weights;
+        const mesh = gltf.meshes[this.mesh];
+        const weights =
+            this.weights !== undefined && this.weights.length > 0 ? this.weights : mesh.weights;
+        if (this.morphWeightOverrides !== undefined) {
+            return Array.from(
+                { length: mesh.primitives[0]?.targets.length ?? 0 },
+                (_, index) => this.morphWeightOverrides[index] ?? weights?.[index] ?? 0
+            );
         }
+        return weights;
     }
 
     applyMatrix(matrixData) {
