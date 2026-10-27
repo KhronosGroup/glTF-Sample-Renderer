@@ -1,11 +1,11 @@
 import { gltfShader } from "./shader.js";
-import { stringHash } from "../gltf/utils.js";
 
 // THis class generates and caches the shader source text for a given permutation
 class ShaderCache {
     constructor(sources, gl) {
         this.sources = sources; // shader name -> source code
-        this.shaders = new Map(); // name & permutations hashed -> compiled shader
+        this.shaderIds = new Map(); // name & permutation defines -> shader id
+        this.shaders = new Map(); // shader id -> compiled shader
         this.programs = new Map(); // (vertex shader, fragment shader) -> program
         this.gl = gl;
 
@@ -42,6 +42,7 @@ class ShaderCache {
         }
 
         this.shaders.clear();
+        this.shaderIds.clear();
 
         for (let [, program] of this.programs) {
             program.destroy();
@@ -63,27 +64,24 @@ class ShaderCache {
         }
 
         const isVert = shaderIdentifier.endsWith(".vert");
-        let hash = stringHash(shaderIdentifier);
-
-        // console.log(shaderIdentifier);
 
         let defines = "#version 300 es\n";
         for (let define of permutationDefines) {
-            // console.log(define);
-            hash ^= stringHash(define);
             defines += "#define " + define + "\n";
         }
 
-        let shader = this.shaders.get(hash);
+        const key = shaderIdentifier + "\n" + defines;
+        let id = this.shaderIds.get(key);
 
-        if (shader === undefined) {
-            // console.log(defines);
-            // compile this variant
-            shader = this.gl.compileShader(shaderIdentifier, isVert, defines + src);
-            this.shaders.set(hash, shader);
+        if (id === undefined) {
+            // Ids start at 1 because callers treat a falsy id as failure.
+            id = this.shaderIds.size + 1;
+            const shader = this.gl.compileShader(shaderIdentifier, isVert, defines + src);
+            this.shaderIds.set(key, id);
+            this.shaders.set(id, shader);
         }
 
-        return hash;
+        return id;
     }
 
     getShaderProgram(vertexShaderHash, fragmentShaderHash) {
