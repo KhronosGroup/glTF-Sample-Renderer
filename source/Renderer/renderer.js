@@ -435,7 +435,7 @@ class gltfRenderer {
                 context.bindRenderbuffer(context.RENDERBUFFER, this.depthRenderBuffer);
                 context.renderbufferStorageMultisample( context.RENDERBUFFER,
                     samples,
-                    context.DEPTH_COMPONENT16, 
+                    context.DEPTH_COMPONENT24, 
                     this.opaqueFramebufferWidth,
                     this.opaqueFramebufferHeight);
             }
