@@ -40,7 +40,7 @@
             const mean = (values) => values.reduce((a, b) => a + b, 0) / values.length;
 
             async function setup() {
-                const context = canvas.getContext("webgl2", { alpha: false, antialias: true });
+                const context = canvas.getContext("webgl2", { alpha: false, antialias: false });
                 const view = new GltfView(context);
                 const resourceLoader = view.createResourceLoader((options) =>
                     options.onModuleLoaded(null)

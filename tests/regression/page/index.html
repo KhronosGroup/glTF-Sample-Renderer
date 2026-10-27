@@ -33,7 +33,7 @@
             canvas.height = Number(params.get("height"));
 
             async function setup() {
-                const context = canvas.getContext("webgl2", { alpha: false, antialias: true });
+                const context = canvas.getContext("webgl2", { alpha: false, antialias: false });
                 const view = new GltfView(context);
                 // The glTF variants carry no Draco data; this only silences the missing-decoder error.
                 const resourceLoader = view.createResourceLoader((options) =>
