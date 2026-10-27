@@ -144,6 +144,11 @@ class gltfRenderer {
         this.uniformEpoch = 0;
         this.lightUniforms = [];
 
+        // primitive -> program -> { vao, vertexCount }
+        this.vertexArrays = new WeakMap();
+        this.vertexArrayList = [];
+        this.vertexArrayGltf = undefined;
+
         this.splatVBO = undefined;
         this.currentSortBuffer = undefined;
 
@@ -833,6 +838,7 @@ class gltfRenderer {
     }
 
     drawScene(state, scene) {
+        this.releaseVertexArrays(state.gltf);
         this.prepareScene(state, scene);
 
         let currentCamera;
@@ -1928,62 +1934,20 @@ class gltfRenderer {
         
 
         const drawIndexed = primitive.indices !== undefined;
-        if (drawIndexed)
+        const geometry = this.bindGeometry(state.gltf, primitive, renderpassConfiguration.picking, instanceOffset !== undefined);
+        if (geometry === undefined)
         {
-            if (!this.webGl.setIndices(state.gltf, primitive.indices))
-            {
-                return;
-            }
+            return;
         }
-
-        let vertexCount = 0;
-        for (const attribute of primitive.glAttributes)
-        {
-            if (renderpassConfiguration.picking && (attribute.attribute !== "POSITION" || attribute.attribute.startsWith("JOINTS") || attribute.attribute.startsWith("WEIGHTS"))) {
-                continue;
-            }
-            const gltfAccessor = state.gltf.accessors[attribute.accessor];
-            vertexCount = gltfAccessor.count;
-
-            const location = this.shader.getAttributeLocation(attribute.name);
-            if (location === null)
-            {
-                continue; // only skip this attribute
-            }
-            if (!this.webGl.enableAttribute(state.gltf, location, gltfAccessor))
-            {
-                return; // skip this primitive
-            }
-        }
+        const vertexCount = geometry.vertexCount;
 
         if (instanceOffset !== undefined) {
-            const location = this.shader.getAttributeLocation("a_instance_model_matrix");
-            const location2 = location + 1;
-            const location3 = location2 + 1;
-            const location4 = location3 + 1;
-            if (this.instanceBuffer === undefined) {
-                this.instanceBuffer = this.webGl.context.createBuffer();
-            }
-            this.webGl.context.enableVertexAttribArray(location);
-            this.webGl.context.enableVertexAttribArray(location2);
-            this.webGl.context.enableVertexAttribArray(location3);
-            this.webGl.context.enableVertexAttribArray(location4);
-
             this.webGl.context.bindBuffer(GL.ARRAY_BUFFER, this.instanceBuffer);
             const data = new Float32Array(instanceOffset.length * 16);
             instanceOffset.forEach((element, index) => {
                 data.set(element, 16 * index);
             });
             this.webGl.context.bufferData(GL.ARRAY_BUFFER, data, GL.DYNAMIC_DRAW);
-            this.webGl.context.vertexAttribPointer(location, 4, GL.FLOAT, GL.FALSE, 4 * 16, 0);
-            this.webGl.context.vertexAttribPointer(location2, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 4);
-            this.webGl.context.vertexAttribPointer(location3, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 8);
-            this.webGl.context.vertexAttribPointer(location4, 4, GL.FLOAT, GL.FALSE, 4 * 16, 4 * 12);
-            
-            this.webGl.context.vertexAttribDivisor(location, 1);
-            this.webGl.context.vertexAttribDivisor(location2, 1);
-            this.webGl.context.vertexAttribDivisor(location3, 1);
-            this.webGl.context.vertexAttribDivisor(location4, 1);
         }
 
         // Update material uniforms
@@ -2167,29 +2131,91 @@ class gltfRenderer {
         // background and the fullscreen passes by undefined values.
         this.setClipDistancesEnabled(false);
 
-        for (const attribute of primitive.glAttributes)
-        {
-            if (renderpassConfiguration.picking && (attribute.attribute !== "POSITION" || attribute.attribute.startsWith("JOINTS") || attribute.attribute.startsWith("WEIGHTS"))) {
+        // The other passes set up their attributes on the default vertex array.
+        this.webGl.context.bindVertexArray(null);
+    }
+
+    // Binds the vertex array holding the primitive's attributes and indices for the current
+    // program, recording it on first use. Returns undefined if the geometry cannot be drawn.
+    bindGeometry(gltf, primitive, picking, instanced) {
+        const gl = this.webGl.context;
+        let geometries = this.vertexArrays.get(primitive);
+        if (geometries === undefined) {
+            geometries = new Map();
+            this.vertexArrays.set(primitive, geometries);
+        }
+        let geometry = geometries.get(this.shader);
+        if (geometry !== undefined) {
+            gl.bindVertexArray(geometry.vao);
+            return geometry;
+        }
+
+        const vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+        const discard = () => {
+            gl.bindVertexArray(null);
+            gl.deleteVertexArray(vao);
+            return undefined;
+        };
+
+        if (primitive.indices !== undefined && !this.webGl.setIndices(gltf, primitive.indices)) {
+            return discard();
+        }
+
+        let vertexCount = 0;
+        for (const attribute of primitive.glAttributes) {
+            if (picking && attribute.attribute !== "POSITION") {
                 continue;
             }
+            const gltfAccessor = gltf.accessors[attribute.accessor];
+            vertexCount = gltfAccessor.count;
+
             const location = this.shader.getAttributeLocation(attribute.name);
-            if (location === null)
-            {
-                continue; // skip this attribute
+            if (location < 0) {
+                continue;
             }
-            this.webGl.context.disableVertexAttribArray(location);
+            if (!this.webGl.enableAttribute(gltf, location, gltfAccessor)) {
+                return discard();
+            }
         }
-        if (instanceOffset !== undefined) {
+
+        if (instanced) {
+            if (this.instanceBuffer === undefined) {
+                this.instanceBuffer = gl.createBuffer();
+            }
+            gl.bindBuffer(GL.ARRAY_BUFFER, this.instanceBuffer);
             const location = this.shader.getAttributeLocation("a_instance_model_matrix");
-            this.webGl.context.vertexAttribDivisor(location, 0);
-            this.webGl.context.vertexAttribDivisor(location + 1, 0);
-            this.webGl.context.vertexAttribDivisor(location + 2, 0);
-            this.webGl.context.vertexAttribDivisor(location + 3, 0);
-            this.webGl.context.disableVertexAttribArray(location);
-            this.webGl.context.disableVertexAttribArray(location + 1);
-            this.webGl.context.disableVertexAttribArray(location + 2);
-            this.webGl.context.disableVertexAttribArray(location + 3);
+            for (let column = 0; column < 4; column++) {
+                gl.enableVertexAttribArray(location + column);
+                gl.vertexAttribPointer(
+                    location + column,
+                    4,
+                    GL.FLOAT,
+                    false,
+                    4 * 16,
+                    4 * 4 * column
+                );
+                gl.vertexAttribDivisor(location + column, 1);
+            }
         }
+
+        geometry = { vao, vertexCount };
+        geometries.set(this.shader, geometry);
+        this.vertexArrayList.push(vao);
+        return geometry;
+    }
+
+    // Vertex arrays reference the glTF's buffers, so they are released together with it.
+    releaseVertexArrays(gltf) {
+        if (gltf === this.vertexArrayGltf) {
+            return;
+        }
+        for (const vao of this.vertexArrayList) {
+            this.webGl.context.deleteVertexArray(vao);
+        }
+        this.vertexArrays = new WeakMap();
+        this.vertexArrayList = [];
+        this.vertexArrayGltf = gltf;
     }
 
     /// Compute a list of lights instantiated by one or more nodes as a list of node-light tuples.
