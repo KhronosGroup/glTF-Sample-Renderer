@@ -600,18 +600,7 @@ class gltfRenderer {
         this.webGl.context.depthMask(true);
         // Convert clear color from sRGB to linear since we will always transfer to sRGB by default
         const linearClearColor = clearColor.map((c) => Math.pow(c, 2.2));
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.opaqueFramebuffer);
-        this.webGl.context.clearColor(...linearClearColor);
-        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
-        this.webGl.context.bindFramebuffer(
-            this.webGl.context.FRAMEBUFFER,
-            this.opaqueFramebufferMSAA
-        );
-        this.webGl.context.clearColor(...linearClearColor);
-        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
-        this.webGl.context.clearColor(0, 0, 0, 0);
-        this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.linearClearColor = linearClearColor;
         // Main framebuffer: clear color (attachment 0) and depth separately,
         // then zero the tonemap flag attachment (attachment 1) via clearBufferuiv.
         if (this.mainFramebuffer) {
@@ -628,15 +617,26 @@ class gltfRenderer {
         this.webGl.context.clearColor(...linearClearColor);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
-        this.webGl.context.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
-        this.webGl.context.clearBufferuiv(GL.COLOR, 1, new Uint32Array([0, 0, 0, 0]));
-        this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.hoverFramebuffer);
-        this.webGl.context.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
-        this.webGl.context.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
-        this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+    }
+
+    // The offscreen passes clear their framebuffer only when they run.
+    clearPickingFramebuffer(framebuffer, positionAttachment) {
+        const gl = this.webGl.context;
+        gl.depthMask(true);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.clearBufferuiv(GL.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
+        if (positionAttachment) {
+            gl.clearBufferuiv(GL.COLOR, 1, new Uint32Array([0, 0, 0, 0]));
+        }
+        gl.clearBufferfv(GL.DEPTH, 0, new Float32Array([1.0]));
+    }
+
+    clearColorAndDepth(framebuffer, color) {
+        const gl = this.webGl.context;
+        gl.depthMask(true);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        gl.clearColor(...color);
+        gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
     }
 
     prepareScene(state, scene) {
@@ -917,10 +917,7 @@ class gltfRenderer {
             state.renderingParameters.enabledExtensions.KHR_materials_volume;
 
         if (scatterEnabled) {
-            this.webGl.context.bindFramebuffer(
-                this.webGl.context.FRAMEBUFFER,
-                this.scatterFramebuffer
-            );
+            this.clearColorAndDepth(this.scatterFramebuffer, [0, 0, 0, 0]);
             if (
                 state.renderingParameters.debugOutput ===
                 GltfState.DebugOutput.volumeScatter.PRE_SCATTER_PASS
@@ -969,10 +966,7 @@ class gltfRenderer {
                 aspectHeight
             );
             mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
-            this.webGl.context.bindFramebuffer(
-                this.webGl.context.FRAMEBUFFER,
-                this.pickingFramebuffer
-            );
+            this.clearPickingFramebuffer(this.pickingFramebuffer, true);
             this.webGl.context.viewport(0, 0, 1, 1);
 
             for (const drawable of this.selectionDrawables) {
@@ -1011,10 +1005,7 @@ class gltfRenderer {
                 );
                 mat4.multiply(pickingViewProjection, pickingProjection, this.viewMatrix);
             }
-            this.webGl.context.bindFramebuffer(
-                this.webGl.context.FRAMEBUFFER,
-                this.hoverFramebuffer
-            );
+            this.clearPickingFramebuffer(this.hoverFramebuffer, false);
             this.webGl.context.viewport(0, 0, 1, 1);
 
             for (const drawable of this.hoverDrawables) {
@@ -1033,10 +1024,7 @@ class gltfRenderer {
         // If any transmissive drawables are present, render all opaque and transparent drawables into a separate framebuffer.
         if (this.transmissionDrawables.length > 0) {
             // Render transmission sample texture
-            this.webGl.context.bindFramebuffer(
-                this.webGl.context.FRAMEBUFFER,
-                this.opaqueFramebufferMSAA
-            );
+            this.clearColorAndDepth(this.opaqueFramebufferMSAA, this.linearClearColor);
             this.webGl.context.viewport(
                 0,
                 0,
