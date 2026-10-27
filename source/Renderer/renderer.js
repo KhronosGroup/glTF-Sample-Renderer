@@ -137,6 +137,10 @@ class gltfRenderer {
         this.clippingExtents = undefined;
         this.clipDistancesEnabled = false;
 
+        // primitive -> { signature, byMaterial: material -> pass key -> program }
+        this.programCache = new WeakMap();
+        this.programSignature = undefined;
+
         this.splatVBO = undefined;
         this.currentSortBuffer = undefined;
 
@@ -886,6 +890,21 @@ class gltfRenderer {
         mat4.multiply(this.viewProjectionMatrix, this.projMatrix, this.viewMatrix);
 
         this.updateClippingPlanes(state);
+
+        // Everything besides the draw itself that selectProgram() derives defines from.
+        const parameters = state.renderingParameters;
+        this.programSignature = JSON.stringify([
+            parameters.skinning,
+            parameters.morphing,
+            parameters.debugOutput,
+            parameters.usePunctual,
+            this.visibleLights.length,
+            parameters.useIBL && state.environment !== undefined,
+            parameters.toneMap,
+            parameters.enabledExtensions,
+            this.clippingPlanes !== undefined,
+            gltfMaterial.scatterSampleCount
+        ]);
 
         // Update skins.
         for (const node of state.gltf.nodes) {
@@ -1710,33 +1729,10 @@ class gltfRenderer {
         gl.disableVertexAttribArray(posLoc);
     }
 
-    // vertices with given material
+    // Builds the shader permutation for a draw, then compiles and links it.
     // prettier-ignore
-    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, sampledTextures, instanceOffset = undefined)
+    selectProgram(state, renderpassConfiguration, primitive, node, material, instanced)
     {
-        if (primitive.skip) return;
-
-        let material;
-        if(primitive.mappings !== undefined && state.variant != "default" && state.gltf.extensions?.KHR_materials_variants.variants !== undefined)
-        {
-            const names = state.gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
-            const idx = names.indexOf(state.variant);
-            let materialIdx = primitive.material;
-            primitive.mappings.forEach(element => {
-                if(element.variants.indexOf(idx) >= 0)
-                {
-                    materialIdx = element.material;
-                }
-            });
-            material = state.gltf.materials[materialIdx];
-        }
-        else
-        {
-            material = state.gltf.materials[primitive.material];
-        }
-
-        //select shader permutation, compile and link program.
-
         let vertDefines = [];
         this.pushVertParameterDefines(
             vertDefines,
@@ -1747,7 +1743,7 @@ class gltfRenderer {
             state.renderingParameters.debugOutput
         );
         vertDefines = primitive.defines.concat(vertDefines);
-        if (instanceOffset !== undefined) {
+        if (instanced) {
             vertDefines.push("USE_INSTANCING 1");
         }
         if (material.textureTransforms.length > 0) {
@@ -1799,14 +1795,69 @@ class gltfRenderer {
         const fragmentHash = this.shaderCache.selectShader(fragmentShader, fragDefines);
         const vertexHash = this.shaderCache.selectShader(vertexShader, vertDefines);
 
-        if (fragmentHash && vertexHash)
+        if (!fragmentHash || !vertexHash)
         {
-            this.shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+            return undefined;
+        }
+        return this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+    }
+
+    // vertices with given material
+    // prettier-ignore
+    drawPrimitive(state, renderpassConfiguration, primitive, node, viewProjectionMatrix, sampledTextures, instanceOffset = undefined)
+    {
+        if (primitive.skip) return;
+
+        let material;
+        if(primitive.mappings !== undefined && state.variant != "default" && state.gltf.extensions?.KHR_materials_variants.variants !== undefined)
+        {
+            const names = state.gltf.extensions.KHR_materials_variants.variants.map(obj => obj.name);
+            const idx = names.indexOf(state.variant);
+            let materialIdx = primitive.material;
+            primitive.mappings.forEach(element => {
+                if(element.variants.indexOf(idx) >= 0)
+                {
+                    materialIdx = element.material;
+                }
+            });
+            material = state.gltf.materials[materialIdx];
+        }
+        else
+        {
+            material = state.gltf.materials[primitive.material];
         }
 
-        if (this.shader === undefined)
-        {
-            return;
+        const instanced = instanceOffset !== undefined;
+        const weightCount =
+            state.renderingParameters.morphing && primitive.targets.length > 0
+                ? (node.getWeights(state.gltf)?.length ?? 0)
+                : 0;
+        const programKey =
+            (renderpassConfiguration.picking ? 1 : 0) |
+            (renderpassConfiguration.scatter ? 2 : 0) |
+            (renderpassConfiguration.linearOutput ? 4 : 0) |
+            (renderpassConfiguration.transmission ? 8 : 0) |
+            (instanced ? 16 : 0) |
+            (node.skin !== undefined ? 32 : 0) |
+            (weightCount << 6);
+
+        let cache = this.programCache.get(primitive);
+        if (cache === undefined || cache.signature !== this.programSignature) {
+            cache = { signature: this.programSignature, byMaterial: new Map() };
+            this.programCache.set(primitive, cache);
+        }
+        let programs = cache.byMaterial.get(material);
+        if (programs === undefined) {
+            programs = new Map();
+            cache.byMaterial.set(material, programs);
+        }
+        this.shader = programs.get(programKey);
+        if (this.shader === undefined) {
+            this.shader = this.selectProgram(state, renderpassConfiguration, primitive, node, material, instanced);
+            if (this.shader === undefined) {
+                return;
+            }
+            programs.set(programKey, this.shader);
         }
 
         this.webGl.context.useProgram(this.shader.program);
