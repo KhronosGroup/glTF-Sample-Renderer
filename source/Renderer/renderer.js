@@ -651,30 +651,25 @@ class gltfRenderer {
         gl.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
     }
 
+    // Zips the primitives (for geometry and material) of the nodes with the nodes (for the transform).
+    collectDrawables(gltf, nodes) {
+        const drawables = [];
+        for (const node of nodes) {
+            if (node.mesh === undefined) {
+                continue;
+            }
+            gltf.meshes[node.mesh].primitives.forEach((primitive, index) => {
+                drawables.push({ node: node, primitive: primitive, primitiveIndex: index });
+            });
+        }
+        return drawables;
+    }
+
     prepareScene(state, scene) {
         const newNodes = scene.gatherNodes(state.gltf, state.renderingParameters.enabledExtensions);
-        this.selectionDrawables = newNodes.selectableNodes
-            .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            );
-        this.hoverDrawables = newNodes.hoverableNodes
-            .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            );
+        // Only turned into drawables when a selection or hover pass runs.
+        this.selectableNodes = newNodes.selectableNodes;
+        this.hoverableNodes = newNodes.hoverableNodes;
 
         // check if nodes have changed since previous frame to avoid unnecessary updates
         if (
@@ -685,20 +680,9 @@ class gltfRenderer {
         }
         this.nodes = newNodes.nodes;
 
-        // collect drawables by essentially zipping primitives (for geometry and material)
-        // and nodes for the transform
-        const drawables = this.nodes
-            .filter((node) => node.mesh !== undefined)
-            .reduce(
-                (accumulator, node) =>
-                    accumulator.concat(
-                        state.gltf.meshes[node.mesh].primitives.map((primitive, index) => {
-                            return { node: node, primitive: primitive, primitiveIndex: index };
-                        })
-                    ),
-                []
-            )
-            .filter(({ primitive }) => primitive.material !== undefined);
+        const drawables = this.collectDrawables(state.gltf, this.nodes).filter(
+            ({ primitive }) => primitive.material !== undefined
+        );
         this.drawables = drawables;
 
         // opaque drawables don't need sorting
@@ -999,7 +983,7 @@ class gltfRenderer {
             this.clearPickingFramebuffer(this.pickingFramebuffer, true);
             this.webGl.context.viewport(0, 0, 1, 1);
 
-            for (const drawable of this.selectionDrawables) {
+            for (const drawable of this.collectDrawables(state.gltf, this.selectableNodes)) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
                 this.drawPrimitive(
@@ -1040,7 +1024,7 @@ class gltfRenderer {
             this.clearPickingFramebuffer(this.hoverFramebuffer, false);
             this.webGl.context.viewport(0, 0, 1, 1);
 
-            for (const drawable of this.hoverDrawables) {
+            for (const drawable of this.collectDrawables(state.gltf, this.hoverableNodes)) {
                 let renderpassConfiguration = {};
                 renderpassConfiguration.picking = true;
                 this.drawPrimitive(
