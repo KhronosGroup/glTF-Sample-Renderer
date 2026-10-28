@@ -34,6 +34,9 @@ function nodeAt(translation, { shape = 0, document, ...rest } = {}) {
         boundingVolume,
         ownerDocument: document,
         worldTransform: mat4.fromTranslation(mat4.create(), translation),
+        getRenderedWorldTransform() {
+            return this.scaledPhysicsTransform ?? this.worldTransform;
+        },
         ...rest
     };
 }
@@ -131,5 +134,14 @@ describe("culling by bounding volume", () => {
         cullNodes([node], viewProjection);
 
         expect(node.culled).toBe(false);
+    });
+
+    it("follows the pose the physics simulation moved the node to", () => {
+        const node = nodeAt([0, 0, -5], { document: UNIT_BOX });
+        node.scaledPhysicsTransform = mat4.fromTranslation(mat4.create(), [0, 0, 20]);
+
+        cullNodes([node], viewProjection);
+
+        expect(node.culled).toBe(true);
     });
 });

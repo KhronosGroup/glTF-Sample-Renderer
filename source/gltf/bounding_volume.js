@@ -41,7 +41,11 @@ class gltfBoundingVolume extends GltfObject {
     }
 
     getWorldTransform(node) {
-        return mat4.multiply(mat4.create(), node.worldTransform, this.getLocalTransform());
+        return mat4.multiply(
+            mat4.create(),
+            node.getRenderedWorldTransform(),
+            this.getLocalTransform()
+        );
     }
 }
 

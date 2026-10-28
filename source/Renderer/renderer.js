@@ -1556,7 +1556,7 @@ class gltfRenderer {
                 const physics = node.extensions?.KHR_physics_rigid_bodies;
                 for (const geometry of [physics?.collider?.geometry, physics?.trigger?.geometry]) {
                     if (geometry?.shape !== undefined) {
-                        add(geometry.shape, node.worldTransform, false);
+                        add(geometry.shape, node.getRenderedWorldTransform(), false);
                     }
                 }
             }
@@ -1617,7 +1617,7 @@ class gltfRenderer {
 
         return boundsContain(
             transformedBounds(boundsCorners(buffers.localBounds), transform),
-            transformedBounds(new Float32Array(meshCorners), node.worldTransform)
+            transformedBounds(new Float32Array(meshCorners), node.getRenderedWorldTransform())
         );
     }
 
