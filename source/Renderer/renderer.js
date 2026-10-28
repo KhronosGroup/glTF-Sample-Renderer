@@ -1699,7 +1699,11 @@ class gltfRenderer {
         const gltf = node?.ownerDocument ?? state.gltf;
         // Request an async worker sort each frame (no-op if the previous sort
         // has not yet finished or no worker is available).
-        const modelViewMatrix = mat4.multiply(mat4.create(), viewMatrix, node.worldTransform);
+        const modelViewMatrix = mat4.multiply(
+            mat4.create(),
+            viewMatrix,
+            node.getRenderedWorldTransform()
+        );
         primitive.requestSort(modelViewMatrix);
         if (primitive.sortPending) {
             this.needsRedraw = true;
@@ -1752,7 +1756,7 @@ class gltfRenderer {
         this.webGl.context.uniformMatrix4fv(
             this.shader.getUniformLocation("u_ModelMatrix"),
             false,
-            node.worldTransform
+            node.getRenderedWorldTransform()
         );
 
         const rotationMatrixInv = mat3.create();
