@@ -1,5 +1,5 @@
 import PhysX from "physx-js-webidl";
-// The import is needed for rollup to include the wasm file in the build output
+// The import is needed for the bundler to include the wasm file in the build output
 // eslint-disable-next-line no-unused-vars
 import PhysXBinaryFile from "physx-js-webidl/physx-js-webidl.wasm";
 import { gltfPhysicsMaterial } from "../gltf/rigid_bodies";
@@ -189,7 +189,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         sceneDesc.flags = sceneFlags;
 
         this.scene = this.physics.createScene(sceneDesc);
-        let triggerCallback = undefined;
+        let triggerCallback;
 
         if (triggerNodes.length > 0) {
             console.log("Enabling trigger report callback");
@@ -927,7 +927,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 currentGeometry.release?.();
                 if (newGeometry.getType() !== currentColliderType) {
                     // We need to recreate the shape
-                    let shapeFlags = undefined;
+                    let shapeFlags;
                     if (isTrigger) {
                         shapeFlags = this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE;
                     } else {
@@ -1383,7 +1383,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             positionDataArray.push(positionData);
             positionCount += positionAccessor.count;
             if (computeIndices) {
-                let indexData = undefined;
+                let indexData;
                 if (primitive.indices !== undefined) {
                     const indexAccessor = gltf.accessors[primitive.indices];
                     indexData = indexAccessor.getNormalizedDeinterlacedView(gltf);
@@ -1601,8 +1601,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      * @returns {object} The created `PxFilterData`.
      */
     createPhysXCollisionFilter(collisionFilter, additionalFlags = 0) {
-        let word0 = null;
-        let word1 = null;
+        let word0;
+        let word1;
         if (collisionFilter !== undefined && collisionFilter < this.filterData.length - 1) {
             word0 = 1 << collisionFilter;
             word1 = this.filterData[collisionFilter];
@@ -1870,7 +1870,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         // If a node contains trigger and collider combine them
 
-        let collider = undefined;
+        let collider;
         if (type !== "trigger") {
             collider = node.extensions?.KHR_physics_rigid_bodies?.collider;
             createAndAddShape(
@@ -2013,7 +2013,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         const rot = new this.PhysX.PxQuat(this.PhysX.PxIDENTITYEnum.PxIdentity);
         if (motion.inertiaDiagonal !== undefined) {
-            let inertia = undefined;
+            let inertia;
             if (
                 motion.inertiaOrientation !== undefined &&
                 !quat.exactEquals(motion.inertiaOrientation, quat.create())

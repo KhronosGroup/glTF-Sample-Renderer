@@ -316,7 +316,7 @@ class PhysicsController {
     _updateColliders(state, node, isTrigger = false) {
         this.engine.updateActorTransform(node);
 
-        let collider = undefined;
+        let collider;
         if (isTrigger) {
             collider = node.extensions?.KHR_physics_rigid_bodies?.trigger;
         } else {

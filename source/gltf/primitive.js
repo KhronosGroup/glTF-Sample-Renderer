@@ -750,7 +750,7 @@ class gltfPrimitive extends GltfObject {
     initSortWorker(gltf, vertexCount) {
         try {
             this.sortWorker = new Worker(
-                new URL("./libs/mkkellogg-sort.worker.js", import.meta.url), //URL needs to be relative to rollup build
+                new URL("./libs/mkkellogg-sort.worker.js", import.meta.url), //URL needs to be relative to the bundle
                 { type: "module" }
             );
         } catch (err) {

@@ -828,7 +828,7 @@ class gltfRenderer {
     drawScene(state, scene) {
         this.prepareScene(state, scene);
 
-        let currentCamera = undefined;
+        let currentCamera;
 
         if (state.cameraNodeIndex === undefined) {
             currentCamera = state.userCamera;
@@ -1594,7 +1594,7 @@ class gltfRenderer {
         this.webGl.setTexture(location, state.gltf, primitive.opacityTextureInfo, textureIndex++);
 
         location = this.shader.getUniformLocation(primitive.shArray.samplerName);
-        this.webGl.setTexture(location, state.gltf, primitive.shArray, textureIndex++);
+        this.webGl.setTexture(location, state.gltf, primitive.shArray, textureIndex);
 
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, this.splatVBO);
         location = this.shader.getAttributeLocation("a_position");
@@ -2092,7 +2092,6 @@ class gltfRenderer {
 	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
 	            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, this.opaqueRenderTexture);
 	            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_TransmissionFramebufferSampler"), textureCount);
-	            textureCount++;
 	
 	            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_TransmissionFramebufferSize"), this.opaqueFramebufferWidth, this.opaqueFramebufferHeight);
 	

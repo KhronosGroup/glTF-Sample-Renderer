@@ -16,7 +16,7 @@ dist/main.js
 dist/index.html
 
 # files types to ignore
-rollup.config.js
+rolldown.config.js
 package-lock.json
 .DS_Store
 npm-debug.log
