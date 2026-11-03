@@ -2,7 +2,7 @@
     "sampleAssets": {
         "repository": "KhronosGroup/glTF-Sample-Assets",
         "branch": "main",
-        "commit": "edc7c9e67c639d230715049ee31f9a96a6babbbe",
+        "commit": "8f492390ddc7a2ae221a1369ef560589cf8c70fb",
         "variant": "glTF"
     },
     "environment": {
