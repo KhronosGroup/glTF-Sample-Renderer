@@ -51,6 +51,9 @@
         "prettier": "^3.9.10",
         "rolldown": "^1.2.15"
     },
+    "overrides": {
+        "minimatch": "^11.0.1"
+    },
     "bugs": {
         "url": "https://github.com/KhronosGroup/glTF-Sample-Renderer/issues"
     },
