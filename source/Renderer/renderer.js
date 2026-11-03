@@ -1484,7 +1484,7 @@ class gltfRenderer {
         // Request an async worker sort each frame (no-op if the previous sort
         // has not yet finished or no worker is available).
         const modelViewMatrix = mat4.multiply(mat4.create(), viewMatrix, node.worldTransform);
-        primitive.requestSort(modelViewMatrix);
+        primitive.requestSort(node, modelViewMatrix);
         if (primitive.sortPending) {
             this.needsRedraw = true;
         }
@@ -1602,10 +1602,11 @@ class gltfRenderer {
         this.webGl.context.vertexAttribPointer(location, 2, GL.FLOAT, false, 0, 0);
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, null);
 
+        const sortOrder = primitive.getSortOrder(node);
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, this.currentSortBuffer);
         this.webGl.context.bufferData(
             this.webGl.context.ARRAY_BUFFER,
-            primitive.sortOrder,
+            sortOrder,
             this.webGl.context.DYNAMIC_DRAW
         );
         location = this.shader.getAttributeLocation("a_instance_sort_index");
@@ -1614,7 +1615,7 @@ class gltfRenderer {
         this.webGl.context.vertexAttribDivisor(location, 1);
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, null);
 
-        this.webGl.context.drawArraysInstanced(GL.TRIANGLE_STRIP, 0, 4, primitive.sortOrder.length);
+        this.webGl.context.drawArraysInstanced(GL.TRIANGLE_STRIP, 0, 4, sortOrder.length);
 
         this.webGl.context.vertexAttribDivisor(location, 0);
         this.webGl.context.disableVertexAttribArray(location);
