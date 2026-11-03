@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, styleText } from "node:util";
@@ -15,6 +16,11 @@ const rendererRoot = path.resolve(here, "../..");
 const outputRoot = path.join(rendererRoot, "regression");
 const renderingsRoot = path.join(outputRoot, "renderings");
 const summaryFile = path.join(renderingsRoot, "summary.json");
+
+// npm workspaces hoist dependencies to the repository root, so serve gl-matrix
+// from wherever Node resolves it instead of assuming node_modules next to the renderer.
+const require = createRequire(import.meta.url);
+const glMatrixRoot = path.dirname(require.resolve("gl-matrix/package.json"));
 
 const SAMPLE_INTERVAL_MS = 250;
 const MAX_FRAMES = 40;
@@ -283,7 +289,7 @@ async function main() {
             "/dist/": path.join(rendererRoot, "dist"),
             "/libs/": path.join(rendererRoot, "dist", "libs"),
             "/assets/images/": path.join(rendererRoot, "assets", "images"),
-            "/node_modules/": path.join(rendererRoot, "node_modules"),
+            "/node_modules/gl-matrix/": glMatrixRoot,
             "/models/": path.join(outputRoot, "models"),
             "/environments/": path.join(outputRoot, "environments"),
             ...local.mounts
