@@ -467,7 +467,7 @@ void main()
 #if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
     if (materialInfo.scatterStrength > 0.0 && materialInfo.thickness > 0.0) {
         // Subsurface scattering is calculated based on the Burley diffusion profile.
-        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.multiscatterColor);
+        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.multiscatterColor, singleScatter);
 
         float iridescenceMask = 1.0;
 #ifdef MATERIAL_IRIDESCENCE

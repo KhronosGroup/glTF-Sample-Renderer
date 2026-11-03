@@ -195,8 +195,13 @@ vec3 burley_eval(vec3 d, float r)
 }
 
 
-vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor) {
-    vec3 scatterDistance = attenuationDistance * getScatterStrength() * getMultiScatterColor();
+vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor, vec3 singleScatter) {
+    vec3 multiScatter = getScatterStrength() * getMultiScatterColor();
+    // Blend between the multi-scatter-driven diffusion length and the
+    // single-scatter-driven length as anisotropy increases. At g = 0 this keeps
+    // the previous multi-scatter radius, while forward scattering (g > 0)
+    // stretches the profile and backward scattering (g < 0) tightens it.
+    vec3 scatterDistance = attenuationDistance * mix(multiScatter, singleScatter, abs(u_ScatterAnisotropy));
     float maxColor = max3(scatterDistance);
     vec3 vMaxColor = max(vec3(maxColor), vec3(0.00001));
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
