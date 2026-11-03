@@ -142,7 +142,7 @@ GltfState containing a state for visualization in GltfView
                 * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
                 * [.KHR_materials_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission)
                 * [.KHR_materials_volume](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume)
-                * [.KHR_materials_volume_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+                * [.KHR_materials_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_scatter)
                 * [.KHR_materials_ior](#GltfState+renderingParameters.enabledExtensions.KHR_materials_ior)
                 * [.KHR_materials_specular](#GltfState+renderingParameters.enabledExtensions.KHR_materials_specular)
                 * [.KHR_materials_iridescence](#GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence)
@@ -342,7 +342,7 @@ parameters used to configure the rendering
         * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
         * [.KHR_materials_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission)
         * [.KHR_materials_volume](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume)
-        * [.KHR_materials_volume_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+        * [.KHR_materials_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_scatter)
         * [.KHR_materials_ior](#GltfState+renderingParameters.enabledExtensions.KHR_materials_ior)
         * [.KHR_materials_specular](#GltfState+renderingParameters.enabledExtensions.KHR_materials_specular)
         * [.KHR_materials_iridescence](#GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence)
@@ -405,7 +405,7 @@ enabled extensions
     * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
     * [.KHR_materials_transmission](#GltfState+renderingParameters.enabledExtensions.KHR_materials_transmission)
     * [.KHR_materials_volume](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume)
-    * [.KHR_materials_volume_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter)
+    * [.KHR_materials_scatter](#GltfState+renderingParameters.enabledExtensions.KHR_materials_scatter)
     * [.KHR_materials_ior](#GltfState+renderingParameters.enabledExtensions.KHR_materials_ior)
     * [.KHR_materials_specular](#GltfState+renderingParameters.enabledExtensions.KHR_materials_specular)
     * [.KHR_materials_iridescence](#GltfState+renderingParameters.enabledExtensions.KHR_materials_iridescence)
@@ -444,10 +444,10 @@ KHR_materials_transmission adds physical-based transparency
 KHR_materials_volume adds support for volumetric materials. Used together with KHR_materials_transmission and KHR_materials_diffuse_transmission
 
 **Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
-<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_volume_scatter"></a>
+<a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_scatter"></a>
 
-##### enabledExtensions.KHR\_materials\_volume\_scatter
-KHR_materials_volume_scatter allows the simulation of scattering light inside a volume. Used together with KHR_materials_volume
+##### enabledExtensions.KHR\_materials\_scatter
+KHR_materials_scatter defines scattering properties for both thin-walled and volumetric materials. Used together with KHR_materials_transmission and optionally KHR_materials_volume
 
 **Kind**: static property of [<code>enabledExtensions</code>](#GltfState+renderingParameters.enabledExtensions)  
 <a name="GltfState+renderingParameters.enabledExtensions.KHR_materials_ior"></a>

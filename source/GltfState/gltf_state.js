@@ -81,8 +81,8 @@ class GltfState {
                 KHR_materials_transmission: true,
                 /** KHR_materials_volume adds support for volumetric materials. Used together with KHR_materials_transmission and KHR_materials_diffuse_transmission */
                 KHR_materials_volume: true,
-                /** KHR_materials_volume_scatter allows the simulation of scattering light inside a volume. Used together with KHR_materials_volume */
-                KHR_materials_volume_scatter: true,
+                /** KHR_materials_scatter defines scattering properties for both thin-walled and volumetric materials. Used together with KHR_materials_transmission and optionally KHR_materials_volume */
+                KHR_materials_scatter: true,
                 /** KHR_materials_ior makes the index of refraction configurable */
                 KHR_materials_ior: true,
                 /** KHR_materials_specular allows configuring specular color (f0 color) and amount of specular reflection */
@@ -301,7 +301,7 @@ GltfState.DebugOutput = {
         ANISOTROPIC_DIRECTION: "Anisotropic Direction"
     },
 
-    volumeScatter: {
+    scatter: {
         /** output the multi-scatter color */
         MULTI_SCATTER_COLOR: "Multi-Scatter Color",
         /** output the single-scatter color */

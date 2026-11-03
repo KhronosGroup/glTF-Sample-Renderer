@@ -123,6 +123,10 @@ void main()
     materialInfo = getDiffuseTransmissionInfo(materialInfo);
 #endif
 
+#ifdef MATERIAL_SCATTER
+    materialInfo = getScatterInfo(materialInfo);
+#endif
+
 #ifdef MATERIAL_ANISOTROPY
     materialInfo = getAnisotropyInfo(materialInfo, normalInfo);
 #endif
@@ -178,7 +182,7 @@ void main()
 #endif
 #endif
 
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
     // Used for weighting absorption and scattering
     vec3 singleScatter = multiToSingleScatter();
 #endif
@@ -199,7 +203,7 @@ void main()
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
     diffuseTransmissionIBL *= (1.0 - singleScatter);
 #endif
     f_diffuse = mix(f_diffuse, diffuseTransmissionIBL, materialInfo.diffuseTransmissionFactor);
@@ -212,6 +216,18 @@ void main()
         materialInfo.perceptualRoughness,
         baseColor.rgb, v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix,
         materialInfo.ior, materialInfo.thickness, materialInfo.attenuationColor, materialInfo.attenuationDistance, materialInfo.dispersion);
+
+#ifdef MATERIAL_SCATTER
+    if (materialInfo.thickness <= 0.0) {
+        float forwardFraction = (1.0 + materialInfo.scatterAnisotropy) * 0.5;
+        float backwardFraction = (1.0 - materialInfo.scatterAnisotropy) * 0.5;
+        vec3 scatterBTDF = getDiffuseLight(-n) * materialInfo.multiscatterColor * forwardFraction;
+        vec3 scatterBRDF = getDiffuseLight(n) * materialInfo.multiscatterColor * backwardFraction;
+        vec3 scatterLobe = scatterBTDF + scatterBRDF;
+        f_specular_transmission = mix(f_specular_transmission, scatterLobe, materialInfo.scatterStrength);
+    }
+#endif
+
     f_diffuse = mix(f_diffuse, f_specular_transmission, materialInfo.transmissionFactor);
 #endif
 
@@ -341,7 +357,7 @@ void main()
 #ifdef MATERIAL_VOLUME
             l_diffuse_btdf = applyVolumeAttenuation(l_diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
             l_diffuse_btdf *= (1.0 - singleScatter);
 #endif
             l_diffuse += l_diffuse_btdf * materialInfo.diffuseTransmissionFactor;
@@ -362,6 +378,22 @@ void main()
 #ifdef MATERIAL_VOLUME
         transmittedLight = applyVolumeAttenuation(transmittedLight, length(transmissionRay), materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
+
+#ifdef MATERIAL_SCATTER
+        if (materialInfo.thickness <= 0.0) {
+            float forwardFraction = (1.0 + materialInfo.scatterAnisotropy) * 0.5;
+            float backwardFraction = (1.0 - materialInfo.scatterAnisotropy) * 0.5;
+            vec3 scatterLobe = vec3(0.0);
+            if (dot(n, l) < 0.0) {
+                float scatterNdotL = clampedDot(-n, l);
+                scatterLobe = lightIntensity * scatterNdotL * BRDF_lambertian(materialInfo.multiscatterColor) * forwardFraction;
+            } else {
+                scatterLobe = lightIntensity * NdotL * BRDF_lambertian(materialInfo.multiscatterColor) * backwardFraction;
+            }
+            transmittedLight = mix(transmittedLight, scatterLobe, materialInfo.scatterStrength);
+        }
+#endif
+
         l_diffuse = mix(l_diffuse, transmittedLight, materialInfo.transmissionFactor);
 #endif
 
@@ -432,11 +464,18 @@ void main()
     }
 #endif // USE_PUNCTUAL
 
-#ifdef MATERIAL_VOLUME_SCATTER
-        // Subsurface scattering is calculated based on fresnel weighted diffuse terms. 
-        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor);
-        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor) * (1.0 - materialInfo.transmissionFactor);
-#endif // MATERIAL_VOLUME_SCATTER
+#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+    if (materialInfo.scatterStrength > 0.0 && materialInfo.thickness > 0.0) {
+        // Subsurface scattering is calculated based on the Burley diffusion profile.
+        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.multiscatterColor);
+
+        float iridescenceMask = 1.0;
+#ifdef MATERIAL_IRIDESCENCE
+        iridescenceMask = 1.0 - materialInfo.iridescenceFactor;
+#endif
+        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * iridescenceMask * materialInfo.transmissionFactor;
+    }
+#endif
 
     f_emissive = u_EmissiveFactor;
 #ifdef MATERIAL_EMISSIVE_STRENGTH
@@ -625,16 +664,15 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_DIFFUSE_TRANSMISSION_COLOR_FACTOR
     g_finalColor.rgb = linearTosRGB(materialInfo.diffuseTransmissionColorFactor);
 #endif
-
-#ifdef MATERIAL_VOLUME_SCATTER
-#if DEBUG == DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR
-    g_finalColor.rgb = u_MultiScatterColor;
 #endif
-#if DEBUG == DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR
+
+#ifdef MATERIAL_SCATTER
+#if DEBUG == DEBUG_SCATTER_MULTI_SCATTER_COLOR
+    g_finalColor.rgb = getMultiScatterColor();
+#endif
+#if DEBUG == DEBUG_SCATTER_SINGLE_SCATTER_COLOR
     g_finalColor.rgb = singleScatter;
 #endif
-#endif
-
 #endif
 #endif
 

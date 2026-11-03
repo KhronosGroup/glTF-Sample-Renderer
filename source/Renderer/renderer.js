@@ -753,7 +753,9 @@ class gltfRenderer {
         this.scatterDrawables = drawables.filter(
             ({ primitive }) =>
                 state.gltf.materials[primitive.material].extensions !== undefined &&
-                state.gltf.materials[primitive.material].extensions.KHR_materials_volume_scatter !==
+                state.gltf.materials[primitive.material].extensions.KHR_materials_scatter !==
+                    undefined &&
+                state.gltf.materials[primitive.material].extensions.KHR_materials_transmission !==
                     undefined &&
                 state.gltf.materials[primitive.material].extensions.KHR_materials_volume !==
                     undefined &&
@@ -920,7 +922,8 @@ class gltfRenderer {
 
         const scatterEnabled =
             this.scatterDrawables.length > 0 &&
-            state.renderingParameters.enabledExtensions.KHR_materials_volume_scatter &&
+            state.renderingParameters.enabledExtensions.KHR_materials_scatter &&
+            state.renderingParameters.enabledExtensions.KHR_materials_transmission &&
             state.renderingParameters.enabledExtensions.KHR_materials_volume;
 
         if (scatterEnabled) {
@@ -930,7 +933,7 @@ class gltfRenderer {
             );
             if (
                 state.renderingParameters.debugOutput ===
-                GltfState.DebugOutput.volumeScatter.PRE_SCATTER_PASS
+                GltfState.DebugOutput.scatter.PRE_SCATTER_PASS
             ) {
                 this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
             }
@@ -955,8 +958,7 @@ class gltfRenderer {
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         }
         if (
-            state.renderingParameters.debugOutput ===
-            GltfState.DebugOutput.volumeScatter.PRE_SCATTER_PASS
+            state.renderingParameters.debugOutput === GltfState.DebugOutput.scatter.PRE_SCATTER_PASS
         ) {
             return;
         }
@@ -2009,7 +2011,11 @@ class gltfRenderer {
         this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
         this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
 
-        this.shader.updateUniform("u_MultiScatterColor", jsToGl(material.extensions?.KHR_materials_volume_scatter?.multiscatterColor));
+        this.shader.updateUniform("u_ScatterStrengthFactor", material.extensions?.KHR_materials_scatter?.scatterStrengthFactor);
+        this.shader.updateUniform("u_ScatterStrengthUVSet", material.extensions?.KHR_materials_scatter?.scatterStrengthTexture?.texCoord);
+        this.shader.updateUniform("u_ScatterAnisotropy", material.extensions?.KHR_materials_scatter?.scatterAnisotropy);
+        this.shader.updateUniform("u_MultiScatterColorFactor", jsToGl(material.extensions?.KHR_materials_scatter?.multiscatterColorFactor));
+        this.shader.updateUniform("u_MultiScatterColorUVSet", material.extensions?.KHR_materials_scatter?.multiscatterColorTexture?.texCoord);
     
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
@@ -2036,7 +2042,7 @@ class gltfRenderer {
                 this.webGl.setTexture(this.shader.getUniformLocation("u_SheenELUT"), state.environment, state.environment.sheenELUT, textureCount++);
             }
 
-	        if (material.hasVolumeScatter && sampledTextures?.scatterSampleTexture !== undefined)
+	        if (material.hasScatter && sampledTextures?.scatterSampleTexture !== undefined)
 	        {
 	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
 	            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterSampleTexture);
@@ -2210,7 +2216,13 @@ class gltfRenderer {
         if (indexAccessor !== undefined) {
             const { count, componentType } = indexAccessor;
             if (instanceOffset !== undefined) {
-                gl.drawElementsInstanced(primitive.mode, count, componentType, 0, instanceOffset.length);
+                gl.drawElementsInstanced(
+                    primitive.mode,
+                    count,
+                    componentType,
+                    0,
+                    instanceOffset.length
+                );
             } else {
                 gl.drawElements(primitive.mode, count, componentType, 0);
             }
@@ -2264,12 +2276,24 @@ class gltfRenderer {
     /// Binds the morph target and joint textures, starting at the given texture unit. Returns the next free unit.
     applyAnimationTextures(state, node, primitive, textureIndex) {
         if (primitive.morphTargetTextureInfo !== undefined) {
-            const location = this.shader.getUniformLocation(primitive.morphTargetTextureInfo.samplerName);
-            this.webGl.setTexture(location, state.gltf, primitive.morphTargetTextureInfo, textureIndex); // binds texture and sampler
+            const location = this.shader.getUniformLocation(
+                primitive.morphTargetTextureInfo.samplerName
+            );
+            this.webGl.setTexture(
+                location,
+                state.gltf,
+                primitive.morphTargetTextureInfo,
+                textureIndex
+            ); // binds texture and sampler
             textureIndex++;
         }
 
-        if (state.renderingParameters.skinning && node.skin !== undefined && primitive.hasWeights && primitive.hasJoints) {
+        if (
+            state.renderingParameters.skinning &&
+            node.skin !== undefined &&
+            primitive.hasWeights &&
+            primitive.hasJoints
+        ) {
             const skin = state.gltf.skins[node.skin];
             const location = this.shader.getUniformLocation(skin.jointTextureInfo.samplerName);
             this.webGl.setTexture(location, state.gltf, skin.jointTextureInfo, textureIndex); // binds texture and sampler
@@ -2484,12 +2508,12 @@ class gltfRenderer {
             },
 
             {
-                debugOutput: GltfState.DebugOutput.volumeScatter.MULTI_SCATTER_COLOR,
-                shaderDefine: "DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR"
+                debugOutput: GltfState.DebugOutput.scatter.MULTI_SCATTER_COLOR,
+                shaderDefine: "DEBUG_SCATTER_MULTI_SCATTER_COLOR"
             },
             {
-                debugOutput: GltfState.DebugOutput.volumeScatter.SINGLE_SCATTER_COLOR,
-                shaderDefine: "DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR"
+                debugOutput: GltfState.DebugOutput.scatter.SINGLE_SCATTER_COLOR,
+                shaderDefine: "DEBUG_SCATTER_SINGLE_SCATTER_COLOR"
             }
         ];
 

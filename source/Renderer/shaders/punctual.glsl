@@ -25,9 +25,11 @@ const int LightType_Spot = 2;
 uniform Light u_Lights[LIGHT_COUNT + 1]; //Array [0] is not allowed
 #endif
 
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
 uniform vec3 u_ScatterSamples[SCATTER_SAMPLES_COUNT];
-uniform vec3 u_MultiScatterColor;
+uniform float u_ScatterStrengthFactor;
+uniform float u_ScatterAnisotropy;
+uniform vec3 u_MultiScatterColorFactor;
 uniform float u_MinRadius;
 uniform ivec2 u_FramebufferSize;
 #endif
@@ -146,11 +148,36 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
 }
 
 // Subsurface scattering based on the blender implementation of the Burley model.
-#ifdef MATERIAL_VOLUME_SCATTER
-// glTF specification for converting multi-scatter color to single scatter color.
+#ifdef MATERIAL_SCATTER
+
+float getScatterStrength() {
+    float scatterStrength = u_ScatterStrengthFactor;
+#ifdef HAS_SCATTER_STRENGTH_MAP
+    scatterStrength *= texture(u_ScatterStrengthSampler, getScatterStrengthUV()).a;
+#endif
+    return clamp(scatterStrength, 0.0, 1.0);
+}
+
+vec3 getMultiScatterColor() {
+    vec3 multiscatterColor = u_MultiScatterColorFactor;
+#ifdef HAS_MULTISCATTER_COLOR_MAP
+    multiscatterColor *= texture(u_MultiScatterColorSampler, getMultiScatterColorUV()).rgb;
+#endif
+    return multiscatterColor;
+}
+
+// glTF KHR_materials_scatter multi-scatter albedo to single-scatter albedo mapping.
 vec3 multiToSingleScatter() {
-    vec3 s = 4.09712 + 4.20863 * u_MultiScatterColor - sqrt(9.59217 + 41.6808 * u_MultiScatterColor + 17.7126 * u_MultiScatterColor * u_MultiScatterColor);
-    return 1.0 - s*s;
+    vec3 rhoMs = getMultiScatterColor() * getScatterStrength();
+    vec3 s = 4.09712 + 4.20863 * rhoMs - sqrt(9.59217 + 41.6808 * rhoMs + 17.7126 * rhoMs * rhoMs);
+    s = clamp(s, 0.0, 1.0);
+
+    // For a zero input albedo, force s = 1 so rho_ss is exactly zero.
+    vec3 zeroInput = vec3(equal(rhoMs, vec3(0.0)));
+    s = mix(s, vec3(1.0), zeroInput);
+
+    vec3 rhoSs = (1.0 - s * s) / (1.0 - u_ScatterAnisotropy * s * s);
+    return clamp(rhoSs, 0.0, 1.0);
 }
 
 vec3 burley_setup(vec3 radius, vec3 albedo) {
@@ -169,7 +196,7 @@ vec3 burley_eval(vec3 d, float r)
 
 
 vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenuationDistance, sampler2D scatterLUT, vec3 diffuseColor) {
-    vec3 scatterDistance = attenuationDistance * u_MultiScatterColor; // Scale the attenuation distance by the multi-scatter color
+    vec3 scatterDistance = attenuationDistance * getScatterStrength() * getMultiScatterColor();
     float maxColor = max3(scatterDistance);
     vec3 vMaxColor = max(vec3(maxColor), vec3(0.00001));
     vec2 texelSize = 1.0 / vec2(textureSize(u_ScatterDepthFramebufferSampler, 0));
@@ -187,7 +214,7 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     float mPerPixel = distance(fragViewPosition, offsetViewPosition);
     float maxRadiusPixels = maxColor / mPerPixel; // Calculate the maximum radius in pixels
     if (maxRadiusPixels <= 1.0) {
-        return centerSample.rgb; // If the maximum radius is less than or equal to the pixel size, the pixel itself defines the scatter color
+        return centerSample.rgb * diffuseColor; // If the maximum radius is less than or equal to the pixel size, the pixel itself defines the scatter color
     }
 
     centerDepth = fragViewPosition.z; // Extract the depth value
@@ -225,4 +252,4 @@ vec3 getSubsurfaceScattering(vec3 position, mat4 projectionMatrix, float attenua
     totalWeight = max(totalWeight, vec3(0.0001)); // Avoid division by zero
     return totalDiffuse / totalWeight * diffuseColor;
 }
-#endif // MATERIAL_VOLUME_SCATTER
+#endif // MATERIAL_SCATTER

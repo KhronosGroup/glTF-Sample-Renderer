@@ -1,7 +1,5 @@
-// This fragment shader accumulates the diffuse light contribution for subsurface scattering in two color attachments for ibl and punctual lighting.
-// Light passing the surface is modulated by diffuseTransmissionColorFactor
-// diffuseTransmissionFactor defines the ratio of diffuse light passing the surface
-// Light which is scattered at the surface is modulated by the single scatter color, while diffuse transmission is additionally modulated by the absorption ratio (1 - singleScatter).
+// This fragment shader accumulates the front-surface lighting contribution used by the
+// screen-space subsurface scattering pass for KHR_materials_scatter volumetric mode.
 
 precision highp float;
 
@@ -21,10 +19,6 @@ uniform int u_MaterialID;
 void main()
 {
     frontColor = vec4(0.0, 0.0, 0.0, float(u_MaterialID) / 255.0);
-#ifdef MATERIAL_VOLUME_SCATTER
-    // The single scatter color defines the ratio of scattering. 1 - singleScatter is the ratio of absorption.
-    vec3 singleScatter = multiToSingleScatter();
-#endif
     vec4 baseColor = getBaseColor();
     baseColor.a = 1.0;
     vec3 color = vec3(0);
@@ -74,8 +68,8 @@ void main()
     materialInfo = getVolumeInfo(materialInfo);
 #endif
 
-#ifdef MATERIAL_DIFFUSE_TRANSMISSION
-    materialInfo = getDiffuseTransmissionInfo(materialInfo);
+#ifdef MATERIAL_SCATTER
+    materialInfo = getScatterInfo(materialInfo);
 #endif
 
     materialInfo.perceptualRoughness = clamp(materialInfo.perceptualRoughness, 0.0, 1.0);
@@ -91,28 +85,11 @@ void main()
     vec3 f_dielectric_brdf_ibl = vec3(0.0);
     float albedoSheenScaling = 1.0;
 
-    float diffuseTransmissionThickness = 1.0;
-
-#ifdef MATERIAL_DIFFUSE_TRANSMISSION
-#ifdef MATERIAL_VOLUME
-    diffuseTransmissionThickness = materialInfo.thickness *
-        (length(vec3(u_ModelMatrix[0].xyz)) + length(vec3(u_ModelMatrix[1].xyz)) + length(vec3(u_ModelMatrix[2].xyz))) / 3.0;
-#endif
-#endif
-
     // Calculate lighting contribution from image based lighting source (IBL)
 
 #if defined(USE_IBL) || defined(MATERIAL_TRANSMISSION)
 
-#ifdef MATERIAL_DIFFUSE_TRANSMISSION
-    f_diffuse = getDiffuseLight(n) * materialInfo.diffuseTransmissionColorFactor * singleScatter;
-    vec3 diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
-#ifdef MATERIAL_VOLUME
-        diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
-#endif
-    f_diffuse += diffuseTransmissionIBL * (1.0 -singleScatter) * singleScatter;
-    f_diffuse *= materialInfo.diffuseTransmissionFactor;
-#endif
+    f_diffuse = getDiffuseLight(n) * baseColor.rgb;
 
 #ifdef MATERIAL_SHEEN
     albedoSheenScaling = 1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotV, materialInfo.sheenRoughnessFactor);
@@ -157,24 +134,8 @@ void main()
         vec3 l_dielectric_brdf = vec3(0.0);
 
         
-#ifdef MATERIAL_DIFFUSE_TRANSMISSION
-        l_diffuse = lightIntensity * NdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor) * singleScatter;
-        if (dot(n, l) < 0.0) {
-            float diffuseNdotL = clampedDot(-n, l);
-            vec3 diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
-
-            vec3 l_mirror = normalize(l + 2.0 * n * dot(-l, n)); // Mirror light reflection vector on surface
-            float diffuseVdotH = clampedDot(v, normalize(l_mirror + v));
-            dielectric_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(diffuseVdotH));
-
-#ifdef MATERIAL_VOLUME
-            diffuse_btdf = applyVolumeAttenuation(diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
-#endif
-            l_diffuse += diffuse_btdf * (1.0 - singleScatter) * singleScatter;
-        }
-        l_diffuse *= materialInfo.diffuseTransmissionFactor;
+        l_diffuse = lightIntensity * NdotL * BRDF_lambertian(baseColor.rgb);
         
-#endif // MATERIAL_DIFFUSE_TRANSMISSION
 
 // We need to multiply with sheen scaling, since we aggregate all lights in one texture, for IBL this can be done in the normal PBR shader
 #ifdef MATERIAL_SHEEN

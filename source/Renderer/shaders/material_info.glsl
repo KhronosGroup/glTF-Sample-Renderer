@@ -111,6 +111,11 @@ struct MaterialInfo
     float diffuseTransmissionFactor;
     vec3 diffuseTransmissionColorFactor;
 
+    // KHR_materials_scatter
+    float scatterStrength;
+    vec3 multiscatterColor;
+    float scatterAnisotropy;
+
     // KHR_materials_anisotropy
     vec3 anisotropicT;
     vec3 anisotropicB;
@@ -362,6 +367,26 @@ MaterialInfo getDiffuseTransmissionInfo(MaterialInfo info)
     #ifdef HAS_DIFFUSE_TRANSMISSION_COLOR_MAP
         info.diffuseTransmissionColorFactor *= texture(u_DiffuseTransmissionColorSampler, getDiffuseTransmissionColorUV()).rgb;
     #endif
+
+    return info;
+}
+#endif
+
+
+#ifdef MATERIAL_SCATTER
+MaterialInfo getScatterInfo(MaterialInfo info)
+{
+    info.scatterStrength = getScatterStrength();
+    info.multiscatterColor = getMultiScatterColor();
+    info.scatterAnisotropy = u_ScatterAnisotropy;
+
+#ifndef MATERIAL_VOLUME
+    // Thin-walled mode has no interior volume. Force the transmission ray to
+    // zero length so KHR_materials_transmission samples the background directly.
+    info.thickness = 0.0;
+    info.attenuationColor = vec3(1.0);
+    info.attenuationDistance = 0.0;
+#endif
 
     return info;
 }
