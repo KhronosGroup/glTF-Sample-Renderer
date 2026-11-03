@@ -1670,6 +1670,7 @@ class gltfRenderer {
 
         gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.BLEND);
+        gl.disable(gl.CULL_FACE);
         gl.drawArrays(GL.TRIANGLE_STRIP, 0, 4);
 
         gl.enable(gl.DEPTH_TEST);
@@ -1723,6 +1724,7 @@ class gltfRenderer {
         gl.disable(gl.DEPTH_TEST);
         gl.depthMask(false);
 
+        gl.disable(gl.CULL_FACE);
         gl.drawArrays(GL.TRIANGLE_STRIP, 0, 4);
 
         // Restore state.
