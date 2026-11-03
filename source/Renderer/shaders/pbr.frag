@@ -637,4 +637,8 @@ vec3 specularTexture = vec3(1.0);
 
 #endif
 #endif
+
+#ifdef WIREFRAME_BRIGHTEN
+    g_finalColor.rgb = mix(g_finalColor.rgb, vec3(1.0), WIREFRAME_BRIGHTEN);
+#endif
 }
