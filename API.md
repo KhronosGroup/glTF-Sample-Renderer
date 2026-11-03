@@ -1189,7 +1189,7 @@ loadEnvironment asynchroneously, run IBL sampling and create resources for rende
 | Param | Type | Description |
 | --- | --- | --- |
 | environmentFile | <code>String</code> \| <code>ArrayBuffer</code> \| <code>File</code> | the .hdr file either as path or resource |
-| [lutFiles] | <code>Object</code> | object containing paths or resources for the environment look up textures. Keys are lut_ggx_file, lut_charlie_file and lut_sheen_E_file |
+| [lutFiles] | <code>Object</code> | object containing paths or resources for the environment look up textures. Keys are lut_sheen_E_file |
 
 <a name="ResourceLoader+initKtxLib"></a>
 

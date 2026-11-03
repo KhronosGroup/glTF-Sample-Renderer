@@ -64,9 +64,7 @@ function copyAssets() {
         name: "copy-assets",
         buildEnd() {
             mkdirSync("dist/assets", { recursive: true });
-            for (const lut of ["lut_charlie.png", "lut_ggx.png", "lut_sheen_E.png"]) {
-                cpSync(`assets/images/${lut}`, `dist/assets/${lut}`);
-            }
+            cpSync("assets/images/lut_sheen_E.png", "dist/assets/lut_sheen_E.png");
             // hdrpng.js is imported by the renderer and bundled, not loaded at runtime
             cpSync("source/libs", "dist/libs", {
                 recursive: true,

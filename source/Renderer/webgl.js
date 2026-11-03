@@ -112,12 +112,16 @@ class gltfWebGl {
             ) {
                 // the check `GL.SRGB8_ALPHA8 === undefined` is needed as at the moment node-gles does not define the full format enum
                 const internalformat =
-                    textureInfo.linear || GL.SRGB8_ALPHA8 === undefined ? GL.RGBA : GL.SRGB8_ALPHA8;
+                    image.internalFormat ??
+                    (textureInfo.linear || GL.SRGB8_ALPHA8 === undefined
+                        ? GL.RGBA
+                        : GL.SRGB8_ALPHA8);
+                const format = image.format ?? GL.RGBA;
                 this.context.texImage2D(
                     image.type,
                     image.miplevel,
                     internalformat,
-                    GL.RGBA,
+                    format,
                     GL.UNSIGNED_BYTE,
                     image.image
                 );
