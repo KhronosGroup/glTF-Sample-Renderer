@@ -40,6 +40,35 @@ function getSceneExtents(gltf, sceneIndex, outMin, outMax) {
                 outMin[i] = Math.min(outMin[i], assetMin[i]);
                 outMax[i] = Math.max(outMax[i], assetMax[i]);
             }
+
+            // Also take morph target POSITION deltas into account. Assets may
+            // store their "rest" positions entirely in morph targets (with a
+            // zeroed base POSITION). Without this, the scene extents collapse
+            // to a point and the camera fitting produces a NaN projection.
+            if (primitive.targets !== undefined) {
+                for (const target of primitive.targets) {
+                    if (target.POSITION === undefined) {
+                        continue;
+                    }
+                    const morphAccessor = gltf.accessors[target.POSITION];
+                    if (morphAccessor.min === undefined || morphAccessor.max === undefined) {
+                        continue;
+                    }
+                    const morphMin = vec3.create();
+                    const morphMax = vec3.create();
+                    getExtentsFromAccessor(
+                        morphAccessor,
+                        node.getRenderedWorldTransform(),
+                        morphMin,
+                        morphMax
+                    );
+
+                    for (const i of [0, 1, 2]) {
+                        outMin[i] = Math.min(outMin[i], morphMin[i]);
+                        outMax[i] = Math.max(outMax[i], morphMax[i]);
+                    }
+                }
+            }
         }
     }
 }
