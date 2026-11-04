@@ -272,6 +272,12 @@ class UserCamera extends gltfCamera {
         const xZoom = maxAxisLength / 2 / Math.tan(xfov / 2);
 
         this.distance = Math.max(xZoom, yZoom);
+        // Guard against degenerate scene extents (e.g. a zero-size or empty
+        // scene) which would otherwise produce a distance of 0 and a broken
+        // projection matrix.
+        if (!Number.isFinite(this.distance) || this.distance <= 0) {
+            this.distance = 1;
+        }
         this.baseDistance = this.distance;
     }
 
@@ -294,6 +300,15 @@ class UserCamera extends gltfCamera {
 
         // minimum near plane value needs to depend on far plane value to avoid z fighting or too large near planes
         zNear = Math.max(zNear, zFar / MaxNearFarRatio);
+
+        // Guard against degenerate extents (e.g. a zero-size or empty scene)
+        // which would otherwise produce a zero/NaN near or far plane.
+        if (!Number.isFinite(zNear) || zNear <= 0) {
+            zNear = 0.001;
+        }
+        if (!Number.isFinite(zFar) || zFar <= zNear) {
+            zFar = zNear + 1;
+        }
 
         this.perspective.znear = zNear;
         this.perspective.zfar = zFar;
