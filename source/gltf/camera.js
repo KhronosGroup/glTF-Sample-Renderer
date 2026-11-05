@@ -63,7 +63,7 @@ class gltfCamera extends GltfObject {
             mat4.perspective(
                 projection,
                 this.perspective.yfov,
-                this.perspective.aspectRatio ?? aspectRatio,
+                aspectRatio,
                 this.perspective.znear,
                 this.perspective.zfar
             );
@@ -82,7 +82,7 @@ class gltfCamera extends GltfObject {
     getNearPlaneForPixel(x, y, width, height) {
         let subRight, subTop, subLeft, subBottom;
         if (this.type === "perspective") {
-            const aspectRatio = this.perspective.aspectRatio ?? width / height;
+            const aspectRatio = width / height;
             const top = Math.tan(this.perspective.yfov / 2) * this.perspective.znear;
             const bottom = -top;
             const left = bottom * aspectRatio;
