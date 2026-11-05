@@ -56,6 +56,22 @@ class AnimationTimer {
         this.fixedTime = timeInSec;
     }
 
+    /**
+     * Sets the animation timer to a specific time while preserving whether it is
+     * currently paused. If paused, the time stays put; if playing, playback
+     * continues from the given time.
+     * @param {number} timeInSec The time in seconds to set the animation timer to
+     */
+    setTime(timeInSec) {
+        this.fixedTime = null;
+        if (this.paused) {
+            this.startTime = 0;
+            this.pausedTime = timeInSec * 1000;
+        } else {
+            this.startTime = performance.now() - timeInSec * 1000;
+        }
+    }
+
     /** Get the elapsed time in seconds */
     elapsedSec() {
         if (this.paused) {
