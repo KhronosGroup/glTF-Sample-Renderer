@@ -29,6 +29,116 @@ precision highp float;
 #include <iridescence.glsl>
 #endif
 
+#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+
+const int SCATTER_VOLUME_STEPS = 16;
+
+vec3 reconstructWorldPosition(vec2 uv, float depth)
+{
+    float ndcDepth = depth * 2.0 - 1.0;
+    vec2 clipUV = uv * 2.0 - 1.0;
+    vec4 clipPosition = vec4(clipUV.x, clipUV.y, ndcDepth, 1.0);
+    vec4 viewPosition = inverse(u_ProjectionMatrix) * clipPosition;
+    vec3 viewPos = viewPosition.xyz / viewPosition.w;
+    vec4 worldPosition = inverse(u_ViewMatrix) * vec4(viewPos, 1.0);
+    return worldPosition.xyz / worldPosition.w;
+}
+
+float henyeyGreenstein(float g, float cosTheta)
+{
+    float gSq = g * g;
+    float denom = 1.0 + gSq - 2.0 * g * cosTheta;
+    return (1.0 - gSq) / (4.0 * M_PI * pow(denom, 1.5));
+}
+
+vec3 getVolumeSingleScattering(
+    vec3 viewDir,
+    vec3 normal,
+    vec3 attenuationColor,
+    float attenuationDistance,
+    float scatterAnisotropy,
+    vec3 frontWorldPos
+)
+{
+    vec2 uv = gl_FragCoord.xy / vec2(u_FramebufferSize);
+
+    float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, uv, 0.0).r;
+    if (backDepth >= 1.0)
+    {
+        return vec3(0.0);
+    }
+
+    vec3 backWorldPos = reconstructWorldPosition(uv, backDepth);
+    vec3 ray = backWorldPos - frontWorldPos;
+    float thickness = length(ray);
+    if (thickness <= 0.0)
+    {
+        return vec3(0.0);
+    }
+
+    vec3 rayDir = ray / thickness;
+    vec3 outgoingDir = normalize(viewDir);
+
+    // Beer-Lambert attenuation coefficient. attenuationDistance == 0 means no attenuation.
+    vec3 sigma_t = vec3(0.0);
+    if (attenuationDistance > 0.0)
+    {
+        vec3 attenuation = max(attenuationColor, vec3(1e-4));
+        sigma_t = max(-log(attenuation) / attenuationDistance, vec3(0.0));
+    }
+
+    vec3 sigma_s = sigma_t * multiToSingleScatter();
+
+    float stepLength = thickness / float(SCATTER_VOLUME_STEPS);
+    vec3 scattered = vec3(0.0);
+
+    for (int i = 1; i <= SCATTER_VOLUME_STEPS; ++i)
+    {
+        float t = (float(i) - 0.5) * stepLength;
+        vec3 samplePos = frontWorldPos + rayDir * t;
+
+        vec3 inscatter = vec3(0.0);
+
+#ifdef USE_PUNCTUAL
+        for (int l = 0; l < LIGHT_COUNT; ++l)
+        {
+            Light light = u_Lights[l];
+
+            vec3 pointToLight;
+            if (light.type != LightType_Directional)
+            {
+                pointToLight = light.position - samplePos;
+            }
+            else
+            {
+                pointToLight = -light.direction;
+            }
+
+            vec3 lightIntensity = getLighIntensity(light, pointToLight);
+            float lightDist = max(length(pointToLight), 1e-4);
+            vec3 lightDir = -pointToLight / lightDist;
+            float phase = henyeyGreenstein(scatterAnisotropy, dot(lightDir, outgoingDir));
+            inscatter += lightIntensity * phase;
+        }
+#endif
+
+#ifdef USE_IBL
+        // Approximate the environment as isotropic incoming radiance.
+        inscatter += getDiffuseLight(normal) / M_PI;
+#endif
+
+        inscatter *= sigma_s;
+
+        // Light enters at the front surface and exits back through it.
+        vec3 transmittance = exp(-2.0 * sigma_t * t);
+        scattered += inscatter * transmittance * stepLength;
+    }
+
+    return scattered;
+}
+
+#endif
+
 
 layout(location = 0) out vec4 g_finalColor;
 layout(location = 1) out uint toneMapFlag;
@@ -466,8 +576,16 @@ void main()
 
 #if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
     if (materialInfo.scatterStrength > 0.0 && materialInfo.thickness > 0.0) {
-        // Subsurface scattering is calculated based on the Burley diffusion profile.
-        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.multiscatterColor, singleScatter);
+        // Single-scattering ray march through the volume between the front and
+        // back surface depths.
+        vec3 l_color = getVolumeSingleScattering(
+            v,
+            n,
+            materialInfo.attenuationColor,
+            materialInfo.attenuationDistance,
+            materialInfo.scatterAnisotropy,
+            v_Position
+        );
 
         float iridescenceMask = 1.0;
 #ifdef MATERIAL_IRIDESCENCE

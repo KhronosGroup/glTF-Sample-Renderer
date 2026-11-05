@@ -323,6 +323,7 @@ uniform mat3 u_MultiScatterColorUVTransform;
 
 uniform sampler2D u_ScatterFramebufferSampler;
 uniform sampler2D u_ScatterDepthFramebufferSampler;
+uniform sampler2D u_ScatterBackDepthFramebufferSampler;
 
 vec2 getScatterStrengthUV()
 {

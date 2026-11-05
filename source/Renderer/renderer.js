@@ -20,6 +20,7 @@ import animationShader from "./shaders/animation.glsl";
 import cubemapVertShader from "./shaders/cubemap.vert";
 import cubemapFragShader from "./shaders/cubemap.frag";
 import scatterShader from "./shaders/scatter.frag";
+import scatterBackDepthShader from "./shaders/scatter_back_depth.frag";
 import simpleFragShader from "./shaders/simple.frag";
 import wireframeFragShader from "./shaders/wireframe.frag";
 import specularGlossinesShader from "./shaders/specular_glossiness.frag";
@@ -87,6 +88,7 @@ class gltfRenderer {
         // create render target for subsurface scattering
         this.scatterFrontTexture = 0;
         this.scatterDepthTexture = 0;
+        this.scatterBackDepthTexture = 0;
 
         const shaderSources = new Map();
         shaderSources.set("primitive.vert", primitiveShader);
@@ -103,6 +105,7 @@ class gltfRenderer {
         shaderSources.set("functions.glsl", shaderFunctions);
         shaderSources.set("animation.glsl", animationShader);
         shaderSources.set("scatter.frag", scatterShader);
+        shaderSources.set("scatter_back_depth.frag", scatterBackDepthShader);
         shaderSources.set("cubemap.vert", cubemapVertShader);
         shaderSources.set("cubemap.frag", cubemapFragShader);
         shaderSources.set("specular_glossiness.frag", specularGlossinesShader);
@@ -213,6 +216,15 @@ class gltfRenderer {
             context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
             context.bindTexture(context.TEXTURE_2D, null);
 
+            this.scatterBackDepthTexture = context.createTexture();
+            context.bindTexture(context.TEXTURE_2D, this.scatterBackDepthTexture);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+            context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
+            context.texImage2D( context.TEXTURE_2D, 0, context.DEPTH_COMPONENT24, this.opaqueFramebufferWidth, this.opaqueFramebufferHeight, 0, context.DEPTH_COMPONENT, context.UNSIGNED_INT, null);
+            context.bindTexture(context.TEXTURE_2D, null);
+
             this.scatterInternalFormat = context.supports_EXT_color_buffer_half_float ? context.RGBA16F : context.RGBA;
             this.scatterType = context.supports_EXT_color_buffer_half_float ? context.HALF_FLOAT : context.UNSIGNED_BYTE;
             
@@ -230,6 +242,11 @@ class gltfRenderer {
             context.framebufferTexture2D(context.FRAMEBUFFER, context.COLOR_ATTACHMENT0, context.TEXTURE_2D, this.scatterFrontTexture, 0);
             context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.scatterDepthTexture, 0);
             context.drawBuffers([context.COLOR_ATTACHMENT0]);
+
+            this.scatterBackFramebuffer = context.createFramebuffer();
+            context.bindFramebuffer(context.FRAMEBUFFER, this.scatterBackFramebuffer);
+            context.framebufferTexture2D(context.FRAMEBUFFER, context.DEPTH_ATTACHMENT, context.TEXTURE_2D, this.scatterBackDepthTexture, 0);
+            context.drawBuffers([]);
             
             this.pickingIDTexture = context.createTexture();
             context.bindTexture(context.TEXTURE_2D, this.pickingIDTexture);
@@ -489,6 +506,21 @@ class gltfRenderer {
                     this.webGl.context.UNSIGNED_INT,
                     null
                 );
+                this.webGl.context.bindTexture(
+                    this.webGl.context.TEXTURE_2D,
+                    this.scatterBackDepthTexture
+                );
+                this.webGl.context.texImage2D(
+                    this.webGl.context.TEXTURE_2D,
+                    0,
+                    this.webGl.context.DEPTH_COMPONENT24,
+                    this.currentWidth,
+                    this.currentHeight,
+                    0,
+                    this.webGl.context.DEPTH_COMPONENT,
+                    this.webGl.context.UNSIGNED_INT,
+                    null
+                );
                 this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, null);
                 this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
 
@@ -619,6 +651,11 @@ class gltfRenderer {
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.scatterFramebuffer);
         this.webGl.context.clearColor(0, 0, 0, 0);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        this.webGl.context.bindFramebuffer(
+            this.webGl.context.FRAMEBUFFER,
+            this.scatterBackFramebuffer
+        );
+        this.webGl.context.clear(GL.DEPTH_BUFFER_BIT);
         // Main framebuffer: clear color (attachment 0) and depth separately,
         // then zero the tonemap flag attachment (attachment 1) via clearBufferuiv.
         if (this.mainFramebuffer) {
@@ -948,6 +985,38 @@ class gltfRenderer {
                 ++counter;
             }
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+
+            if (
+                state.renderingParameters.debugOutput !==
+                GltfState.DebugOutput.scatter.PRE_SCATTER_PASS
+            ) {
+                this.webGl.context.bindFramebuffer(
+                    this.webGl.context.FRAMEBUFFER,
+                    this.scatterBackFramebuffer
+                );
+                this.webGl.context.viewport(
+                    aspectOffsetX,
+                    aspectOffsetY,
+                    aspectWidth,
+                    aspectHeight
+                );
+                for (const drawable of this.scatterDrawables) {
+                    let renderpassConfiguration = {};
+                    renderpassConfiguration.scatterBack = true;
+                    renderpassConfiguration.frameBufferSize = [
+                        this.currentWidth,
+                        this.currentHeight
+                    ];
+                    this.drawPrimitive(
+                        state,
+                        renderpassConfiguration,
+                        drawable.primitive,
+                        drawable.node,
+                        this.viewProjectionMatrix
+                    );
+                }
+                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
+            }
         }
         if (
             state.renderingParameters.debugOutput === GltfState.DebugOutput.scatter.PRE_SCATTER_PASS
@@ -1071,6 +1140,7 @@ class gltfRenderer {
                 if (scatterEnabled) {
                     sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
                     sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+                    sampledTextures.scatterBackDepthSampleTexture = this.scatterBackDepthTexture;
                 }
                 this.drawPrimitive(
                     state,
@@ -1230,6 +1300,7 @@ class gltfRenderer {
             if (scatterEnabled) {
                 sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
                 sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+                sampledTextures.scatterBackDepthSampleTexture = this.scatterBackDepthTexture;
             }
             this.drawPrimitive(
                 state,
@@ -1256,6 +1327,7 @@ class gltfRenderer {
             if (scatterEnabled) {
                 sampledTextures.scatterSampleTexture = this.scatterFrontTexture;
                 sampledTextures.scatterDepthSampleTexture = this.scatterDepthTexture;
+                sampledTextures.scatterBackDepthSampleTexture = this.scatterBackDepthTexture;
             }
             this.drawPrimitive(
                 state,
@@ -1809,6 +1881,8 @@ class gltfRenderer {
         let fragmentShader = "pbr.frag";
         if (material.type === "SG") {
             fragmentShader = "specular_glossiness.frag";
+        } else if (renderpassConfiguration.scatterBack) {
+            fragmentShader = "scatter_back_depth.frag";
         } else if (renderpassConfiguration.scatter) {
             fragmentShader = "scatter.frag";
         } else if (renderpassConfiguration.picking) {
@@ -1830,8 +1904,11 @@ class gltfRenderer {
 
         this.webGl.context.useProgram(this.shader.program);
 
-        if (state.renderingParameters.usePunctual && !renderpassConfiguration.picking)
-        {
+        if (
+            state.renderingParameters.usePunctual &&
+            !renderpassConfiguration.picking &&
+            !renderpassConfiguration.scatterBack
+        ) {
             this.applyLights();
         }
 
@@ -1869,16 +1946,29 @@ class gltfRenderer {
             this.webGl.context.frontFace(GL.CCW);
         }
 
-        if (material.doubleSided || renderpassConfiguration.picking)
+        if (renderpassConfiguration.scatterBack)
+        {
+            // Back-face depth pass: keep only the far surface by culling front faces.
+            this.webGl.context.enable(GL.CULL_FACE);
+            this.webGl.context.cullFace(GL.FRONT);
+        }
+        else if (material.doubleSided || renderpassConfiguration.picking)
         {
             this.webGl.context.disable(GL.CULL_FACE);
+            this.webGl.context.cullFace(GL.BACK);
         }
         else
         {
             this.webGl.context.enable(GL.CULL_FACE);
+            this.webGl.context.cullFace(GL.BACK);
         }
     
-        if (material.alphaMode === 'BLEND' && !renderpassConfiguration.picking)
+        if (renderpassConfiguration.scatterBack)
+        {
+            this.webGl.context.disable(GL.BLEND);
+            this.webGl.context.depthMask(true);
+        }
+        else if (material.alphaMode === 'BLEND' && !renderpassConfiguration.picking)
         {
             this.webGl.context.enable(GL.BLEND);
             this.webGl.context.blendFuncSeparate(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA, GL.ONE, GL.ONE_MINUS_SRC_ALPHA);
@@ -1925,6 +2015,7 @@ class gltfRenderer {
             this.enableInstanceAttributes(instanceOffset);
         }
 
+        if (!renderpassConfiguration.scatterBack) {
         // Update material uniforms
         material.updateTextureTransforms(this.shader);
 
@@ -2048,8 +2139,14 @@ class gltfRenderer {
 	            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterDepthFramebufferSampler"), textureCount);
 	            textureCount++;
 	
+	            this.webGl.context.activeTexture(GL.TEXTURE0 + textureCount);
+	            this.webGl.context.bindTexture(this.webGl.context.TEXTURE_2D, sampledTextures.scatterBackDepthSampleTexture);
+	            this.webGl.context.uniform1i(this.shader.getUniformLocation("u_ScatterBackDepthFramebufferSampler"), textureCount);
+	            textureCount++;
+
 	            this.webGl.context.uniform1f(this.shader.getUniformLocation("u_MinRadius"), gltfMaterial.scatterMinRadius);
 	            this.webGl.context.uniform2i(this.shader.getUniformLocation("u_FramebufferSize"), renderpassConfiguration.frameBufferSize[0], renderpassConfiguration.frameBufferSize[1]);
+	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ViewMatrix"),false, this.viewMatrix);
 	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 	
 	            this.shader.updateUniformArray("u_ScatterSamples", gltfMaterial.scatterSamples);
@@ -2070,7 +2167,8 @@ class gltfRenderer {
 	            this.webGl.context.uniformMatrix4fv(this.shader.getUniformLocation("u_ProjectionMatrix"),false, this.projMatrix);
 	        }
 	    }
-	    
+	    }
+
         this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
         if (drawIndexed)
@@ -2123,6 +2221,7 @@ class gltfRenderer {
             primitive.mode >= GL.TRIANGLES &&
             !renderpassConfiguration.picking &&
             !renderpassConfiguration.scatter &&
+            !renderpassConfiguration.scatterBack &&
             !renderpassConfiguration.transmission
         );
     }
