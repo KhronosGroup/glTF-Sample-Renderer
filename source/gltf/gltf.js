@@ -181,6 +181,7 @@ class glTF extends GltfObject {
             }
         }
 
+        this.initializeDefaultMorphWeights();
         this.computeDisjointAnimations();
         this.addNodeMetaInformation();
     }
@@ -201,6 +202,24 @@ class glTF extends GltfObject {
             for (const nodeIndex of scene.nodes) {
                 recurseNodes(this, nodeIndex, scene, undefined);
             }
+        }
+    }
+
+    // Morph target weights default to zero in glTF. Initialize them explicitly
+    // when neither the node nor its mesh declares any, so that (a) morphing is
+    // enabled and (b) animations targeting the node's `weights` have a value
+    // to animate.
+    initializeDefaultMorphWeights() {
+        for (const node of this.nodes) {
+            if (node.mesh === undefined || node.weights !== undefined) {
+                continue;
+            }
+            const mesh = this.meshes[node.mesh];
+            const targetCount = mesh?.primitives?.[0]?.targets?.length ?? 0;
+            if (targetCount === 0 || mesh.weights !== undefined) {
+                continue;
+            }
+            node.weights = new Array(targetCount).fill(0);
         }
     }
 
