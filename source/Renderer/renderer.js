@@ -855,15 +855,7 @@ class gltfRenderer {
         let aspectOffsetX = 0;
         let aspectOffsetY = 0;
         const currentAspectRatio = aspectWidth / aspectHeight;
-        if (currentCamera.type === "perspective") {
-            if (currentCamera.perspective.aspectRatio) {
-                if (currentCamera.perspective.aspectRatio > currentAspectRatio) {
-                    aspectHeight = (aspectWidth * 1) / currentCamera.perspective.aspectRatio;
-                } else {
-                    aspectWidth = aspectHeight * currentCamera.perspective.aspectRatio;
-                }
-            }
-        } else {
+        if (currentCamera.type !== "perspective") {
             const orthoAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
             if (orthoAspect > currentAspectRatio) {
                 aspectHeight = (aspectWidth * 1) / orthoAspect;
