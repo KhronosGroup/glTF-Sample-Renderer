@@ -58,12 +58,11 @@ class gltfBuffer extends GltfObject {
         const parentPath = isDataUri
             ? ""
             : ResourceLoaderUtils.getContainingFolder(gltf.path ?? "");
-        fetch(parentPath + this.uri)
+        const fetchPath = isAbsolute ? this.uri : parentPath + this.uri;
+        fetch(fetchPath)
             .then((response) => {
                 if (!response.ok) {
-                    reject(
-                        `Failed to fetch buffer from ${parentPath + this.uri}: ${response.statusText}`
-                    );
+                    reject(`Failed to fetch buffer from ${fetchPath}: ${response.statusText}`);
                     return;
                 }
                 response.arrayBuffer().then((buffer) => {
@@ -72,7 +71,7 @@ class gltfBuffer extends GltfObject {
                 });
             })
             .catch((error) => {
-                reject(`Error fetching buffer from ${parentPath + this.uri}: ${error}`);
+                reject(`Error fetching buffer from ${fetchPath}: ${error}`);
             });
 
         return true;

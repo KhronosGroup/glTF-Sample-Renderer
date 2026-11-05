@@ -155,7 +155,7 @@ class gltfImage extends GltfObject {
             );
         }
         const parentPath = ResourceLoaderUtils.getContainingFolder(gltf.path ?? "");
-        const fullPath = parentPath + this.uri;
+        const fullPath = isAbsolute ? this.uri : parentPath + this.uri;
         if (this.mimeType === undefined) {
             this.setMimetypeFromFilename(this.uri);
         }
