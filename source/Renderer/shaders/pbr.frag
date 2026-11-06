@@ -828,7 +828,16 @@ vec3 specularTexture = vec3(1.0);
 #if defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
 #if DEBUG == DEBUG_SCATTER_BACK_DEPTH
     vec2 scatterUV = gl_FragCoord.xy / vec2(u_FramebufferSize);
-    g_finalColor.rgb = vec3(textureLod(u_ScatterBackDepthFramebufferSampler, scatterUV, 0.0).r);
+    float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, scatterUV, 0.0).r;
+
+    // Raw NDC depth sits close to 1.0 for typical objects, which makes the
+    // debug view look solid white. Reconstruct linear view-space depth and
+    // normalize it by the camera far plane instead.
+    vec4 clipPosition = vec4(scatterUV * 2.0 - 1.0, backDepth * 2.0 - 1.0, 1.0);
+    vec4 viewPosition = inverse(u_ProjectionMatrix) * clipPosition;
+    float linearDepth = -viewPosition.z / viewPosition.w;
+    float farPlane = u_ProjectionMatrix[3][2] / (u_ProjectionMatrix[2][2] + 1.0);
+    g_finalColor.rgb = vec3(clamp(linearDepth / max(farPlane, 1e-4), 0.0, 1.0));
 #endif
 #endif
 #endif
