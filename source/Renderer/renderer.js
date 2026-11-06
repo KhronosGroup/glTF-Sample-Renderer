@@ -1015,6 +1015,7 @@ class gltfRenderer {
                         this.viewProjectionMatrix
                     );
                 }
+                this.webGl.context.cullFace(GL.BACK);
                 this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
             }
         }
@@ -2607,6 +2608,10 @@ class gltfRenderer {
             {
                 debugOutput: GltfState.DebugOutput.scatter.SINGLE_SCATTER_COLOR,
                 shaderDefine: "DEBUG_SCATTER_SINGLE_SCATTER_COLOR"
+            },
+            {
+                debugOutput: GltfState.DebugOutput.scatter.BACK_DEPTH,
+                shaderDefine: "DEBUG_SCATTER_BACK_DEPTH"
             }
         ];
 

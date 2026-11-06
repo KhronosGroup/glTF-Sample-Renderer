@@ -306,6 +306,8 @@ GltfState.DebugOutput = {
         MULTI_SCATTER_COLOR: "Multi-Scatter Color",
         /** output the single-scatter color */
         SINGLE_SCATTER_COLOR: "Single-Scatter Color",
+        /** output the back-face depth used by the volumetric single-scattering ray march */
+        BACK_DEPTH: "Back Depth",
         /** output for the pre scatter pass, which collects all lighting contribution for scattering */
         PRE_SCATTER_PASS: "Pre-Scatter Pass"
     },

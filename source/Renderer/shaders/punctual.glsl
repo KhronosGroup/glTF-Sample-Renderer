@@ -147,7 +147,9 @@ vec3 getVolumeTransmissionRay(vec3 n, vec3 v, float thickness, float ior, mat4 m
     return normalize(refractionVector) * thickness * modelScale;
 }
 
-// Subsurface scattering based on the blender implementation of the Burley model.
+// Diffuse subsurface-scattering diffusion profile. Christensen & Burley (2015),
+// "Approximate Reflectance Profiles for Efficient Subsurface Scattering"
+// (implemented here as the Blender Burley profile).
 #ifdef MATERIAL_SCATTER
 
 float getScatterStrength() {
@@ -166,7 +168,8 @@ vec3 getMultiScatterColor() {
     return multiscatterColor;
 }
 
-// glTF KHR_materials_scatter multi-scatter albedo to single-scatter albedo mapping.
+// KHR_materials_scatter multi-scatter albedo to single-scatter albedo mapping.
+// Kulla & Conty (2017), "Revisiting Physically Based Shading at Imageworks".
 vec3 multiToSingleScatter() {
     vec3 rhoMs = getMultiScatterColor() * getScatterStrength();
     vec3 s = 4.09712 + 4.20863 * rhoMs - sqrt(9.59217 + 41.6808 * rhoMs + 17.7126 * rhoMs * rhoMs);
