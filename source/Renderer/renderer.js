@@ -787,28 +787,17 @@ class gltfRenderer {
                 primitive.extensions?.KHR_gaussian_splatting === undefined
         );
 
-        this.scatterDrawables = drawables.filter(({ primitive }) => {
-            const extensions = state.gltf.materials[primitive.material].extensions;
-            if (
-                extensions === undefined ||
-                primitive.extensions?.KHR_gaussian_splatting !== undefined
-            ) {
-                return false;
-            }
-
-            const hasScatter = extensions.KHR_materials_scatter !== undefined;
-            const hasTransmission = extensions.KHR_materials_transmission !== undefined;
-            const hasDiffuseTransmission =
-                extensions.KHR_materials_diffuse_transmission !== undefined;
-            const hasVolume = extensions.KHR_materials_volume !== undefined;
-
-            // KHR_materials_scatter requires transmission; diffuse transmission is
-            // approximated by the same volumetric path when combined with a volume.
-            return (
-                hasVolume &&
-                ((hasScatter && hasTransmission) || (hasDiffuseTransmission && !hasScatter))
-            );
-        });
+        this.scatterDrawables = drawables.filter(
+            ({ primitive }) =>
+                state.gltf.materials[primitive.material].extensions !== undefined &&
+                state.gltf.materials[primitive.material].extensions.KHR_materials_scatter !==
+                    undefined &&
+                state.gltf.materials[primitive.material].extensions.KHR_materials_transmission !==
+                    undefined &&
+                state.gltf.materials[primitive.material].extensions.KHR_materials_volume !==
+                    undefined &&
+                primitive.extensions?.KHR_gaussian_splatting === undefined
+        );
     }
 
     // render complete gltf scene with given camera
@@ -962,10 +951,9 @@ class gltfRenderer {
 
         const scatterEnabled =
             this.scatterDrawables.length > 0 &&
-            state.renderingParameters.enabledExtensions.KHR_materials_volume &&
-            ((state.renderingParameters.enabledExtensions.KHR_materials_scatter &&
-                state.renderingParameters.enabledExtensions.KHR_materials_transmission) ||
-                state.renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission);
+            state.renderingParameters.enabledExtensions.KHR_materials_scatter &&
+            state.renderingParameters.enabledExtensions.KHR_materials_transmission &&
+            state.renderingParameters.enabledExtensions.KHR_materials_volume;
 
         if (scatterEnabled) {
             this.webGl.context.bindFramebuffer(
@@ -2109,34 +2097,11 @@ class gltfRenderer {
         this.shader.updateUniform("u_SpecularGlossinessUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.specularGlossinessTexture?.texCoord);
         this.shader.updateUniform("u_DiffuseUVSet", material.extensions?.KHR_materials_pbrSpecularGlossiness?.diffuseTexture?.texCoord);
 
-        const scatterExtension = material.extensions?.KHR_materials_scatter;
-        const diffuseTransmissionExtension =
-            material.extensions?.KHR_materials_diffuse_transmission;
-
-        this.shader.updateUniform(
-            "u_ScatterStrengthFactor",
-            scatterExtension?.scatterStrengthFactor ??
-                diffuseTransmissionExtension?.diffuseTransmissionFactor
-        );
-        this.shader.updateUniform(
-            "u_ScatterStrengthUVSet",
-            scatterExtension?.scatterStrengthTexture?.texCoord
-        );
-        this.shader.updateUniform(
-            "u_ScatterAnisotropy",
-            scatterExtension?.scatterAnisotropy ?? 1.0
-        );
-        this.shader.updateUniform(
-            "u_MultiScatterColorFactor",
-            jsToGl(
-                scatterExtension?.multiscatterColorFactor ??
-                    diffuseTransmissionExtension?.diffuseTransmissionColorFactor
-            )
-        );
-        this.shader.updateUniform(
-            "u_MultiScatterColorUVSet",
-            scatterExtension?.multiscatterColorTexture?.texCoord
-        );
+        this.shader.updateUniform("u_ScatterStrengthFactor", material.extensions?.KHR_materials_scatter?.scatterStrengthFactor);
+        this.shader.updateUniform("u_ScatterStrengthUVSet", material.extensions?.KHR_materials_scatter?.scatterStrengthTexture?.texCoord);
+        this.shader.updateUniform("u_ScatterAnisotropy", material.extensions?.KHR_materials_scatter?.scatterAnisotropy);
+        this.shader.updateUniform("u_MultiScatterColorFactor", jsToGl(material.extensions?.KHR_materials_scatter?.multiscatterColorFactor));
+        this.shader.updateUniform("u_MultiScatterColorUVSet", material.extensions?.KHR_materials_scatter?.multiscatterColorTexture?.texCoord);
     
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
