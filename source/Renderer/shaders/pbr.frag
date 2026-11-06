@@ -29,7 +29,7 @@ precision highp float;
 #include <iridescence.glsl>
 #endif
 
-#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && (defined(MATERIAL_TRANSMISSION) || defined(MATERIAL_DIFFUSE_TRANSMISSION))
 
 const int SCATTER_VOLUME_STEPS = 16;
 
@@ -328,13 +328,10 @@ void main()
 
     f_diffuse = getDiffuseLight(n) * baseColor.rgb ;
 
-#ifdef MATERIAL_DIFFUSE_TRANSMISSION
+#if defined(MATERIAL_DIFFUSE_TRANSMISSION) && !defined(MATERIAL_SCATTER)
     diffuseTransmissionIBL = getDiffuseLight(-n) * materialInfo.diffuseTransmissionColorFactor;
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
-#endif
-#ifdef MATERIAL_SCATTER
-    diffuseTransmissionIBL *= (1.0 - singleScatter);
 #endif
     f_diffuse = mix(f_diffuse, diffuseTransmissionIBL, materialInfo.diffuseTransmissionFactor);
 #endif
@@ -474,7 +471,7 @@ void main()
 
 
         
-#ifdef MATERIAL_DIFFUSE_TRANSMISSION
+#if defined(MATERIAL_DIFFUSE_TRANSMISSION) && !defined(MATERIAL_SCATTER)
         l_diffuse = l_diffuse * (1.0 - materialInfo.diffuseTransmissionFactor);
         if (dot(n, l) < 0.0) {
             float diffuseNdotL = clampedDot(-n, l);
@@ -487,12 +484,9 @@ void main()
 #ifdef MATERIAL_VOLUME
             l_diffuse_btdf = applyVolumeAttenuation(l_diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-#ifdef MATERIAL_SCATTER
-            l_diffuse_btdf *= (1.0 - singleScatter);
-#endif
             l_diffuse += l_diffuse_btdf * materialInfo.diffuseTransmissionFactor;
         }
-        
+
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
 
         // BTDF (Bidirectional Transmittance Distribution Function)
@@ -594,7 +588,7 @@ void main()
     }
 #endif // USE_PUNCTUAL
 
-#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && (defined(MATERIAL_TRANSMISSION) || defined(MATERIAL_DIFFUSE_TRANSMISSION))
     if (materialInfo.scatterStrength > 0.0 && materialInfo.thickness > 0.0) {
         // Single-scattering ray march along the refracted ray through the
         // volume (Henyey-Greenstein phase + Beer-Lambert attenuation).
@@ -625,7 +619,19 @@ void main()
 #ifdef MATERIAL_IRIDESCENCE
         iridescenceMask = 1.0 - materialInfo.iridescenceFactor;
 #endif
-        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * iridescenceMask * materialInfo.transmissionFactor;
+
+        // The volume is reached through KHR_materials_transmission, or through
+        // the diffuse-transmission approximation when no transmission extension
+        // is present.
+        float scatterTransmission = 1.0;
+#ifdef MATERIAL_TRANSMISSION
+        scatterTransmission = materialInfo.transmissionFactor;
+#endif
+#ifdef MATERIAL_DIFFUSE_TRANSMISSION
+        scatterTransmission = materialInfo.diffuseTransmissionFactor;
+#endif
+
+        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * iridescenceMask * scatterTransmission;
     }
 #endif
 
@@ -825,7 +831,7 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_SCATTER_SINGLE_SCATTER_COLOR
     g_finalColor.rgb = singleScatter;
 #endif
-#if defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+#if defined(MATERIAL_VOLUME) && (defined(MATERIAL_TRANSMISSION) || defined(MATERIAL_DIFFUSE_TRANSMISSION))
 #if DEBUG == DEBUG_SCATTER_BACK_DEPTH
     vec2 scatterUV = gl_FragCoord.xy / vec2(u_FramebufferSize);
     float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, scatterUV, 0.0).r;

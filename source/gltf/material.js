@@ -75,7 +75,12 @@ class gltfMaterial extends GltfObject {
         if (this.hasVolume && renderingParameters.enabledExtensions.KHR_materials_volume) {
             defines.push("MATERIAL_VOLUME 1");
         }
-        if (this.hasScatter && renderingParameters.enabledExtensions.KHR_materials_scatter) {
+        if (
+            this.hasScatter &&
+            (renderingParameters.enabledExtensions.KHR_materials_scatter ||
+                (this.hasDiffuseTransmission &&
+                    renderingParameters.enabledExtensions.KHR_materials_diffuse_transmission))
+        ) {
             defines.push("MATERIAL_SCATTER 1");
             defines.push(`SCATTER_SAMPLES_COUNT ${gltfMaterial.scatterSampleCount}`);
         }
@@ -457,6 +462,17 @@ class gltfMaterial extends GltfObject {
                     );
                     this.textures.push(extension.multiscatterColorTexture);
                     this.defines.push("HAS_MULTISCATTER_COLOR_MAP 1");
+                }
+            } else if (
+                this.extensions.KHR_materials_diffuse_transmission !== undefined &&
+                this.extensions.KHR_materials_volume !== undefined
+            ) {
+                // KHR_materials_diffuse_transmission is approximated by the
+                // volumetric scattering path when used together with a volume.
+                this.hasScatter = true;
+                this.defines.push("HAS_SCATTER 1");
+                if (!gltfMaterial.scatterSamples) {
+                    gltfMaterial.scatterSamples = gltfMaterial.computeScatterSamples();
                 }
             }
 
