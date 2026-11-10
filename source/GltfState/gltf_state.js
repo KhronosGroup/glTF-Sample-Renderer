@@ -70,8 +70,14 @@ class GltfState {
             skinning: true,
             /** overlay the triangle edges of all meshes as black lines (wireframe), requires WEBGL_polygon_mode */
             wireframe: false,
-            /** draw debug gizmos for the scene's lights and cameras */
-            debugGizmos: false,
+            /** draw debug gizmos for the scene's lights */
+            lightGizmos: false,
+            /** draw debug gizmos for the scene's cameras */
+            cameraGizmos: false,
+            /** draw debug gizmos for skeletal joints */
+            jointGizmos: false,
+            /** draw debug gizmos for mesh bounds */
+            aabbGizmos: false,
 
             /** enabled extensions */
             enabledExtensions: {

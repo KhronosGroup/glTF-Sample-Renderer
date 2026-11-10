@@ -1,10 +1,11 @@
 /**
- * Line-list geometry for the light and camera debug gizmos.
+ * Line-list geometry for the debug gizmos.
  *
- * All shapes are produced in the local space of the node that owns them, with
- * the node at the origin and looking down -Z (the glTF camera/light forward
- * direction). They are roughly unit-sized; the renderer scales each gizmo to a
- * constant on-screen size before drawing it.
+ * Shapes owned by a node (cameras and lights) are produced in that node's local
+ * space, with the node at the origin and looking down -Z (the glTF camera/light
+ * forward direction), so they can be drawn with the node's world transform.
+ * World-space shapes (boxes) are produced directly in world space and drawn
+ * with an identity model matrix.
  */
 
 const CIRCLE_SEGMENTS = 16;
@@ -41,38 +42,74 @@ function circlePoints(center, u, v, radius, segments) {
     return points;
 }
 
+// A small wireframe octahedron (diamond) centered at the origin.
+function addOctahedron(out, radius) {
+    const v = [
+        [radius, 0, 0],
+        [-radius, 0, 0],
+        [0, radius, 0],
+        [0, -radius, 0],
+        [0, 0, radius],
+        [0, 0, -radius]
+    ];
+    // All vertex pairs except the three opposite pairs.
+    const edges = [
+        [0, 2],
+        [0, 3],
+        [0, 4],
+        [0, 5],
+        [1, 2],
+        [1, 3],
+        [1, 4],
+        [1, 5],
+        [2, 4],
+        [2, 5],
+        [3, 4],
+        [3, 5]
+    ];
+    for (const [a, b] of edges) {
+        pushLineV(out, v[a], v[b]);
+    }
+}
+
+// Falls back when a camera plane is missing or infinite (glTF defaults zfar to Infinity).
+function finitePlaneDistance(value, fallback) {
+    return Number.isFinite(value) ? value : fallback;
+}
+
 /**
  * A wireframe camera frustum (perspective) or box (orthographic) looking down
- * -Z, with the camera position at the origin.
+ * -Z, with the camera position at the origin. The near and far planes reflect
+ * the camera's znear/zfar (the far plane is omitted when zfar is infinite).
  */
 export function createCameraGizmoLines(camera) {
     const lines = [];
 
-    let nearZ, farZ, nearHalfX, nearHalfY, farHalfX, farHalfY;
-
     if (camera?.type === "orthographic") {
-        const xmag = camera.orthographic.xmag ?? 1;
-        const ymag = camera.orthographic.ymag ?? 1;
-        const aspect = xmag / ymag || 1;
-        farHalfY = 0.5;
-        farHalfX = 0.5 * aspect;
-        nearHalfY = farHalfY;
-        nearHalfX = farHalfX;
-        nearZ = 0.0;
-        farZ = -1.0;
+        const halfX = camera.orthographic.xmag ?? 1;
+        const halfY = camera.orthographic.ymag ?? 1;
+        const znear = finitePlaneDistance(camera.orthographic.znear, 0.1);
+        const zfarRaw = camera.orthographic.zfar;
+        const hasFar = Number.isFinite(zfarRaw);
+        const zfar = hasFar ? Math.max(zfarRaw, znear) : znear + 1.0;
 
-        const ntl = [-nearHalfX, nearHalfY, nearZ];
-        const ntr = [nearHalfX, nearHalfY, nearZ];
-        const nbr = [nearHalfX, -nearHalfY, nearZ];
-        const nbl = [-nearHalfX, -nearHalfY, nearZ];
+        const nearZ = -znear;
+        const farZ = -zfar;
 
-        const ftl = [-farHalfX, farHalfY, farZ];
-        const ftr = [farHalfX, farHalfY, farZ];
-        const fbr = [farHalfX, -farHalfY, farZ];
-        const fbl = [-farHalfX, -farHalfY, farZ];
+        const ntl = [-halfX, halfY, nearZ];
+        const ntr = [halfX, halfY, nearZ];
+        const nbr = [halfX, -halfY, nearZ];
+        const nbl = [-halfX, -halfY, nearZ];
+
+        const ftl = [-halfX, halfY, farZ];
+        const ftr = [halfX, halfY, farZ];
+        const fbr = [halfX, -halfY, farZ];
+        const fbl = [-halfX, -halfY, farZ];
 
         pushLoop(lines, [ntl, ntr, nbr, nbl]);
-        pushLoop(lines, [ftl, ftr, fbr, fbl]);
+        if (hasFar) {
+            pushLoop(lines, [ftl, ftr, fbr, fbl]);
+        }
         pushLineV(lines, ntl, ftl);
         pushLineV(lines, ntr, ftr);
         pushLineV(lines, nbr, fbr);
@@ -81,12 +118,20 @@ export function createCameraGizmoLines(camera) {
         const yfov = camera?.perspective?.yfov ?? Math.PI / 4;
         const aspect = camera?.perspective?.aspectRatio || 1;
         const tanHalf = Math.tan(yfov / 2.0);
-        farHalfY = tanHalf;
-        farHalfX = tanHalf * aspect;
-        nearZ = -0.25;
-        farZ = -1.0;
-        nearHalfY = farHalfY * Math.abs(nearZ / farZ);
-        nearHalfX = farHalfX * Math.abs(nearZ / farZ);
+
+        const znear = Math.max(finitePlaneDistance(camera.perspective.znear, 0.1), 1e-4);
+        const zfarRaw = camera.perspective.zfar;
+        const hasFar = Number.isFinite(zfarRaw);
+        // Representative depth when the far plane is infinite, just for the silhouette.
+        const zfar = hasFar ? Math.max(zfarRaw, znear) : znear * 20.0;
+
+        const nearHalfY = tanHalf * znear;
+        const nearHalfX = nearHalfY * aspect;
+        const farHalfY = tanHalf * zfar;
+        const farHalfX = farHalfY * aspect;
+
+        const nearZ = -znear;
+        const farZ = -zfar;
 
         const ntl = [-nearHalfX, nearHalfY, nearZ];
         const ntr = [nearHalfX, nearHalfY, nearZ];
@@ -106,7 +151,9 @@ export function createCameraGizmoLines(camera) {
         pushLineV(lines, apex, fbl);
 
         pushLoop(lines, [ntl, ntr, nbr, nbl]);
-        pushLoop(lines, [ftl, ftr, fbr, fbl]);
+        if (hasFar) {
+            pushLoop(lines, [ftl, ftr, fbr, fbl]);
+        }
     }
 
     return new Float32Array(lines);
@@ -129,11 +176,16 @@ export function createDirectionalLightGizmoLines() {
     return new Float32Array(lines);
 }
 
-/** Three orthogonal rings forming a wireframe sphere, for point lights. */
-export function createPointLightGizmoLines() {
+/** A small marker plus a wireframe sphere at the light's range, for point lights. */
+export function createPointLightGizmoLines(light) {
     const lines = [];
-    const radius = 0.45;
 
+    // Center marker.
+    addOctahedron(lines, 0.1);
+
+    // Range sphere (falls back to a small marker sphere when the range is
+    // undefined or infinite, i.e. <= 0).
+    const radius = light?.range > 0 ? light.range : 0.45;
     pushLoop(lines, circlePoints([0, 0, 0], [1, 0, 0], [0, 1, 0], radius, CIRCLE_SEGMENTS));
     pushLoop(lines, circlePoints([0, 0, 0], [1, 0, 0], [0, 0, 1], radius, CIRCLE_SEGMENTS));
     pushLoop(lines, circlePoints([0, 0, 0], [0, 1, 0], [0, 0, 1], radius, CIRCLE_SEGMENTS));
@@ -141,26 +193,23 @@ export function createPointLightGizmoLines() {
     return new Float32Array(lines);
 }
 
-/** A cone pointing down -Z, for spot lights. Shows both the inner (full-intensity) and outer (falloff) cone angles. */
+/** A cone pointing down -Z, for spot lights. Shows both the inner (full-intensity) and outer (falloff) cone angles, with the cone length driven by the light's range. */
 export function createSpotLightGizmoLines(light) {
     const lines = [];
 
     const apex = [0, 0, 0];
-    const baseZ = -0.8;
     const outerConeAngle = light?.spot?.outerConeAngle ?? Math.PI / 4;
     const innerConeAngle = light?.spot?.innerConeAngle ?? 0;
 
-    let outerRadius = Math.tan(outerConeAngle) * -baseZ;
-    let innerRadius = Math.tan(innerConeAngle) * -baseZ;
+    // The cone reaches the light's range; fall back to a fixed depth when the
+    // range is undefined or infinite (<= 0).
+    const depth = light?.range > 0 ? light.range : 0.8;
+    const baseZ = -depth;
 
-    // Clamp extreme cone angles so the gizmo stays readable, keeping the
-    // inner/outer proportion intact.
-    const maxOuterRadius = 2.0;
-    if (outerRadius > maxOuterRadius) {
-        innerRadius *= maxOuterRadius / outerRadius;
-        outerRadius = maxOuterRadius;
-    }
-    outerRadius = Math.max(outerRadius, 0.05);
+    const tanOuter = Math.tan(outerConeAngle);
+    const tanInner = Math.tan(innerConeAngle);
+    const outerRadius = Number.isFinite(tanOuter) ? tanOuter * depth : depth;
+    const innerRadius = Number.isFinite(tanInner) ? tanInner * depth : 0;
 
     // Outer cone: silhouette edges and base ring (full extent of the light).
     const outerPoints = circlePoints(
@@ -194,9 +243,53 @@ export function createLightGizmoLines(light) {
         case "spot":
             return createSpotLightGizmoLines(light);
         case "point":
-            return createPointLightGizmoLines();
+            return createPointLightGizmoLines(light);
         case "directional":
         default:
             return createDirectionalLightGizmoLines();
+    }
+}
+
+/** A small wireframe diamond marking a skeletal joint position. */
+export function createJointMarkerLines() {
+    const lines = [];
+    addOctahedron(lines, 0.1);
+    return new Float32Array(lines);
+}
+
+/**
+ * Appends the twelve edges of an axis-aligned box spanning `min`..`max` to
+ * `out` (a plain number array). Used for world-space AABB gizmos.
+ */
+export function appendBoxLines(out, min, max) {
+    const [x0, y0, z0] = min;
+    const [x1, y1, z1] = max;
+    const corners = [
+        [x0, y0, z0],
+        [x1, y0, z0],
+        [x1, y1, z0],
+        [x0, y1, z0],
+        [x0, y0, z1],
+        [x1, y0, z1],
+        [x1, y1, z1],
+        [x0, y1, z1]
+    ];
+    // Bottom face, top face, then vertical edges.
+    const edges = [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [4, 5],
+        [5, 6],
+        [6, 7],
+        [7, 4],
+        [0, 4],
+        [1, 5],
+        [2, 6],
+        [3, 7]
+    ];
+    for (const [a, b] of edges) {
+        pushLineV(out, corners[a], corners[b]);
     }
 }

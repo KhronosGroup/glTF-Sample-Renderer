@@ -33,7 +33,12 @@ import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
 import { getSceneExtents } from "../gltf/gltf_utils.js";
-import { createCameraGizmoLines, createLightGizmoLines } from "./gizmo_geometry.js";
+import {
+    appendBoxLines,
+    createCameraGizmoLines,
+    createJointMarkerLines,
+    createLightGizmoLines
+} from "./gizmo_geometry.js";
 
 const CLIPPING_PLANE_COUNT = 6;
 
@@ -43,8 +48,10 @@ const WORLD_AXES = [
     vec3.fromValues(0.0, 0.0, 1.0)
 ];
 
-// Color used for camera debug gizmos.
+// Colors used for the debug gizmos.
 const GIZMO_CAMERA_COLOR = vec4.fromValues(0.35, 0.7, 1.0, 1.0);
+const GIZMO_JOINT_COLOR = vec4.fromValues(0.3, 0.9, 0.3, 1.0);
+const GIZMO_AABB_COLOR = vec4.fromValues(1.0, 0.85, 0.2, 1.0);
 
 /** Range the given box covers when projected onto an arbitrary (unit) axis. */
 function extentsAlongAxis(min, max, axis) {
@@ -2426,39 +2433,65 @@ class gltfRenderer {
         return nodeLights;
     }
 
-    /// Draws wireframe gizmos for the scene's cameras and lights when
-    /// state.renderingParameters.debugGizmos is enabled.
+    /// Draws wireframe gizmos for cameras, lights, skeletal joints and mesh
+    /// bounds, according to the renderingParameters gizmo toggles.
     drawDebugGizmos(state) {
         const gltf = state.gltf;
-        if (gltf === undefined || !state.renderingParameters.debugGizmos) {
+        const parameters = state.renderingParameters;
+        if (
+            gltf === undefined ||
+            !(
+                parameters.cameraGizmos ||
+                parameters.lightGizmos ||
+                parameters.jointGizmos ||
+                parameters.aabbGizmos
+            )
+        ) {
             return;
         }
 
-        const gizmos = [];
-        for (const node of this.nodes) {
-            if (node.camera !== undefined) {
+        const gizmos = []; // { modelMatrix, color, lines }
+
+        if (parameters.cameraGizmos) {
+            for (const node of this.nodes) {
+                if (node.camera === undefined) {
+                    continue;
+                }
                 const camera = gltf.cameras[node.camera];
                 if (camera !== undefined) {
                     gizmos.push({
-                        node: node,
+                        modelMatrix: node.getRenderedWorldTransform(),
                         color: GIZMO_CAMERA_COLOR,
                         lines: createCameraGizmoLines(camera)
                     });
                 }
             }
+        }
 
-            const lightIndex = node.extensions?.KHR_lights_punctual?.light;
-            if (lightIndex !== undefined) {
+        if (parameters.lightGizmos) {
+            for (const node of this.nodes) {
+                const lightIndex = node.extensions?.KHR_lights_punctual?.light;
+                if (lightIndex === undefined) {
+                    continue;
+                }
                 const light = gltf.extensions?.KHR_lights_punctual?.lights[lightIndex];
                 if (light !== undefined) {
                     const color = light.color ?? [1, 1, 1];
                     gizmos.push({
-                        node: node,
+                        modelMatrix: node.getRenderedWorldTransform(),
                         color: vec4.fromValues(color[0], color[1], color[2], 1.0),
                         lines: createLightGizmoLines(light)
                     });
                 }
             }
+        }
+
+        if (parameters.jointGizmos) {
+            this.collectJointGizmos(gltf, gizmos);
+        }
+
+        if (parameters.aabbGizmos) {
+            this.collectAabbGizmos(gltf, gizmos);
         }
 
         if (gizmos.length === 0) {
@@ -2499,7 +2532,7 @@ class gltfRenderer {
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
 
         for (const gizmo of gizmos) {
-            this.shader.updateUniform("u_ModelMatrix", gizmo.node.getRenderedWorldTransform());
+            this.shader.updateUniform("u_ModelMatrix", gizmo.modelMatrix);
             this.shader.updateUniform("u_Color", gizmo.color);
 
             gl.bufferData(gl.ARRAY_BUFFER, gizmo.lines, gl.STATIC_DRAW);
@@ -2510,6 +2543,122 @@ class gltfRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
         gl.enable(gl.DEPTH_TEST);
+    }
+
+    /// Collects joint markers and parent-child connection lines for all skins.
+    collectJointGizmos(gltf, gizmos) {
+        if (gltf.skins === undefined) {
+            return;
+        }
+
+        // Build a child -> parent lookup across the whole node hierarchy.
+        const parentOf = new Map();
+        for (let i = 0; i < gltf.nodes.length; ++i) {
+            for (const child of gltf.nodes[i].children) {
+                parentOf.set(child, i);
+            }
+        }
+
+        const connections = [];
+        const marked = new Set();
+
+        for (const skin of gltf.skins) {
+            const joints = new Set(skin.joints);
+            if (skin.skeleton !== undefined) {
+                joints.add(skin.skeleton);
+            }
+
+            for (const jointIndex of joints) {
+                const joint = gltf.nodes[jointIndex];
+                const transform = joint.getRenderedWorldTransform();
+
+                if (!marked.has(jointIndex)) {
+                    marked.add(jointIndex);
+                    gizmos.push({
+                        modelMatrix: transform,
+                        color: GIZMO_JOINT_COLOR,
+                        lines: createJointMarkerLines()
+                    });
+                }
+
+                const parent = parentOf.get(jointIndex);
+                if (parent !== undefined && joints.has(parent)) {
+                    const from = vec3.create();
+                    const to = vec3.create();
+                    mat4.getTranslation(from, gltf.nodes[parent].getRenderedWorldTransform());
+                    mat4.getTranslation(to, transform);
+                    connections.push(from[0], from[1], from[2], to[0], to[1], to[2]);
+                }
+            }
+        }
+
+        if (connections.length > 0) {
+            gizmos.push({
+                modelMatrix: mat4.create(),
+                color: GIZMO_JOINT_COLOR,
+                lines: new Float32Array(connections)
+            });
+        }
+    }
+
+    /// Collects world-space axis-aligned bounding boxes for every visible mesh node.
+    collectAabbGizmos(gltf, gizmos) {
+        const lines = [];
+        const min = vec3.create();
+        const max = vec3.create();
+        const corner = vec3.create();
+
+        for (const node of this.nodes) {
+            if (node.mesh === undefined) {
+                continue;
+            }
+            const mesh = gltf.meshes[node.mesh];
+            if (mesh?.primitives === undefined) {
+                continue;
+            }
+
+            vec3.set(min, Infinity, Infinity, Infinity);
+            vec3.set(max, -Infinity, -Infinity, -Infinity);
+            let hasBounds = false;
+
+            const world = node.getRenderedWorldTransform();
+            for (const primitive of mesh.primitives) {
+                const positionAttribute = primitive.glAttributes.find(
+                    (attribute) => attribute.attribute === "POSITION"
+                );
+                if (positionAttribute === undefined) {
+                    continue;
+                }
+                const accessor = gltf.accessors[positionAttribute.accessor];
+                if (accessor?.min === undefined || accessor?.max === undefined) {
+                    continue;
+                }
+
+                const low = accessor.min;
+                const high = accessor.max;
+                for (let c = 0; c < 8; ++c) {
+                    corner[0] = c & 1 ? high[0] : low[0];
+                    corner[1] = c & 2 ? high[1] : low[1];
+                    corner[2] = c & 4 ? high[2] : low[2];
+                    vec3.transformMat4(corner, corner, world);
+                    vec3.min(min, min, corner);
+                    vec3.max(max, max, corner);
+                }
+                hasBounds = true;
+            }
+
+            if (hasBounds) {
+                appendBoxLines(lines, min, max);
+            }
+        }
+
+        if (lines.length > 0) {
+            gizmos.push({
+                modelMatrix: mat4.create(),
+                color: GIZMO_AABB_COLOR,
+                lines: new Float32Array(lines)
+            });
+        }
     }
 
     updateSkin(state, node) {
