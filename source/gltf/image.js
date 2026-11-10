@@ -14,7 +14,9 @@ class gltfImage extends GltfObject {
         bufferView = undefined,
         name = undefined,
         mimeType = undefined,
-        image = undefined
+        image = undefined,
+        internalFormat = undefined,
+        format = undefined
     ) {
         super();
         this.uri = uri;
@@ -26,6 +28,8 @@ class gltfImage extends GltfObject {
         this.miplevel = miplevel; // nonstandard
         this.isThumbnail = false; // nonstandard
         this.usedByTexture = true; // nonstandard
+        this.internalFormat = internalFormat; // nonstandard, overrides the WebGL internal format
+        this.format = format; // nonstandard, overrides the WebGL source format
     }
 
     async load(gltf, resolver) {
@@ -140,6 +144,7 @@ class gltfImage extends GltfObject {
 
         return true;
     }
+
 
     async setImageFromBufferView(gltf) {
         const view = gltf.bufferViews[this.bufferView];

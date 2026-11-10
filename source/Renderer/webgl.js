@@ -32,6 +32,14 @@ class gltfWebGl {
         this.context.supports_EXT_color_buffer_half_float =
             this.context.supports_EXT_color_buffer_float ||
             (this.context.getExtension("EXT_color_buffer_half_float") ? true : false);
+        this.polygonModeExtension = this.context.getExtension("WEBGL_polygon_mode") ?? undefined;
+
+        const clipCullDistance = this.context.getExtension("WEBGL_clip_cull_distance");
+        this.context.WEBGL_clip_cull_distance = clipCullDistance;
+        // The clipping cuboid needs six planes; the extension guarantees at least eight.
+        this.context.supports_WEBGL_clip_cull_distance =
+            clipCullDistance != null &&
+            this.context.getParameter(clipCullDistance.MAX_CLIP_DISTANCES_WEBGL) >= 6;
     }
 
     setTexture(loc, gltf, textureInfo, texSlot) {
@@ -104,12 +112,16 @@ class gltfWebGl {
             ) {
                 // the check `GL.SRGB8_ALPHA8 === undefined` is needed as at the moment node-gles does not define the full format enum
                 const internalformat =
-                    textureInfo.linear || GL.SRGB8_ALPHA8 === undefined ? GL.RGBA : GL.SRGB8_ALPHA8;
+                    image.internalFormat ??
+                    (textureInfo.linear || GL.SRGB8_ALPHA8 === undefined
+                        ? GL.RGBA
+                        : GL.SRGB8_ALPHA8);
+                const format = image.format ?? GL.RGBA;
                 this.context.texImage2D(
                     image.type,
                     image.miplevel,
                     internalformat,
-                    GL.RGBA,
+                    format,
                     GL.UNSIGNED_BYTE,
                     image.image
                 );

@@ -38,6 +38,7 @@ export default [
             "no-useless-escape": "warn",
             "no-useless-catch": "warn",
             "no-constant-condition": "warn",
+            "no-useless-assignment": "warn",
             "new-cap": "off",
             "no-console": "off"
         }

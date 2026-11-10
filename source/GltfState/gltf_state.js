@@ -73,6 +73,8 @@ class GltfState {
             morphing: true,
             /** skin / skeleton */
             skinning: true,
+            /** overlay the triangle edges of all meshes as black lines (wireframe), requires WEBGL_polygon_mode */
+            wireframe: false,
 
             /** enabled extensions */
             enabledExtensions: {
@@ -84,8 +86,8 @@ class GltfState {
                 KHR_materials_transmission: true,
                 /** KHR_materials_volume adds support for volumetric materials. Used together with KHR_materials_transmission and KHR_materials_diffuse_transmission */
                 KHR_materials_volume: true,
-                /** KHR_materials_volume_scatter allows the simulation of scattering light inside a volume. Used together with KHR_materials_volume */
-                KHR_materials_volume_scatter: true,
+                /** KHR_materials_scatter defines scattering properties for both thin-walled and volumetric materials. Used together with KHR_materials_transmission and optionally KHR_materials_volume */
+                KHR_materials_scatter: true,
                 /** KHR_materials_ior makes the index of refraction configurable */
                 KHR_materials_ior: true,
                 /** KHR_materials_specular allows configuring specular color (f0 color) and amount of specular reflection */
@@ -146,7 +148,6 @@ class GltfState {
             internalMSAA: 4,
             /** Use RGBA16F floating-point main framebuffer instead of RGBA8 */
             floatingPointFramebuffer: true,
-
             /** skip nodes whose glTF 2.1 bounding volume is outside the view */
             cullByBoundingVolume: true,
 
@@ -164,6 +165,23 @@ class GltfState {
                 depthTest: true,
                 /** flag bounding volumes that fail to enclose their node's geometry */
                 highlightNonEnclosing: true
+            },
+
+            /**
+             * cuboid of six clipping planes that cuts the model open for inspection.
+             * Requires WEBGL_clip_cull_distance, which is not available on all
+             * browsers/platforms; setting enabled to true has no effect where it
+             * is unsupported.
+             */
+            clipping: {
+                /** discard everything outside the cuboid. Requires WEBGL_clip_cull_distance */
+                enabled: false,
+                /** space the cuboid is aligned to @see GltfState.ClippingOrientations */
+                orientation: GltfState.ClippingOrientations.AXIS_ALIGNED,
+                /** per axis lower bound of the kept region, as a fraction of the scene extents in [0, 1] */
+                min: [0.0, 0.0, 0.0],
+                /** per axis upper bound of the kept region, as a fraction of the scene extents in [0, 1] */
+                max: [1.0, 1.0, 1.0]
             }
         };
 
@@ -221,6 +239,16 @@ GltfState.DebugShapeColor = {
     DEPTH: "Hierarchy Depth",
     /** by shape type */
     TYPE: "Shape Type"
+};
+
+/**
+ * ClippingOrientations enum for the space the clipping cuboid is aligned to
+ */
+GltfState.ClippingOrientations = {
+    /** the cuboid is aligned to the world axes */
+    AXIS_ALIGNED: "Axis Aligned",
+    /** the cuboid is aligned to the camera, so it cuts towards the viewer */
+    VIEW_ALIGNED: "View Aligned"
 };
 
 /**
@@ -329,11 +357,13 @@ GltfState.DebugOutput = {
         ANISOTROPIC_DIRECTION: "Anisotropic Direction"
     },
 
-    volumeScatter: {
+    scatter: {
         /** output the multi-scatter color */
         MULTI_SCATTER_COLOR: "Multi-Scatter Color",
         /** output the single-scatter color */
         SINGLE_SCATTER_COLOR: "Single-Scatter Color",
+        /** output the back-face depth used by the volumetric single-scattering ray march */
+        BACK_DEPTH: "Back Depth",
         /** output for the pre scatter pass, which collects all lighting contribution for scattering */
         PRE_SCATTER_PASS: "Pre-Scatter Pass"
     },

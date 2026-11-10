@@ -29,6 +29,136 @@ precision highp float;
 #include <iridescence.glsl>
 #endif
 
+#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+
+const int SCATTER_VOLUME_STEPS = 16;
+
+vec3 reconstructWorldPosition(vec2 uv, float depth)
+{
+    float ndcDepth = depth * 2.0 - 1.0;
+    vec2 clipUV = uv * 2.0 - 1.0;
+    vec4 clipPosition = vec4(clipUV.x, clipUV.y, ndcDepth, 1.0);
+    vec4 viewPosition = inverse(u_ProjectionMatrix) * clipPosition;
+    vec3 viewPos = viewPosition.xyz / viewPosition.w;
+    vec4 worldPosition = inverse(u_ViewMatrix) * vec4(viewPos, 1.0);
+    return worldPosition.xyz / worldPosition.w;
+}
+
+float henyeyGreenstein(float g, float cosTheta)
+{
+    // Henyey-Greenstein phase function.
+    // Henyey & Greenstein (1941), "Diffuse radiation in the galaxy", ApJ 93, 70.
+    float gSq = g * g;
+    float denom = 1.0 + gSq - 2.0 * g * cosTheta;
+    return (1.0 - gSq) / (4.0 * M_PI * pow(denom, 1.5));
+}
+
+vec3 getVolumeSingleScattering(
+    vec3 viewDir,
+    vec3 normal,
+    float ior,
+    vec3 attenuationColor,
+    float attenuationDistance,
+    float scatterAnisotropy,
+    vec3 frontWorldPos
+)
+{
+    vec2 uv = gl_FragCoord.xy / vec2(u_FramebufferSize);
+
+    float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, uv, 0.0).r;
+    if (backDepth >= 1.0)
+    {
+        return vec3(0.0);
+    }
+
+    vec3 backWorldPos = reconstructWorldPosition(uv, backDepth);
+    vec3 viewRay = backWorldPos - frontWorldPos;
+    float thickness = length(viewRay);
+    if (thickness <= 0.0)
+    {
+        return vec3(0.0);
+    }
+
+    vec3 viewRayDir = viewRay / thickness;
+    vec3 outgoingDir = normalize(viewDir);
+
+    // Refract the incoming view ray at the front surface. For total internal
+    // reflection, fall back to the un-refracted view ray.
+    vec3 refractedDir = refract(-outgoingDir, normal, 1.0 / ior);
+    if (dot(refractedDir, refractedDir) < 1e-4)
+    {
+        refractedDir = -outgoingDir;
+    }
+    refractedDir = normalize(refractedDir);
+
+    // The back-face depth gives thickness along the view ray; convert that to
+    // the chord length travelled along the refracted ray (planar-slab
+    // approximation, avoids depth peeling).
+    float cosRay = max(dot(refractedDir, viewRayDir), 0.05);
+    float chordLength = thickness / cosRay;
+
+    // Beer-Lambert attenuation coefficient. attenuationDistance == 0 means no attenuation.
+    vec3 sigma_t = vec3(0.0);
+    if (attenuationDistance > 0.0)
+    {
+        vec3 attenuation = max(attenuationColor, vec3(1e-4));
+        sigma_t = max(-log(attenuation) / attenuationDistance, vec3(0.0));
+    }
+
+    vec3 sigma_s = sigma_t * multiToSingleScatter();
+
+    float stepLength = chordLength / float(SCATTER_VOLUME_STEPS);
+    vec3 scattered = vec3(0.0);
+
+    for (int i = 1; i <= SCATTER_VOLUME_STEPS; ++i)
+    {
+        float t = (float(i) - 0.5) * stepLength;
+        vec3 samplePos = frontWorldPos + refractedDir * t;
+
+        vec3 inscatter = vec3(0.0);
+
+#ifdef USE_PUNCTUAL
+        for (int l = 0; l < LIGHT_COUNT; ++l)
+        {
+            Light light = u_Lights[l];
+
+            vec3 pointToLight;
+            if (light.type != LightType_Directional)
+            {
+                pointToLight = light.position - samplePos;
+            }
+            else
+            {
+                pointToLight = -light.direction;
+            }
+
+            vec3 lightIntensity = getLighIntensity(light, pointToLight);
+            float lightDist = max(length(pointToLight), 1e-4);
+            vec3 lightDir = -pointToLight / lightDist;
+            float phase = henyeyGreenstein(scatterAnisotropy, dot(lightDir, outgoingDir));
+            inscatter += lightIntensity * phase;
+        }
+#endif
+
+#ifdef USE_IBL
+        // Approximate the environment as isotropic incoming radiance.
+        inscatter += getDiffuseLight(normal) / M_PI;
+#endif
+
+        inscatter *= sigma_s;
+
+        // Beer-Lambert transmittance along the refracted ray and back out to
+        // the camera. The scattered light exits through the front surface, so
+        // its exit distance is t * cosRay.
+        vec3 transmittance = exp(-sigma_t * t * (1.0 + cosRay));
+        scattered += inscatter * transmittance * stepLength;
+    }
+
+    return scattered;
+}
+
+#endif
+
 
 layout(location = 0) out vec4 g_finalColor;
 layout(location = 1) out uint toneMapFlag;
@@ -123,6 +253,10 @@ void main()
     materialInfo = getDiffuseTransmissionInfo(materialInfo);
 #endif
 
+#ifdef MATERIAL_SCATTER
+    materialInfo = getScatterInfo(materialInfo);
+#endif
+
 #ifdef MATERIAL_ANISOTROPY
     materialInfo = getAnisotropyInfo(materialInfo, normalInfo);
 #endif
@@ -178,7 +312,7 @@ void main()
 #endif
 #endif
 
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
     // Used for weighting absorption and scattering
     vec3 singleScatter = multiToSingleScatter();
 #endif
@@ -199,7 +333,7 @@ void main()
 #ifdef MATERIAL_VOLUME
         diffuseTransmissionIBL = applyVolumeAttenuation(diffuseTransmissionIBL, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
     diffuseTransmissionIBL *= (1.0 - singleScatter);
 #endif
     f_diffuse = mix(f_diffuse, diffuseTransmissionIBL, materialInfo.diffuseTransmissionFactor);
@@ -212,6 +346,18 @@ void main()
         materialInfo.perceptualRoughness,
         baseColor.rgb, v_Position, u_ModelMatrix, u_ViewMatrix, u_ProjectionMatrix,
         materialInfo.ior, materialInfo.thickness, materialInfo.attenuationColor, materialInfo.attenuationDistance, materialInfo.dispersion);
+
+#ifdef MATERIAL_SCATTER
+    if (materialInfo.thickness <= 0.0) {
+        float forwardFraction = (1.0 + materialInfo.scatterAnisotropy) * 0.5;
+        float backwardFraction = (1.0 - materialInfo.scatterAnisotropy) * 0.5;
+        vec3 scatterBTDF = getDiffuseLight(-n) * materialInfo.multiscatterColor * forwardFraction;
+        vec3 scatterBRDF = getDiffuseLight(n) * materialInfo.multiscatterColor * backwardFraction;
+        vec3 scatterLobe = scatterBTDF + scatterBRDF;
+        f_specular_transmission = mix(f_specular_transmission, scatterLobe, materialInfo.scatterStrength);
+    }
+#endif
+
     f_diffuse = mix(f_diffuse, f_specular_transmission, materialInfo.transmissionFactor);
 #endif
 
@@ -341,7 +487,7 @@ void main()
 #ifdef MATERIAL_VOLUME
             l_diffuse_btdf = applyVolumeAttenuation(l_diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
-#ifdef MATERIAL_VOLUME_SCATTER
+#ifdef MATERIAL_SCATTER
             l_diffuse_btdf *= (1.0 - singleScatter);
 #endif
             l_diffuse += l_diffuse_btdf * materialInfo.diffuseTransmissionFactor;
@@ -362,6 +508,22 @@ void main()
 #ifdef MATERIAL_VOLUME
         transmittedLight = applyVolumeAttenuation(transmittedLight, length(transmissionRay), materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
+
+#ifdef MATERIAL_SCATTER
+        if (materialInfo.thickness <= 0.0) {
+            float forwardFraction = (1.0 + materialInfo.scatterAnisotropy) * 0.5;
+            float backwardFraction = (1.0 - materialInfo.scatterAnisotropy) * 0.5;
+            vec3 scatterLobe = vec3(0.0);
+            if (dot(n, l) < 0.0) {
+                float scatterNdotL = clampedDot(-n, l);
+                scatterLobe = lightIntensity * scatterNdotL * BRDF_lambertian(materialInfo.multiscatterColor) * forwardFraction;
+            } else {
+                scatterLobe = lightIntensity * NdotL * BRDF_lambertian(materialInfo.multiscatterColor) * backwardFraction;
+            }
+            transmittedLight = mix(transmittedLight, scatterLobe, materialInfo.scatterStrength);
+        }
+#endif
+
         l_diffuse = mix(l_diffuse, transmittedLight, materialInfo.transmissionFactor);
 #endif
 
@@ -432,11 +594,40 @@ void main()
     }
 #endif // USE_PUNCTUAL
 
-#ifdef MATERIAL_VOLUME_SCATTER
-        // Subsurface scattering is calculated based on fresnel weighted diffuse terms. 
-        vec3 l_color = getSubsurfaceScattering(v_Position, u_ProjectionMatrix, materialInfo.attenuationDistance, u_ScatterFramebufferSampler, materialInfo.diffuseTransmissionColorFactor);
-        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * (1.0 - materialInfo.iridescenceFactor) * (1.0 - materialInfo.transmissionFactor);
-#endif // MATERIAL_VOLUME_SCATTER
+#if defined(MATERIAL_SCATTER) && defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+    if (materialInfo.scatterStrength > 0.0 && materialInfo.thickness > 0.0) {
+        // Single-scattering ray march along the refracted ray through the
+        // volume (Henyey-Greenstein phase + Beer-Lambert attenuation).
+        vec3 singleScattering = getVolumeSingleScattering(
+            v,
+            n,
+            materialInfo.ior,
+            materialInfo.attenuationColor,
+            materialInfo.attenuationDistance,
+            materialInfo.scatterAnisotropy,
+            v_Position
+        );
+
+        // Diffuse multiple scattering. Christensen & Burley (2015),
+        // "Approximate Reflectance Profiles for Efficient Subsurface Scattering".
+        vec3 diffuseScattering = getSubsurfaceScattering(
+            v_Position,
+            u_ProjectionMatrix,
+            materialInfo.attenuationDistance,
+            u_ScatterFramebufferSampler,
+            materialInfo.multiscatterColor,
+            singleScatter
+        );
+
+        vec3 l_color = singleScattering + diffuseScattering;
+
+        float iridescenceMask = 1.0;
+#ifdef MATERIAL_IRIDESCENCE
+        iridescenceMask = 1.0 - materialInfo.iridescenceFactor;
+#endif
+        color += l_color * (1.0 - materialInfo.metallic) * (1.0 - clearcoatFactor * clearcoatFresnel) * iridescenceMask * materialInfo.transmissionFactor;
+    }
+#endif
 
     f_emissive = u_EmissiveFactor;
 #ifdef MATERIAL_EMISSIVE_STRENGTH
@@ -627,16 +818,34 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_DIFFUSE_TRANSMISSION_COLOR_FACTOR
     g_finalColor.rgb = linearTosRGB(materialInfo.diffuseTransmissionColorFactor);
 #endif
-
-#ifdef MATERIAL_VOLUME_SCATTER
-#if DEBUG == DEBUG_VOLUME_SCATTER_MULTI_SCATTER_COLOR
-    g_finalColor.rgb = u_MultiScatterColor;
 #endif
-#if DEBUG == DEBUG_VOLUME_SCATTER_SINGLE_SCATTER_COLOR
+
+#ifdef MATERIAL_SCATTER
+#if DEBUG == DEBUG_SCATTER_MULTI_SCATTER_COLOR
+    g_finalColor.rgb = getMultiScatterColor();
+#endif
+#if DEBUG == DEBUG_SCATTER_SINGLE_SCATTER_COLOR
     g_finalColor.rgb = singleScatter;
 #endif
+#if defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
+#if DEBUG == DEBUG_SCATTER_BACK_DEPTH
+    vec2 scatterUV = gl_FragCoord.xy / vec2(u_FramebufferSize);
+    float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, scatterUV, 0.0).r;
+
+    // Raw NDC depth sits close to 1.0 for typical objects, which makes the
+    // debug view look solid white. Reconstruct linear view-space depth and
+    // normalize it by the camera far plane instead.
+    vec4 clipPosition = vec4(scatterUV * 2.0 - 1.0, backDepth * 2.0 - 1.0, 1.0);
+    vec4 viewPosition = inverse(u_ProjectionMatrix) * clipPosition;
+    float linearDepth = -viewPosition.z / viewPosition.w;
+    float farPlane = u_ProjectionMatrix[3][2] / (u_ProjectionMatrix[2][2] + 1.0);
+    g_finalColor.rgb = vec3(clamp(linearDepth / max(farPlane, 1e-4), 0.0, 1.0));
+#endif
+#endif
+#endif
 #endif
 
-#endif
+#ifdef WIREFRAME_BRIGHTEN
+    g_finalColor.rgb = mix(g_finalColor.rgb, vec3(1.0), WIREFRAME_BRIGHTEN);
 #endif
 }

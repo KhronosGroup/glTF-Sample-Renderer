@@ -7,6 +7,7 @@ class AnimationTimer {
         this.paused = true;
         this.fixedTime = null;
         this.pausedTime = 0;
+        this.timeOverride = null;
     }
 
     /** Start the animation timer and all animations */
@@ -56,12 +57,29 @@ class AnimationTimer {
         this.fixedTime = timeInSec;
     }
 
+    /**
+     * Sets the animation time override. While set, elapsedSec() returns this
+     * value instead of the running clock, which keeps advancing underneath.
+     * @param {number} timeInSec The time in seconds to override the animation to
+     */
+    setTimeOverride(timeInSec) {
+        this.timeOverride = timeInSec;
+    }
+
+    /** Clears the time override so the running clock is used again. */
+    clearTimeOverride() {
+        this.timeOverride = null;
+    }
+
     /** Get the elapsed time in seconds */
     elapsedSec() {
+        if (this.timeOverride !== null) {
+            return this.timeOverride;
+        }
         if (this.paused) {
             return this.pausedTime / 1000;
         } else {
-            return this.fixedTime || (performance.now() - this.startTime) / 1000;
+            return this.fixedTime ?? (performance.now() - this.startTime) / 1000;
         }
     }
 }

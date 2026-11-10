@@ -187,7 +187,7 @@ class ResourceLoader {
     /**
      * loadEnvironment asynchroneously, run IBL sampling and create resources for rendering
      * @param {(String | ArrayBuffer | File)} environmentFile the .hdr file either as path or resource
-     * @param {Object} [lutFiles] object containing paths or resources for the environment look up textures. Keys are lut_ggx_file, lut_charlie_file and lut_sheen_E_file
+     * @param {Object} [lutFiles] object containing paths or resources for the environment look up textures. Keys are lut_sheen_E_file
      * @returns {Promise} a promise that fulfills when the environment file was loaded
      */
     async loadEnvironment(environmentFile, lutFiles) {
@@ -279,7 +279,7 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
     environment.samplers.push(
         new gltfSampler(GL.LINEAR, GL.LINEAR, GL.CLAMP_TO_EDGE, GL.CLAMP_TO_EDGE, "LUTSampler")
     );
-    const lutSamplerIdx = samplerIdx++;
+    const lutSamplerIdx = samplerIdx;
 
     //
     // Prepare images and textures.
@@ -446,17 +446,20 @@ async function _loadEnvironmentFromPanorama(imageHDR, view, luts) {
 
     // Sheen E LUT
 
-    environment.images.push(
-        new gltfImage(
-            luts.lut_sheen_E_file,
-            GL.TEXTURE_2D,
-            0,
-            undefined,
-            undefined,
-            ImageMimeType.PNG
-        )
+    const sheenEImage = new gltfImage(
+        luts.lut_sheen_E_file,
+        GL.TEXTURE_2D,
+        0,
+        undefined,
+        undefined,
+        ImageMimeType.PNG
     );
-    const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx++], GL.TEXTURE_2D);
+    // The sheen E LUT is grayscale and sampled only through its red channel,
+    // so it is stored as a single-channel R8 texture to reduce GPU memory usage.
+    sheenEImage.internalFormat = GL.R8;
+    sheenEImage.format = GL.RED;
+    environment.images.push(sheenEImage);
+    const sheenELut = new gltfTexture(lutSamplerIdx, [imageIdx], GL.TEXTURE_2D);
     sheenELut.initialized = false; // iblsampler does not create this texture
     environment.textures.push(sheenELut);
 
