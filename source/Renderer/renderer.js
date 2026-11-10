@@ -76,13 +76,12 @@ const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 // Pulls debug shape surfaces towards the viewer so they overlay the geometry they describe
-// instead of being overdrawn by it. [factor, units] pairs: the factor scales the pull with
-// the depth slope, which is what keeps grazing surfaces in front, and the units add the
-// constant offset.
-const SHAPE_FILL_POLYGON_OFFSET = [-1.0, -100.0];
+// instead of z-fighting with it. Applied as a clip-space depth bias in the shader rather
+// than with polygon offset, which is unreliable for line primitives on some drivers.
+const SHAPE_FILL_DEPTH_BIAS = 0.0001;
 // The wireframe edges are pulled a little further forward still, so they stay in front of
 // the translucent fill rather than z-fighting with it.
-const SHAPE_LINE_POLYGON_OFFSET = [-2.0, -200.0];
+const SHAPE_LINE_DEPTH_BIAS = 0.0002;
 
 // A draft-era mesh collider points straight at a mesh instead of a shape, so synthesise the
 // shape the debug pass would have used. Memoised on the geometry so the buffer cache stays
@@ -1668,11 +1667,8 @@ class gltfRenderer {
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.enableVertexAttribArray(location);
 
-        // Shapes overlay the geometry they describe, so bias their depth towards the
-        // viewer to keep coincident edges and surfaces from z-fighting with the scene.
-        gl.enable(gl.POLYGON_OFFSET_FILL);
-        gl.enable(gl.POLYGON_OFFSET_LINE);
-
+        // Coincident shapes are pulled towards the viewer by a depth bias in the shader
+        // (see debug_shape.vert), so they never z-fight with the geometry they describe.
         for (const item of items) {
             const buffers = this.debugShapeBuffers(item.gltf, item.shape);
             if (buffers === undefined) {
@@ -1688,7 +1684,7 @@ class gltfRenderer {
                     vec4.fromValues(item.color[0], item.color[1], item.color[2], 0.25)
                 );
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.triIndices);
-                gl.polygonOffset(...SHAPE_FILL_POLYGON_OFFSET);
+                shader.updateUniform("u_DepthBias", SHAPE_FILL_DEPTH_BIAS);
                 gl.drawElements(gl.TRIANGLES, buffers.triCount, buffers.indexType, 0);
             }
             if (drawLines && buffers.lineCount > 0) {
@@ -1697,14 +1693,11 @@ class gltfRenderer {
                     vec4.fromValues(item.color[0], item.color[1], item.color[2], 1.0)
                 );
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.lineIndices);
-                gl.polygonOffset(...SHAPE_LINE_POLYGON_OFFSET);
+                shader.updateUniform("u_DepthBias", SHAPE_LINE_DEPTH_BIAS);
                 gl.drawElements(gl.LINES, buffers.lineCount, buffers.indexType, 0);
             }
         }
 
-        gl.polygonOffset(0, 0);
-        gl.disable(gl.POLYGON_OFFSET_FILL);
-        gl.disable(gl.POLYGON_OFFSET_LINE);
         gl.disableVertexAttribArray(location);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
