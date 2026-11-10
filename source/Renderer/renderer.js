@@ -33,6 +33,7 @@ import { gltfLight } from "../gltf/light.js";
 import { jsToGl } from "../gltf/utils.js";
 import { gltfMaterial } from "../gltf/material.js";
 import { getSceneExtents } from "../gltf/gltf_utils.js";
+import { createCameraGizmoLines, createLightGizmoLines } from "./gizmo_geometry.js";
 
 const CLIPPING_PLANE_COUNT = 6;
 
@@ -41,6 +42,9 @@ const WORLD_AXES = [
     vec3.fromValues(0.0, 1.0, 0.0),
     vec3.fromValues(0.0, 0.0, 1.0)
 ];
+
+// Color used for camera debug gizmos.
+const GIZMO_CAMERA_COLOR = vec4.fromValues(0.35, 0.7, 1.0, 1.0);
 
 /** Range the given box covers when projected onto an arbitrary (unit) axis. */
 function extentsAlongAxis(min, max, axis) {
@@ -168,6 +172,9 @@ class gltfRenderer {
         this.splatColorTexture = undefined;
         this.splatColorTextureHDR = undefined;
         this.splatFramebuffer = undefined;
+
+        // VBO reused by the light and camera debug gizmos.
+        this.debugGizmoBuffer = undefined;
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -1397,6 +1404,9 @@ class gltfRenderer {
             }
         }
 
+        // Debug gizmos for lights and cameras (drawn on top of the scene).
+        this.drawDebugGizmos(state);
+
         // Handle selection
         if (state.triggerSelection) {
             this.webGl.context.bindFramebuffer(
@@ -2414,6 +2424,92 @@ class gltfRenderer {
         }
 
         return nodeLights;
+    }
+
+    /// Draws wireframe gizmos for the scene's cameras and lights when
+    /// state.renderingParameters.debugGizmos is enabled.
+    drawDebugGizmos(state) {
+        const gltf = state.gltf;
+        if (gltf === undefined || !state.renderingParameters.debugGizmos) {
+            return;
+        }
+
+        const gizmos = [];
+        for (const node of this.nodes) {
+            if (node.camera !== undefined) {
+                const camera = gltf.cameras[node.camera];
+                if (camera !== undefined) {
+                    gizmos.push({
+                        node: node,
+                        color: GIZMO_CAMERA_COLOR,
+                        lines: createCameraGizmoLines(camera)
+                    });
+                }
+            }
+
+            const lightIndex = node.extensions?.KHR_lights_punctual?.light;
+            if (lightIndex !== undefined) {
+                const light = gltf.extensions?.KHR_lights_punctual?.lights[lightIndex];
+                if (light !== undefined) {
+                    const color = light.color ?? [1, 1, 1];
+                    gizmos.push({
+                        node: node,
+                        color: vec4.fromValues(color[0], color[1], color[2], 1.0),
+                        lines: createLightGizmoLines(light)
+                    });
+                }
+            }
+        }
+
+        if (gizmos.length === 0) {
+            return;
+        }
+
+        const fragmentHash = this.shaderCache.selectShader("simple.frag", []);
+        const vertexHash = this.shaderCache.selectShader("picking.vert", []);
+        this.shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
+        if (this.shader === undefined) {
+            return;
+        }
+
+        const gl = this.webGl.context;
+        gl.useProgram(this.shader.program);
+
+        const location = this.shader.getAttributeLocation("a_position");
+        if (location === null || location < 0) {
+            return;
+        }
+
+        this.shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
+        this.shader.updateUniform("u_ModelMatrix", mat4.create());
+
+        if (this.debugGizmoBuffer === undefined) {
+            this.debugGizmoBuffer = gl.createBuffer();
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.debugGizmoBuffer);
+        gl.enableVertexAttribArray(location);
+        gl.vertexAttribPointer(location, 3, gl.FLOAT, false, 0, 0);
+
+        // Draw the gizmos on top of the rendered scene so they stay visible.
+        gl.disable(gl.DEPTH_TEST);
+
+        // The main framebuffer has two color attachments (colour + tonemap flag),
+        // but simple.frag only writes the colour output. Restrict the active draw
+        // buffer for this line pass, then restore it below.
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+
+        for (const gizmo of gizmos) {
+            this.shader.updateUniform("u_ModelMatrix", gizmo.node.getRenderedWorldTransform());
+            this.shader.updateUniform("u_Color", gizmo.color);
+
+            gl.bufferData(gl.ARRAY_BUFFER, gizmo.lines, gl.STATIC_DRAW);
+            gl.drawArrays(gl.LINES, 0, gizmo.lines.length / 3);
+        }
+
+        gl.disableVertexAttribArray(location);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+        gl.enable(gl.DEPTH_TEST);
     }
 
     updateSkin(state, node) {
