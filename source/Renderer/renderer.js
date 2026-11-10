@@ -78,10 +78,10 @@ const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 // Pulls debug shape surfaces towards the viewer so they overlay the geometry they describe
 // instead of z-fighting with it. Applied as a clip-space depth bias in the shader rather
 // than with polygon offset, which is unreliable for line primitives on some drivers.
-const SHAPE_FILL_DEPTH_BIAS = 0.0001;
+const SHAPE_FILL_DEPTH_BIAS = 0.000002;
 // The wireframe edges are pulled a little further forward still, so they stay in front of
 // the translucent fill rather than z-fighting with it.
-const SHAPE_LINE_DEPTH_BIAS = 0.0002;
+const SHAPE_LINE_DEPTH_BIAS = 0.000005;
 
 // A draft-era mesh collider points straight at a mesh instead of a shape, so synthesise the
 // shape the debug pass would have used. Memoised on the geometry so the buffer cache stays
