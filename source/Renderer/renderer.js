@@ -2570,12 +2570,13 @@ class gltfRenderer {
     /// Draws the triangle edges of a primitive as black lines on top of the already rendered surface.
     drawWireframe(state, primitive, node, viewProjectionMatrix, instanceOffset = undefined) {
         const gl = this.webGl.context;
+        const gltf = node.ownerDocument ?? state.gltf;
 
         let vertDefines = [];
         this.pushVertParameterDefines(
             vertDefines,
             state.renderingParameters,
-            state.gltf,
+            gltf,
             node,
             primitive,
             state.renderingParameters.debugOutput
@@ -2616,10 +2617,10 @@ class gltfRenderer {
 
         let indexAccessor = undefined;
         if (primitive.indices !== undefined) {
-            if (!this.webGl.setIndices(state.gltf, primitive.indices)) {
+            if (!this.webGl.setIndices(gltf, primitive.indices)) {
                 return;
             }
-            indexAccessor = state.gltf.accessors[primitive.indices];
+            indexAccessor = gltf.accessors[primitive.indices];
         }
 
         const enabledLocations = [];
@@ -2628,8 +2629,8 @@ class gltfRenderer {
             if (location === undefined) {
                 continue;
             }
-            const gltfAccessor = state.gltf.accessors[attribute.accessor];
-            if (!this.webGl.enableAttribute(state.gltf, location, gltfAccessor)) {
+            const gltfAccessor = gltf.accessors[attribute.accessor];
+            if (!this.webGl.enableAttribute(gltf, location, gltfAccessor)) {
                 enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));
                 return;
             }
@@ -2661,7 +2662,7 @@ class gltfRenderer {
                 gl.drawElements(primitive.mode, count, componentType, 0);
             }
         } else {
-            const vertexCount = state.gltf.accessors[primitive.attributes.POSITION].count;
+            const vertexCount = gltf.accessors[primitive.attributes.POSITION].count;
             if (instanceOffset !== undefined) {
                 gl.drawArraysInstanced(primitive.mode, 0, vertexCount, instanceOffset.length);
             } else {
