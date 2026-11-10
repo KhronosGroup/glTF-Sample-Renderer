@@ -76,9 +76,21 @@ const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 // Pulls debug shapes towards the viewer so their edges and translucent surfaces overlay
-// the geometry they describe instead of z-fighting with it. Mesh-based shapes coincide
-// exactly with the surfaces they wrap, so they need more pull than the wireframe.
-const SHAPE_POLYGON_OFFSET_UNITS = -100.0;
+// the geometry they describe instead of z-fighting with it.
+const SHAPE_POLYGON_OFFSET_UNITS = -20.0;
+
+// A draft-era mesh collider points straight at a mesh instead of a shape, so synthesise the
+// shape the debug pass would have used. Memoised on the geometry so the buffer cache stays
+// stable across frames.
+function meshColliderShape(geometry) {
+    if (geometry.debugMeshShape === undefined) {
+        geometry.debugMeshShape = {
+            type: geometry.convexHull ? "convexMesh" : "mesh",
+            parameters: () => ({ mesh: geometry.mesh })
+        };
+    }
+    return geometry.debugMeshShape;
+}
 
 class gltfRenderer {
     constructor(context) {
@@ -1718,8 +1730,7 @@ class gltfRenderer {
                 continue;
             }
             const depth = depths.get(node) ?? 0;
-            const add = (shapeIndex, transform, isBoundingVolume) => {
-                const shape = gltf.shapes[shapeIndex];
+            const add = (shape, transform, isBoundingVolume) => {
                 if (shape === undefined) {
                     return;
                 }
@@ -1736,13 +1747,19 @@ class gltfRenderer {
             };
 
             if (drawBoundingVolumes && node.boundingVolume !== undefined) {
-                add(node.boundingVolume.shape, node.boundingVolume.getWorldTransform(node), true);
+                add(
+                    gltf.shapes[node.boundingVolume.shape],
+                    node.boundingVolume.getWorldTransform(node),
+                    true
+                );
             }
             if (parameters.allShapes) {
                 const physics = node.extensions?.KHR_physics_rigid_bodies;
                 for (const geometry of [physics?.collider?.geometry, physics?.trigger?.geometry]) {
                     if (geometry?.shape !== undefined) {
-                        add(geometry.shape, node.getRenderedWorldTransform(), false);
+                        add(gltf.shapes[geometry.shape], node.getRenderedWorldTransform(), false);
+                    } else if (geometry?.mesh !== undefined) {
+                        add(meshColliderShape(geometry), node.getRenderedWorldTransform(), false);
                     }
                 }
             }
