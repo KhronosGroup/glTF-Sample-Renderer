@@ -75,6 +75,9 @@ function extentsAlongAxis(min, max, axis) {
 const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
+// Pulls debug shapes towards the viewer so their edges and translucent surfaces overlay
+// the geometry they describe instead of z-fighting with it.
+const SHAPE_POLYGON_OFFSET_UNITS = -10.0;
 
 class gltfRenderer {
     constructor(context) {
@@ -1647,6 +1650,12 @@ class gltfRenderer {
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.enableVertexAttribArray(location);
 
+        // Shapes overlay the geometry they describe, so bias their depth towards the
+        // viewer to keep coincident edges and surfaces from z-fighting with the scene.
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        gl.enable(gl.POLYGON_OFFSET_LINE);
+        gl.polygonOffset(0, SHAPE_POLYGON_OFFSET_UNITS);
+
         for (const item of items) {
             const buffers = this.debugShapeBuffers(item.gltf, item.shape);
             if (buffers === undefined) {
@@ -1674,6 +1683,9 @@ class gltfRenderer {
             }
         }
 
+        gl.polygonOffset(0, 0);
+        gl.disable(gl.POLYGON_OFFSET_FILL);
+        gl.disable(gl.POLYGON_OFFSET_LINE);
         gl.disableVertexAttribArray(location);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
