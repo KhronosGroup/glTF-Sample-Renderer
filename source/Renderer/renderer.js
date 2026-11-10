@@ -1932,9 +1932,12 @@ class gltfRenderer {
         if (this.clippingPlanes !== undefined) {
             this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
         }
-        if (renderpassConfiguration.picking) {
+        if (
+            renderpassConfiguration.picking ||
+            state.renderingParameters.debugOutput === GltfState.DebugOutput.generic.PICKING_COLOR
+        ) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
-        } 
+        }
 
         this.updateAnimationUniforms(state, node, primitive);
 
@@ -2523,6 +2526,10 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_OCCLUSION"
             },
             { debugOutput: GltfState.DebugOutput.generic.EMISSIVE, shaderDefine: "DEBUG_EMISSIVE" },
+            {
+                debugOutput: GltfState.DebugOutput.generic.PICKING_COLOR,
+                shaderDefine: "DEBUG_PICKING_COLOR"
+            },
 
             { debugOutput: GltfState.DebugOutput.mr.BASECOLOR, shaderDefine: "DEBUG_BASE_COLOR" },
             { debugOutput: GltfState.DebugOutput.mr.ROUGHNESS, shaderDefine: "DEBUG_ROUGHNESS" },
