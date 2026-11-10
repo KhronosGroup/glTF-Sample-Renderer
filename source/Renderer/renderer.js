@@ -76,8 +76,9 @@ const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 // Pulls debug shapes towards the viewer so their edges and translucent surfaces overlay
-// the geometry they describe instead of z-fighting with it.
-const SHAPE_POLYGON_OFFSET_UNITS = -10.0;
+// the geometry they describe instead of z-fighting with it. Mesh-based shapes coincide
+// exactly with the surfaces they wrap, so they need more pull than the wireframe.
+const SHAPE_POLYGON_OFFSET_UNITS = -100.0;
 
 class gltfRenderer {
     constructor(context) {
