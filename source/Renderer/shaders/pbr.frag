@@ -712,6 +712,15 @@ void main()
 #if DEBUG == DEBUG_EMISSIVE
     g_finalColor.rgb = linearTosRGB(f_emissive);
 #endif
+#if DEBUG == DEBUG_PICKING_COLOR
+    // Color each node by its picking color (the ID written by the picking pass).
+    uint nodeId = u_PickingColor;
+    g_finalColor.rgb = vec3(
+        float((nodeId * 53u) & 255u),
+        float((nodeId * 97u) & 255u),
+        float((nodeId * 193u) & 255u)
+    ) / 255.0;
+#endif
 
 
 #if DEBUG == DEBUG_METALLIC

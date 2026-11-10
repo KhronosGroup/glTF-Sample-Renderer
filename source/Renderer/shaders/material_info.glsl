@@ -53,6 +53,8 @@ uniform float u_AlphaCutoff;
 
 uniform vec3 u_Camera;
 
+uniform uint u_PickingColor;
+
 #ifdef MATERIAL_TRANSMISSION
 uniform ivec2 u_ScreenSize;
 #endif
