@@ -226,7 +226,7 @@ GltfState.DebugOutput = {
         /** output the emissive value */
         EMISSIVE: "Emissive",
         /** color each node with its picking color (used by the picking pass) */
-        PICKING_COLOR: "Picking Color"
+        PICKING_COLOR: "Node ID"
     },
 
     /** metallic roughness */
