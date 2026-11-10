@@ -75,12 +75,14 @@ function extentsAlongAxis(min, max, axis) {
 const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
-// Pulls the translucent solid overlay towards the viewer so it covers the geometry it
-// describes instead of z-fighting with it.
-const SHAPE_FILL_POLYGON_OFFSET_UNITS = -10.0;
-// Pulls the wireframe edges a little further forward still, so they stay clearly in front
-// of the translucent fill rather than z-fighting with it.
-const SHAPE_LINE_POLYGON_OFFSET_UNITS = -20.0;
+// Pulls debug shape surfaces towards the viewer so they overlay the geometry they describe
+// instead of being overdrawn by it. [factor, units] pairs: the factor scales the pull with
+// the depth slope, which is what keeps grazing surfaces in front, and the units add the
+// constant offset.
+const SHAPE_FILL_POLYGON_OFFSET = [-1.0, -100.0];
+// The wireframe edges are pulled a little further forward still, so they stay in front of
+// the translucent fill rather than z-fighting with it.
+const SHAPE_LINE_POLYGON_OFFSET = [-2.0, -200.0];
 
 // A draft-era mesh collider points straight at a mesh instead of a shape, so synthesise the
 // shape the debug pass would have used. Memoised on the geometry so the buffer cache stays
@@ -1686,7 +1688,7 @@ class gltfRenderer {
                     vec4.fromValues(item.color[0], item.color[1], item.color[2], 0.25)
                 );
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.triIndices);
-                gl.polygonOffset(0, SHAPE_FILL_POLYGON_OFFSET_UNITS);
+                gl.polygonOffset(...SHAPE_FILL_POLYGON_OFFSET);
                 gl.drawElements(gl.TRIANGLES, buffers.triCount, buffers.indexType, 0);
             }
             if (drawLines && buffers.lineCount > 0) {
@@ -1695,7 +1697,7 @@ class gltfRenderer {
                     vec4.fromValues(item.color[0], item.color[1], item.color[2], 1.0)
                 );
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.lineIndices);
-                gl.polygonOffset(0, SHAPE_LINE_POLYGON_OFFSET_UNITS);
+                gl.polygonOffset(...SHAPE_LINE_POLYGON_OFFSET);
                 gl.drawElements(gl.LINES, buffers.lineCount, buffers.indexType, 0);
             }
         }
