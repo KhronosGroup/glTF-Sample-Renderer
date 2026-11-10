@@ -12,7 +12,6 @@
     "scripts": {
         "build": "rolldown -c",
         "watch": "rolldown -c -w",
-        "testApp": "npm run build & npx serve ./dist",
         "test": "npx playwright test",
         "test:unit": "vitest run",
         "test:unit:watch": "vitest",
@@ -54,7 +53,6 @@
         "pixelmatch": "^8.0.0",
         "prettier": "^3.9.10",
         "rolldown": "^1.2.15",
-        "serve": "^14.2.5",
         "vitest": "^4.1.11"
     },
     "overrides": {
