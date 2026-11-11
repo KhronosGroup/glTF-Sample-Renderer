@@ -69,7 +69,10 @@ function extentsAlongAxis(min, max, axis) {
 }
 
 // Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
-const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
+// Applied as a clip-space depth bias in the shader (see primitive.vert) rather than with
+// polygon offset, which is unavailable for line primitives in WebGL2 and unreliable on
+// some drivers.
+const WIREFRAME_DEPTH_BIAS = 0.000004;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 
@@ -2292,6 +2295,7 @@ class gltfRenderer {
         if (this.clippingPlanes !== undefined) {
             vertDefines.push("USE_CLIPPING 1");
         }
+        vertDefines.push("USE_WIREFRAME 1");
 
         const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
         const fragmentHash = this.shaderCache.selectShader("wireframe.frag", []);
@@ -2313,6 +2317,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
+        this.shader.updateUniform("u_DepthBias", WIREFRAME_DEPTH_BIAS);
         if (this.clippingPlanes !== undefined) {
             this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
         }
@@ -2348,8 +2353,6 @@ class gltfRenderer {
         gl.disable(GL.BLEND);
         gl.depthMask(false);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
-        gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
-        gl.polygonOffset(0, WIREFRAME_POLYGON_OFFSET_UNITS);
         this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
         if (indexAccessor !== undefined) {
@@ -2375,7 +2378,6 @@ class gltfRenderer {
         }
 
         this.setClipDistancesEnabled(false);
-        gl.disable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
         gl.depthMask(true);
         enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));

@@ -9,6 +9,12 @@ uniform mat4 u_ViewProjectionMatrix;
 uniform mat4 u_ModelMatrix;
 uniform mat4 u_NormalMatrix;
 
+#ifdef USE_WIREFRAME
+// Pulls the wireframe overlay towards the viewer so it draws in front of the surface it
+// describes instead of z-fighting with it.
+uniform float u_DepthBias;
+#endif
+
 #ifdef USE_CLIPPING
 // Six half spaces forming a cuboid, each pointing at the part that is kept.
 uniform vec4 u_ClippingPlanes[6];
@@ -203,5 +209,13 @@ void main()
     gl_ClipDistance[5] = dot(clipPosition, u_ClippingPlanes[5]);
 #endif
 
-    gl_Position = u_ViewProjectionMatrix * pos;
+    vec4 projectedPosition = u_ViewProjectionMatrix * pos;
+#ifdef USE_WIREFRAME
+    // The wireframe is rasterised from the same vertices as the shaded surface, so its
+    // depth matches exactly and z-fights with it. Polygon offset is not available for
+    // line primitives in WebGL2 (POLYGON_OFFSET_LINE_WEBGL is WebGL1-only) and is
+    // unreliable on some drivers, so bias in clip space instead.
+    projectedPosition.z -= u_DepthBias * projectedPosition.w;
+#endif
+    gl_Position = projectedPosition;
 }
