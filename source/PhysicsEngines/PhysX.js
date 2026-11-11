@@ -837,6 +837,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             actor.setMass(motion.mass);
         }
         if (
+            motion.animatedPropertyObjects.mass.dirty ||
             motion.animatedPropertyObjects.centerOfMass.dirty ||
             motion.animatedPropertyObjects.inertiaOrientation.dirty ||
             motion.animatedPropertyObjects.inertiaDiagonal.dirty
@@ -2039,10 +2040,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 inertiaDiagonalMat[4] = motion.inertiaDiagonal[1];
                 inertiaDiagonalMat[8] = motion.inertiaDiagonal[2];
 
-                if (
-                    quat.length(motion.inertiaOrientation) > 1.0e-5 ||
-                    quat.length(motion.inertiaOrientation) < 1.0e-5
-                ) {
+                if (Math.abs(quat.length(motion.inertiaOrientation) - 1.0) > 1.0e-5) {
                     mat3.identity(intertiaRotMat);
                     console.warn(
                         "PhysX: Invalid inertia orientation quaternion, ignoring rotation"
