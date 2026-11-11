@@ -1,16 +1,11 @@
-// eslint-disable-next-line no-unused-vars
-/* globals LIBKTX */
+import createKtxModule from "../libs/libktx.js";
 
 class KtxDecoder {
-    constructor(context, externalKtxlib) {
+    constructor(context, externalKtxlib = createKtxModule, libPath = "./libs/") {
         this.gl = context;
         this.libktx = null;
+        this.libPath = libPath;
         if (context !== undefined) {
-            // eslint-disable-next-line no-undef
-            if (externalKtxlib === undefined && createKtxModule !== undefined) {
-                // eslint-disable-next-line no-undef
-                externalKtxlib = createKtxModule;
-            }
             if (externalKtxlib !== undefined) {
                 this.initializied = this.init(context, externalKtxlib);
             } else {
@@ -24,9 +19,14 @@ class KtxDecoder {
     }
 
     async init(context, externalKtxlib) {
-        this.libktx = await externalKtxlib({
-            preinitializedWebGLContext: context
-        });
+        const moduleOptions = { preinitializedWebGLContext: context };
+        // The bundled lib is evaluated as part of this module and therefore cannot
+        // locate its .wasm via document.currentScript, so point it at the lib folder.
+        // An externally supplied lib (e.g. from a CDN) locates its own .wasm.
+        if (externalKtxlib === createKtxModule) {
+            moduleOptions.locateFile = (path) => this.libPath + path;
+        }
+        this.libktx = await externalKtxlib(moduleOptions);
         this.libktx.GL.makeContextCurrent(
             this.libktx.GL.createContext(null, { majorVersion: 2.0 })
         );

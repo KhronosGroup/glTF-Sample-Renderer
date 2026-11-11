@@ -65,10 +65,11 @@ function copyAssets() {
         buildEnd() {
             mkdirSync("dist/assets", { recursive: true });
             cpSync("assets/images/lut_sheen_E.png", "dist/assets/lut_sheen_E.png");
-            // hdrpng.js is imported by the renderer and bundled, not loaded at runtime
+            // hdrpng.js and libktx.js are imported by the renderer and bundled,
+            // not loaded at runtime
             cpSync("source/libs", "dist/libs", {
                 recursive: true,
-                filter: (src) => !src.endsWith("hdrpng.js")
+                filter: (src) => !src.endsWith("hdrpng.js") && !src.endsWith("libktx.js")
             });
         }
     };
@@ -77,8 +78,8 @@ function copyAssets() {
 export default defineConfig({
     input: ["source/gltf-sample-renderer.js"],
     platform: "browser",
-    // Node built-ins are only reached in Node-only branches of the wasm helper, PhysX and mikktspace
-    external: ["gl-matrix", "fs", "path", "url"],
+    // Node built-ins are only reached in Node-only branches of the wasm helper, PhysX, mikktspace and libktx
+    external: ["gl-matrix", "crypto", "fs", "path", "url"],
     output: {
         file: "dist/gltf-viewer.module.js",
         format: "esm",

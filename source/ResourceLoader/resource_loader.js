@@ -149,7 +149,7 @@ class ResourceLoader {
      * @param {Object} [externalKtxLib] external ktx library (for example from a CDN)
      */
     initKtxLib(externalKtxLib) {
-        this.view.ktxDecoder = new KtxDecoder(this.view.context, externalKtxLib);
+        this.view.ktxDecoder = new KtxDecoder(this.view.context, externalKtxLib, this.libPath);
     }
 
     /**
