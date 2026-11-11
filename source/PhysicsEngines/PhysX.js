@@ -1408,15 +1408,23 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         const positionData = new Float32Array(positionCount * 3);
         const indexData = new Uint32Array(indexCount);
-        let offset = 0;
-        for (const positionChunk of positionDataArray) {
-            positionData.set(positionChunk, offset);
-            offset += positionChunk.length;
-        }
-        offset = 0;
-        for (const indexChunk of indexDataArray) {
-            indexData.set(indexChunk, offset);
-            offset += indexChunk.length;
+        let positionOffset = 0;
+        let indexOffset = 0;
+        let vertexOffset = 0;
+        for (let i = 0; i < positionDataArray.length; i++) {
+            const positionChunk = positionDataArray[i];
+            positionData.set(positionChunk, positionOffset);
+            positionOffset += positionChunk.length;
+
+            if (computeIndices) {
+                const indexChunk = indexDataArray[i];
+                for (let j = 0; j < indexChunk.length; j++) {
+                    indexData[indexOffset + j] = indexChunk[j] + vertexOffset;
+                }
+                indexOffset += indexChunk.length;
+            }
+
+            vertexOffset += positionChunk.length / 3;
         }
         return { vertices: positionData, indices: indexData };
     }
