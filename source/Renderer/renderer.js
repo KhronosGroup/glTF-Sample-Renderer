@@ -1341,12 +1341,14 @@ class gltfRenderer {
             );
         }
 
-        // filter materials with transmission extension
+        // Depth-sort transmissive surfaces but never skip them by centroid: a
+        // primitive whose centroid is behind the camera can still have part of
+        // its geometry in front of it. The GPU clips anything past the near plane.
         this.transmissionDrawables = currentCamera.sortPrimitivesByDepth(
             state.gltf,
             this.transmissionDrawables
         );
-        for (const drawable of this.transmissionDrawables.filter((a) => a.depth <= 0)) {
+        for (const drawable of this.transmissionDrawables) {
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = true;
             renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
@@ -1379,7 +1381,7 @@ class gltfRenderer {
         // immediately composited back into mainFramebuffer before the next
         // drawable is processed.  This preserves correct depth-sorted blending
         // order between splats and regular transparent geometry.
-        for (const drawable of this.transparentDrawables.filter((a) => a.depth <= 0)) {
+        for (const drawable of this.transparentDrawables) {
             if (
                 drawable.primitive.extensions?.KHR_gaussian_splatting !== undefined &&
                 state.renderingParameters.enabledExtensions.KHR_gaussian_splatting
