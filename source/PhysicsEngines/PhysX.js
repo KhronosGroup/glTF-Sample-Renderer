@@ -1792,8 +1792,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     actor.setMass(motion.mass);
                 }
 
-                this.calculateMassAndInertia(motion, actor);
-
                 if (motion.gravityFactor !== 1.0) {
                     actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_GRAVITY, true);
                 }
@@ -1933,6 +1931,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     [noMeshShapes, shapeFlags, triggerFlags]
                 );
             }
+        }
+
+        // Compute mass and inertia after all collider shapes have been attached,
+        // since PhysX derives the inertia tensor from the shape geometry.
+        const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
+        if (motion !== undefined && (type === "dynamic" || type === "kinematic")) {
+            this.calculateMassAndInertia(motion, actor);
         }
 
         this.PhysX.destroy(pos);
