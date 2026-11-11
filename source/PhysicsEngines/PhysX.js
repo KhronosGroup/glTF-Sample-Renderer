@@ -2143,17 +2143,17 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      * enum value.
      *
      * @param {0|1|2} axisIndex - The axis index (0 = Twist, 1 = Swing1, 2 = Swing2).
-     * @returns {number|null} The matching `PxD6DriveEnum` constant (or a raw integer
-     *   for axes not yet exposed by the bindings), or `null` if not recognised.
+     * @returns {number|null} The matching `PxD6DriveEnum` constant, or `null` if
+     *   not recognised.
      */
     convertAxisIndexToAngularDriveEnum(axisIndex) {
         switch (axisIndex) {
             case 0:
                 return this.PhysX.PxD6DriveEnum.eTWIST;
             case 1:
-                return 6; // Currently not exposed via bindings
+                return this.PhysX.PxD6DriveEnum.eSWING1;
             case 2:
-                return 7; // Currently not exposed via bindings
+                return this.PhysX.PxD6DriveEnum.eSWING2;
         }
         return null;
     }
