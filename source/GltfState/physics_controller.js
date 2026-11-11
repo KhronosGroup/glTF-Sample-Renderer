@@ -302,14 +302,15 @@ class PhysicsController {
             this.timeAccumulator = this.simulationStepTime;
             this.pauseTime = undefined;
         }
-        if (
+        // Advance the simulation in fixed-size steps so that small, fast-moving
+        // bodies cannot tunnel through geometry in a single large step.
+        while (
             this.enabled &&
             this.engine &&
-            state &&
-            this.timeAccumulator >= this.simulationStepTime * 0.9
+            this.timeAccumulator >= this.simulationStepTime
         ) {
-            this.engine.simulateStep(state, this.timeAccumulator);
-            this.timeAccumulator = 0;
+            this.engine.simulateStep(state, this.simulationStepTime);
+            this.timeAccumulator -= this.simulationStepTime;
         }
     }
 

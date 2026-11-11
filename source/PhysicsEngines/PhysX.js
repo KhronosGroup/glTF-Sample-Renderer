@@ -1483,6 +1483,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         const ms = new this.PhysX.PxMeshScale(PxScale, PxQuat);
         const f = new this.PhysX.PxMeshGeometryFlags();
+        f.raise(this.PhysX.PxMeshGeometryFlagEnum.eDOUBLE_SIDED);
         const geometry = new this.PhysX.PxTriangleMeshGeometry(tri, ms, f);
         this.PhysX.destroy(PxScale);
         this.PhysX.destroy(PxQuat);
