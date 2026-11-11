@@ -11,15 +11,19 @@ precision highp float;
 
 uniform sampler2D u_MainSampler;
 uniform lowp usampler2D u_TonemapSampler;
-
-in vec2 v_uv;
+uniform vec2 u_TextureSize;
 
 out vec4 g_finalColor;
 
 void main()
 {
-    uint splatCoverage = texture(u_TonemapSampler, v_uv).r;
-    vec4  color          = texture(u_MainSampler, v_uv);
+    // Sample the render target in framebuffer space: gl_FragCoord is relative to
+    // the framebuffer, so it maps 1:1 onto the full-size textures even when this
+    // pass draws into a letterboxed viewport.
+    vec2 uv = gl_FragCoord.xy / u_TextureSize;
+
+    uint splatCoverage = texture(u_TonemapSampler, uv).r;
+    vec4  color          = texture(u_MainSampler, uv);
 
     if (splatCoverage == 2u) {
         color.rgb = toneMap(color.rgb);

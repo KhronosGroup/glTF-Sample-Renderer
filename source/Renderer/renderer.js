@@ -905,15 +905,28 @@ class gltfRenderer {
         let aspectWidth = this.currentWidth;
         let aspectOffsetX = 0;
         let aspectOffsetY = 0;
-        const currentAspectRatio = aspectWidth / aspectHeight;
-        if (currentCamera.type !== "perspective") {
-            const orthoAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
-            if (orthoAspect > currentAspectRatio) {
-                aspectHeight = (aspectWidth * 1) / orthoAspect;
-            } else {
-                aspectWidth = aspectHeight * orthoAspect;
+
+        // The aspect ratio the projection is authored for. Perspective cameras
+        // use their own aspectRatio when defined, orthographic cameras derive it
+        // from xmag/ymag, and otherwise the viewport's ratio is used.
+        let projectionAspect = aspectWidth / aspectHeight;
+        if (currentCamera.type === "perspective") {
+            const cameraAspect = currentCamera.perspective.aspectRatio;
+            if (cameraAspect > 0) {
+                projectionAspect = cameraAspect;
             }
+        } else {
+            projectionAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
         }
+
+        // Letterbox the viewport so the rendered content keeps the projection's
+        // aspect ratio regardless of the canvas shape.
+        if (projectionAspect > aspectWidth / aspectHeight) {
+            aspectHeight = aspectWidth / projectionAspect;
+        } else {
+            aspectWidth = aspectHeight * projectionAspect;
+        }
+
         if (aspectHeight < this.currentHeight) {
             aspectOffsetY = (this.currentHeight - aspectHeight) / 2;
         }
@@ -921,7 +934,7 @@ class gltfRenderer {
             aspectOffsetX = (this.currentWidth - aspectWidth) / 2;
         }
 
-        this.projMatrix = currentCamera.getProjectionMatrix(currentAspectRatio);
+        this.projMatrix = currentCamera.getProjectionMatrix(projectionAspect);
         this.viewMatrix = currentCamera.getViewMatrix(state.gltf);
         this.currentCameraPosition = currentCamera.getPosition(state.gltf);
 
@@ -1730,6 +1743,11 @@ class gltfRenderer {
 
         gl.useProgram(shader.program);
         shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform(
+            "u_TextureSize",
+            new Float32Array([this.currentWidth, this.currentHeight]),
+            false
+        );
 
         const hdrLoc = shader.getUniformLocation("u_MainSampler");
         gl.activeTexture(GL.TEXTURE0);
@@ -1785,6 +1803,11 @@ class gltfRenderer {
         gl.uniform1i(samplerLoc, 0);
 
         shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform(
+            "u_TextureSize",
+            new Float32Array([this.currentWidth, this.currentHeight]),
+            false
+        );
 
         // Bind the fullscreen quad VBO (a_position attribute expected by fullscreen.vert).
         gl.bindBuffer(gl.ARRAY_BUFFER, this.splatVBO);
@@ -2462,7 +2485,10 @@ class gltfRenderer {
                     gizmos.push({
                         modelMatrix: node.getRenderedWorldTransform(),
                         color: GIZMO_CAMERA_COLOR,
-                        lines: createCameraGizmoLines(camera)
+                        lines: createCameraGizmoLines(
+                            camera,
+                            this.currentWidth / this.currentHeight
+                        )
                     });
                 }
             }

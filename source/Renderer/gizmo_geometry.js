@@ -82,7 +82,7 @@ function finitePlaneDistance(value, fallback) {
  * -Z, with the camera position at the origin. The near and far planes reflect
  * the camera's znear/zfar (the far plane is omitted when zfar is infinite).
  */
-export function createCameraGizmoLines(camera) {
+export function createCameraGizmoLines(camera, fallbackAspect) {
     const lines = [];
 
     if (camera?.type === "orthographic") {
@@ -116,7 +116,10 @@ export function createCameraGizmoLines(camera) {
         pushLineV(lines, nbl, fbl);
     } else {
         const yfov = camera?.perspective?.yfov ?? Math.PI / 4;
-        const aspect = camera?.perspective?.aspectRatio || 1;
+        // Match what the renderer projects: the camera's own aspectRatio when
+        // defined, otherwise the viewport's aspect ratio.
+        const cameraAspect = camera?.perspective?.aspectRatio;
+        const frustumAspect = cameraAspect > 0 ? cameraAspect : (fallbackAspect ?? 1);
         const tanHalf = Math.tan(yfov / 2.0);
 
         const znear = Math.max(finitePlaneDistance(camera.perspective.znear, 0.1), 1e-4);
@@ -126,9 +129,9 @@ export function createCameraGizmoLines(camera) {
         const zfar = hasFar ? Math.max(zfarRaw, znear) : znear * 20.0;
 
         const nearHalfY = tanHalf * znear;
-        const nearHalfX = nearHalfY * aspect;
+        const nearHalfX = nearHalfY * frustumAspect;
         const farHalfY = tanHalf * zfar;
-        const farHalfX = farHalfY * aspect;
+        const farHalfX = farHalfY * frustumAspect;
 
         const nearZ = -znear;
         const farZ = -zfar;
