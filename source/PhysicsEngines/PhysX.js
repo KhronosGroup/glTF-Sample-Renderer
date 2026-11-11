@@ -1552,7 +1552,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (filterCount > 31) {
             filterCount = 31;
             console.warn(
-                "PhysX supports a maximum of 31 collision filters. Additional filters will be ignored."
+                "The collision filter system supports a maximum of 31 filters. Additional filters will be ignored."
             );
         }
 
