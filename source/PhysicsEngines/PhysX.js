@@ -23,6 +23,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.physics = undefined;
         this.defaultMaterial = undefined;
         this.tolerances = undefined;
+        this.version = undefined;
 
         this.reset = false;
 
@@ -60,25 +61,21 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     async initializeEngine() {
         this.PhysX = await PhysX({ locateFile: () => "./libs/physx-js-webidl.wasm" });
         const version = this.PhysX.PHYSICS_VERSION;
-        console.log(
-            "PhysX loaded! Version: " +
-                ((version >> 24) & 0xff) +
-                "." +
-                ((version >> 16) & 0xff) +
-                "." +
-                ((version >> 8) & 0xff)
-        );
+        this.version =
+            ((version >> 24) & 0xff) +
+            "." +
+            ((version >> 16) & 0xff) +
+            "." +
+            ((version >> 8) & 0xff);
 
         const allocator = new this.PhysX.PxDefaultAllocator();
         const errorCb = new this.PhysX.PxDefaultErrorCallback();
         const foundation = this.PhysX.CreateFoundation(version, allocator, errorCb);
-        console.log("Created PxFoundation");
 
         this.tolerances = new this.PhysX.PxTolerancesScale();
         this.tolerances.speed = 9.81;
         this.physics = this.PhysX.CreatePhysics(version, foundation, this.tolerances);
         this.defaultMaterial = this.createPhysXMaterial(new gltfPhysicsMaterial());
-        console.log("Created PxPhysics");
         return this.PhysX;
     }
 
@@ -192,14 +189,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let triggerCallback;
 
         if (triggerNodes.length > 0) {
-            console.log("Enabling trigger report callback");
             triggerCallback = new this.PhysX.PxSimulationEventCallbackImpl();
             triggerCallback.onTrigger = (pairs, count) => {
                 for (const compoundTrigger of state.physicsController.compoundTriggerNodes.values()) {
                     compoundTrigger.added.clear();
                     compoundTrigger.removed.clear();
                 }
-                console.log("Trigger callback called with", count, "pairs");
                 for (let i = 0; i < count; i++) {
                     const pair = this.PhysX.NativeArrayHelpers.prototype.getTriggerPairAt(pairs, i);
                     const triggerShape = pair.triggerShape;
@@ -281,7 +276,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         this.scene = this.physics.createScene(sceneDesc);
 
-        console.log("Created scene");
         const shapeFlags = new this.PhysX.PxShapeFlags(
             this.PhysX.PxShapeFlagEnum.eSCENE_QUERY_SHAPE |
                 this.PhysX.PxShapeFlagEnum.eSIMULATION_SHAPE

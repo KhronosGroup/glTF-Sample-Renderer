@@ -92,6 +92,15 @@ class PhysicsController {
     }
 
     /**
+     * Returns the version string of the initialized physics engine, or undefined
+     * if the engine has not been initialized yet.
+     * @returns {string | undefined}
+     */
+    getEngineVersion() {
+        return this.engine?.version;
+    }
+
+    /**
      * Resets the current physics state and loads the physics data for a given scene and initializes the physics simulation.
      * The first two frames of the simulation are skipped to allow the physics engine to initialize before applying any physics updates.
      * Resets all dirty flags.

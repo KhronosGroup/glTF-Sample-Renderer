@@ -377,12 +377,9 @@ class gltfPrimitive extends GltfObject {
             this.attributes.TEXCOORD_0 !== undefined &&
             this.mode > 3
         ) {
-            console.info("Generating tangents using the MikkTSpace algorithm.");
-            console.time("Tangent generation");
             const tangentHash = `${this.indices}_${this.attributes.POSITION}_${this.attributes.NORMAL}_${this.attributes.TEXCOORD_0}`;
             this.unweld(gltf);
             this.generateTangents(gltf, tangentHash);
-            console.timeEnd("Tangent generation");
         }
 
         // VERTEX ATTRIBUTES
