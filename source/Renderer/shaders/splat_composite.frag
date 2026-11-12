@@ -8,14 +8,16 @@ precision highp float;
 //   location 1 – toneMapFlag  1u = "linearToSRGB" for the tonemap_main pass
 
 uniform sampler2D u_SplatSampler;
-
-in vec2 v_uv;
+uniform vec2 u_TextureSize;
 
 layout(location = 0) out vec4 g_finalColor;
 layout(location = 1) out uint g_toneMapFlag;
 
 void main() {
-    vec4 splat = texture(u_SplatSampler, v_uv);
+    // gl_FragCoord is framebuffer-relative, so it maps 1:1 onto the full-size
+    // splat texture even when this pass draws into a letterboxed viewport.
+    vec2 uv = gl_FragCoord.xy / u_TextureSize;
+    vec4 splat = texture(u_SplatSampler, uv);
 
     // Discard fully-transparent fragments so the toneMapFlag texture is not
     // overwritten for pixels that were never touched by a splat.

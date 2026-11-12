@@ -83,7 +83,10 @@ function extentsAlongAxis(min, max, axis) {
 }
 
 // Pulls the wireframe towards the viewer to avoid z-fighting with the shaded surface.
-const WIREFRAME_POLYGON_OFFSET_UNITS = -10.0;
+// Applied as a clip-space depth bias in the shader (see primitive.vert) rather than with
+// polygon offset, which is unavailable for line primitives in WebGL2 and unreliable on
+// some drivers.
+const WIREFRAME_DEPTH_BIAS = 0.000004;
 // How far the shaded surface is blended towards white so the black lines stand out.
 const WIREFRAME_SURFACE_BRIGHTEN = 0.4;
 // Pulls debug shape surfaces towards the viewer so they overlay the geometry they describe
@@ -954,15 +957,28 @@ class gltfRenderer {
         let aspectWidth = this.currentWidth;
         let aspectOffsetX = 0;
         let aspectOffsetY = 0;
-        const currentAspectRatio = aspectWidth / aspectHeight;
-        if (currentCamera.type !== "perspective") {
-            const orthoAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
-            if (orthoAspect > currentAspectRatio) {
-                aspectHeight = (aspectWidth * 1) / orthoAspect;
-            } else {
-                aspectWidth = aspectHeight * orthoAspect;
+
+        // The aspect ratio the projection is authored for. Perspective cameras
+        // use their own aspectRatio when defined, orthographic cameras derive it
+        // from xmag/ymag, and otherwise the viewport's ratio is used.
+        let projectionAspect = aspectWidth / aspectHeight;
+        if (currentCamera.type === "perspective") {
+            const cameraAspect = currentCamera.perspective.aspectRatio;
+            if (cameraAspect > 0) {
+                projectionAspect = cameraAspect;
             }
+        } else {
+            projectionAspect = currentCamera.orthographic.xmag / currentCamera.orthographic.ymag;
         }
+
+        // Letterbox the viewport so the rendered content keeps the projection's
+        // aspect ratio regardless of the canvas shape.
+        if (projectionAspect > aspectWidth / aspectHeight) {
+            aspectHeight = aspectWidth / projectionAspect;
+        } else {
+            aspectWidth = aspectHeight * projectionAspect;
+        }
+
         if (aspectHeight < this.currentHeight) {
             aspectOffsetY = (this.currentHeight - aspectHeight) / 2;
         }
@@ -970,7 +986,7 @@ class gltfRenderer {
             aspectOffsetX = (this.currentWidth - aspectWidth) / 2;
         }
 
-        this.projMatrix = currentCamera.getProjectionMatrix(currentAspectRatio);
+        this.projMatrix = currentCamera.getProjectionMatrix(projectionAspect);
         this.viewMatrix = currentCamera.getViewMatrix(state.gltf);
         this.currentCameraPosition = currentCamera.getPosition(state.gltf);
 
@@ -1379,12 +1395,14 @@ class gltfRenderer {
             );
         }
 
-        // filter materials with transmission extension
+        // Depth-sort transmissive surfaces but never skip them by centroid: a
+        // primitive whose centroid is behind the camera can still have part of
+        // its geometry in front of it. The GPU clips anything past the near plane.
         this.transmissionDrawables = currentCamera.sortPrimitivesByDepth(
             state.gltf,
             this.transmissionDrawables
         );
-        for (const drawable of this.transmissionDrawables.filter((a) => a.depth <= 0)) {
+        for (const drawable of this.transmissionDrawables) {
             let renderpassConfiguration = {};
             renderpassConfiguration.linearOutput = true;
             renderpassConfiguration.frameBufferSize = [this.currentWidth, this.currentHeight];
@@ -1417,7 +1435,7 @@ class gltfRenderer {
         // immediately composited back into mainFramebuffer before the next
         // drawable is processed.  This preserves correct depth-sorted blending
         // order between splats and regular transparent geometry.
-        for (const drawable of this.transparentDrawables.filter((a) => a.depth <= 0)) {
+        for (const drawable of this.transparentDrawables) {
             if (
                 drawable.primitive.extensions?.KHR_gaussian_splatting !== undefined &&
                 state.renderingParameters.enabledExtensions.KHR_gaussian_splatting
@@ -2078,6 +2096,11 @@ class gltfRenderer {
 
         gl.useProgram(shader.program);
         shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform(
+            "u_TextureSize",
+            new Float32Array([this.currentWidth, this.currentHeight]),
+            false
+        );
 
         const hdrLoc = shader.getUniformLocation("u_MainSampler");
         gl.activeTexture(GL.TEXTURE0);
@@ -2133,6 +2156,11 @@ class gltfRenderer {
         gl.uniform1i(samplerLoc, 0);
 
         shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform(
+            "u_TextureSize",
+            new Float32Array([this.currentWidth, this.currentHeight]),
+            false
+        );
 
         // Bind the fullscreen quad VBO (a_position attribute expected by fullscreen.vert).
         gl.bindBuffer(gl.ARRAY_BUFFER, this.splatVBO);
@@ -2634,6 +2662,7 @@ class gltfRenderer {
         if (this.clippingPlanes !== undefined) {
             vertDefines.push("USE_CLIPPING 1");
         }
+        vertDefines.push("USE_WIREFRAME 1");
 
         const vertexHash = this.shaderCache.selectShader("primitive.vert", vertDefines);
         const fragmentHash = this.shaderCache.selectShader("wireframe.frag", []);
@@ -2655,6 +2684,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
         this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
         this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
+        this.shader.updateUniform("u_DepthBias", WIREFRAME_DEPTH_BIAS);
         if (this.clippingPlanes !== undefined) {
             this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
         }
@@ -2690,8 +2720,6 @@ class gltfRenderer {
         gl.disable(GL.BLEND);
         gl.depthMask(false);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.LINE_WEBGL);
-        gl.enable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
-        gl.polygonOffset(0, WIREFRAME_POLYGON_OFFSET_UNITS);
         this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
         if (indexAccessor !== undefined) {
@@ -2717,7 +2745,6 @@ class gltfRenderer {
         }
 
         this.setClipDistancesEnabled(false);
-        gl.disable(polygonMode.POLYGON_OFFSET_LINE_WEBGL);
         polygonMode.polygonModeWEBGL(GL.FRONT_AND_BACK, polygonMode.FILL_WEBGL);
         gl.depthMask(true);
         enabledLocations.forEach((l) => gl.disableVertexAttribArray(l));
@@ -2832,7 +2859,10 @@ class gltfRenderer {
                     gizmos.push({
                         modelMatrix: node.getRenderedWorldTransform(),
                         color: GIZMO_CAMERA_COLOR,
-                        lines: createCameraGizmoLines(camera)
+                        lines: createCameraGizmoLines(
+                            camera,
+                            this.currentWidth / this.currentHeight
+                        )
                     });
                 }
             }

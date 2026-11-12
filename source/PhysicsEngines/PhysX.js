@@ -23,6 +23,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.physics = undefined;
         this.defaultMaterial = undefined;
         this.tolerances = undefined;
+        this.version = undefined;
 
         this.reset = false;
 
@@ -60,25 +61,21 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     async initializeEngine() {
         this.PhysX = await PhysX({ locateFile: () => "./libs/physx-js-webidl.wasm" });
         const version = this.PhysX.PHYSICS_VERSION;
-        console.log(
-            "PhysX loaded! Version: " +
-                ((version >> 24) & 0xff) +
-                "." +
-                ((version >> 16) & 0xff) +
-                "." +
-                ((version >> 8) & 0xff)
-        );
+        this.version =
+            ((version >> 24) & 0xff) +
+            "." +
+            ((version >> 16) & 0xff) +
+            "." +
+            ((version >> 8) & 0xff);
 
         const allocator = new this.PhysX.PxDefaultAllocator();
         const errorCb = new this.PhysX.PxDefaultErrorCallback();
         const foundation = this.PhysX.CreateFoundation(version, allocator, errorCb);
-        console.log("Created PxFoundation");
 
         this.tolerances = new this.PhysX.PxTolerancesScale();
         this.tolerances.speed = 9.81;
         this.physics = this.PhysX.CreatePhysics(version, foundation, this.tolerances);
         this.defaultMaterial = this.createPhysXMaterial(new gltfPhysicsMaterial());
-        console.log("Created PxPhysics");
         return this.PhysX;
     }
 
@@ -192,14 +189,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let triggerCallback;
 
         if (triggerNodes.length > 0) {
-            console.log("Enabling trigger report callback");
             triggerCallback = new this.PhysX.PxSimulationEventCallbackImpl();
             triggerCallback.onTrigger = (pairs, count) => {
                 for (const compoundTrigger of state.physicsController.compoundTriggerNodes.values()) {
                     compoundTrigger.added.clear();
                     compoundTrigger.removed.clear();
                 }
-                console.log("Trigger callback called with", count, "pairs");
                 for (let i = 0; i < count; i++) {
                     const pair = this.PhysX.NativeArrayHelpers.prototype.getTriggerPairAt(pairs, i);
                     const triggerShape = pair.triggerShape;
@@ -281,7 +276,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         this.scene = this.physics.createScene(sceneDesc);
 
-        console.log("Created scene");
         const shapeFlags = new this.PhysX.PxShapeFlags(
             this.PhysX.PxShapeFlagEnum.eSCENE_QUERY_SHAPE |
                 this.PhysX.PxShapeFlagEnum.eSIMULATION_SHAPE
@@ -837,6 +831,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             actor.setMass(motion.mass);
         }
         if (
+            motion.animatedPropertyObjects.mass.dirty ||
             motion.animatedPropertyObjects.centerOfMass.dirty ||
             motion.animatedPropertyObjects.inertiaOrientation.dirty ||
             motion.animatedPropertyObjects.inertiaDiagonal.dirty
@@ -1408,15 +1403,23 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         const positionData = new Float32Array(positionCount * 3);
         const indexData = new Uint32Array(indexCount);
-        let offset = 0;
-        for (const positionChunk of positionDataArray) {
-            positionData.set(positionChunk, offset);
-            offset += positionChunk.length;
-        }
-        offset = 0;
-        for (const indexChunk of indexDataArray) {
-            indexData.set(indexChunk, offset);
-            offset += indexChunk.length;
+        let positionOffset = 0;
+        let indexOffset = 0;
+        let vertexOffset = 0;
+        for (let i = 0; i < positionDataArray.length; i++) {
+            const positionChunk = positionDataArray[i];
+            positionData.set(positionChunk, positionOffset);
+            positionOffset += positionChunk.length;
+
+            if (computeIndices) {
+                const indexChunk = indexDataArray[i];
+                for (let j = 0; j < indexChunk.length; j++) {
+                    indexData[indexOffset + j] = indexChunk[j] + vertexOffset;
+                }
+                indexOffset += indexChunk.length;
+            }
+
+            vertexOffset += positionChunk.length / 3;
         }
         return { vertices: positionData, indices: indexData };
     }
@@ -1483,6 +1486,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         const ms = new this.PhysX.PxMeshScale(PxScale, PxQuat);
         const f = new this.PhysX.PxMeshGeometryFlags();
+        f.raise(this.PhysX.PxMeshGeometryFlagEnum.eDOUBLE_SIDED);
         const geometry = new this.PhysX.PxTriangleMeshGeometry(tri, ms, f);
         this.PhysX.destroy(PxScale);
         this.PhysX.destroy(PxQuat);
@@ -1542,7 +1546,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (filterCount > 31) {
             filterCount = 31;
             console.warn(
-                "PhysX supports a maximum of 31 collision filters. Additional filters will be ignored."
+                "The collision filter system supports a maximum of 31 filters. Additional filters will be ignored."
             );
         }
 
@@ -1791,8 +1795,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     actor.setMass(motion.mass);
                 }
 
-                this.calculateMassAndInertia(motion, actor);
-
                 if (motion.gravityFactor !== 1.0) {
                     actor.setActorFlag(this.PhysX.PxActorFlagEnum.eDISABLE_GRAVITY, true);
                 }
@@ -1934,6 +1936,13 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             }
         }
 
+        // Compute mass and inertia after all collider shapes have been attached,
+        // since PhysX derives the inertia tensor from the shape geometry.
+        const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
+        if (motion !== undefined && (type === "dynamic" || type === "kinematic")) {
+            this.calculateMassAndInertia(motion, actor);
+        }
+
         this.PhysX.destroy(pos);
         this.PhysX.destroy(rotation);
         this.PhysX.destroy(pose);
@@ -2024,10 +2033,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 inertiaDiagonalMat[4] = motion.inertiaDiagonal[1];
                 inertiaDiagonalMat[8] = motion.inertiaDiagonal[2];
 
-                if (
-                    quat.length(motion.inertiaOrientation) > 1.0e-5 ||
-                    quat.length(motion.inertiaOrientation) < 1.0e-5
-                ) {
+                if (Math.abs(quat.length(motion.inertiaOrientation) - 1.0) > 1.0e-5) {
                     mat3.identity(intertiaRotMat);
                     console.warn(
                         "PhysX: Invalid inertia orientation quaternion, ignoring rotation"
@@ -2130,17 +2136,17 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      * enum value.
      *
      * @param {0|1|2} axisIndex - The axis index (0 = Twist, 1 = Swing1, 2 = Swing2).
-     * @returns {number|null} The matching `PxD6DriveEnum` constant (or a raw integer
-     *   for axes not yet exposed by the bindings), or `null` if not recognised.
+     * @returns {number|null} The matching `PxD6DriveEnum` constant, or `null` if
+     *   not recognised.
      */
     convertAxisIndexToAngularDriveEnum(axisIndex) {
         switch (axisIndex) {
             case 0:
                 return this.PhysX.PxD6DriveEnum.eTWIST;
             case 1:
-                return 6; // Currently not exposed via bindings
+                return this.PhysX.PxD6DriveEnum.eSWING1;
             case 2:
-                return 7; // Currently not exposed via bindings
+                return this.PhysX.PxD6DriveEnum.eSWING2;
         }
         return null;
     }

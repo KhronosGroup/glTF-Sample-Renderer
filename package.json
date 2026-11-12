@@ -34,12 +34,12 @@
     "author": "Khronos Group Inc.",
     "license": "Apache-2.0",
     "dependencies": {
-        "@khronosgroup/gltf-interactivity-engine": "^1.1.0",
+        "@khronosgroup/gltf-interactivity-engine": "^1.2.0",
         "fast-png": "^8.0.0",
         "gl-matrix": "^3.2.1",
         "jpeg-js": "^0.4.3",
         "meshoptimizer": "^1.0.1",
-        "physx-js-webidl": "2.7.2"
+        "physx-js-webidl": "2.9.1"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
