@@ -96,25 +96,25 @@ class GraphController {
         this.decoratorFor(node.ownerDocument)?.receiveHover(pickingResult);
     }
 
-    rigidBodyTriggerEntered(triggerNodeIndex, colliderNodeIndex, motionNodeIndex) {
-        if (this.graphIndex === undefined) {
+    rigidBodyTriggerEntered(triggerNode, colliderNode, motionNode) {
+        if (this.graphIndex === undefined || triggerNode === undefined) {
             return;
         }
-        this.decorator.rigidBodyTriggerEntered(
-            triggerNodeIndex,
-            colliderNodeIndex,
-            motionNodeIndex ?? -1
+        this.decoratorFor(triggerNode.ownerDocument)?.rigidBodyTriggerEntered(
+            triggerNode.gltfObjectIndex,
+            colliderNode?.gltfObjectIndex ?? -1,
+            motionNode?.gltfObjectIndex ?? -1
         );
     }
 
-    rigidBodyTriggerExited(triggerNodeIndex, colliderNodeIndex, motionNodeIndex) {
-        if (this.graphIndex === undefined) {
+    rigidBodyTriggerExited(triggerNode, colliderNode, motionNode) {
+        if (this.graphIndex === undefined || triggerNode === undefined) {
             return;
         }
-        this.decorator.rigidBodyTriggerExited(
-            triggerNodeIndex,
-            colliderNodeIndex,
-            motionNodeIndex ?? -1
+        this.decoratorFor(triggerNode.ownerDocument)?.rigidBodyTriggerExited(
+            triggerNode.gltfObjectIndex,
+            colliderNode?.gltfObjectIndex ?? -1,
+            motionNode?.gltfObjectIndex ?? -1
         );
     }
 
@@ -1093,15 +1093,27 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     }
 
     rayCastRigidBodies(rayStart, rayEnd) {
-        return this.world.physicsController.rayCast(rayStart, rayEnd);
+        const result = this.world.physicsController.rayCast(rayStart, rayEnd);
+        // The physics engine keys actors by node object; the graph addresses nodes by
+        // their index within this document, so translate the hit node back.
+        if (result?.hitNodeIndex?.gltfObjectIndex !== undefined) {
+            result.hitNodeIndex = result.hitNodeIndex.gltfObjectIndex;
+        }
+        return result;
     }
 
     applyImpulseToRigidBody(nodeIndex, linearImpulse, angularImpulse) {
-        this.world.physicsController.applyImpulse(nodeIndex, linearImpulse, angularImpulse);
+        const node = this.world.gltf.nodes[nodeIndex];
+        if (node !== undefined) {
+            this.world.physicsController.applyImpulse(node, linearImpulse, angularImpulse);
+        }
     }
 
     applyPointImpulseToRigidBody(nodeIndex, impulse, position) {
-        this.world.physicsController.applyPointImpulse(nodeIndex, impulse, position);
+        const node = this.world.gltf.nodes[nodeIndex];
+        if (node !== undefined) {
+            this.world.physicsController.applyPointImpulse(node, impulse, position);
+        }
     }
 }
 

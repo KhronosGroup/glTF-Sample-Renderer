@@ -1,6 +1,7 @@
 import { getAnimatedIndices } from "../gltf/gltf_utils";
 import { NvidiaPhysicsInterface } from "../PhysicsEngines/PhysX";
 import { PhysicsUtils } from "../gltf/physics_utils";
+import { instantiatedDocuments } from "../gltf/clone_document.js";
 
 // The largest per-frame time delta the simulation will accept. A backgrounded tab produces
 // a frame delta of many seconds when it becomes visible again; stepping that in one go
@@ -45,7 +46,7 @@ class PhysicsController {
                 continue;
             }
             morphWeights = morphWeights.slice();
-            const oldMorphWeights = this.morphWeights.get(node.gltfObjectIndex);
+            const oldMorphWeights = this.morphWeights.get(node);
 
             // Check if morph weights have changed
             if (
@@ -56,7 +57,7 @@ class PhysicsController {
                 continue;
             }
 
-            this.morphWeights.set(node.gltfObjectIndex, morphWeights);
+            this.morphWeights.set(node, morphWeights);
 
             const vertices = new Float32Array();
 
@@ -139,9 +140,13 @@ class PhysicsController {
         let dynamicMeshColliderCount = 0;
         let staticMeshColliderCount = 0;
         this.hasRuntimeAnimationTargets = result.runtimeChanges;
-        const gatherRigidBodies = (nodeIndex, currentRigidBody) => {
+        // Walks a document's hierarchy and descends into instantiated external assets, so
+        // rigid bodies, joints and triggers declared by any sub-asset take part in the
+        // simulation. Nodes are keyed by object rather than gltfObjectIndex, which is only
+        // unique within a single document.
+        const gatherRigidBodies = (document, nodeIndex, currentRigidBody) => {
             let parentRigidBody = currentRigidBody;
-            const node = state.gltf.nodes[nodeIndex];
+            const node = document.nodes[nodeIndex];
             const rigidBody = node.extensions?.KHR_physics_rigid_bodies;
             if (rigidBody) {
                 if (rigidBody.motion) {
@@ -161,13 +166,8 @@ class PhysicsController {
                             parentRigidBody.extensions.KHR_physics_rigid_bodies.motion.isKinematic
                         ) {
                             staticMeshColliderCount++;
-                        } else {
-                            if (
-                                currentRigidBody?.gltfObjectIndex !==
-                                parentRigidBody.gltfObjectIndex
-                            ) {
-                                dynamicMeshColliderCount++;
-                            }
+                        } else if (currentRigidBody !== parentRigidBody) {
+                            dynamicMeshColliderCount++;
                         }
                     }
                 }
@@ -176,21 +176,17 @@ class PhysicsController {
                 }
                 if (rigidBody.trigger !== undefined) {
                     if (rigidBody.trigger.nodes !== undefined) {
-                        this.compoundTriggerNodes.set(node.gltfObjectIndex, {
+                        this.compoundTriggerNodes.set(node, {
                             previous: new Map(), //ref counting
                             added: new Set(),
                             removed: new Set()
                         });
                         for (const triggerNodeIndex of rigidBody.trigger.nodes) {
-                            if (this.triggerToCompound.has(triggerNodeIndex)) {
-                                this.triggerToCompound
-                                    .get(triggerNodeIndex)
-                                    .add(node.gltfObjectIndex);
+                            const triggerNode = document.nodes[triggerNodeIndex];
+                            if (this.triggerToCompound.has(triggerNode)) {
+                                this.triggerToCompound.get(triggerNode).add(node);
                             } else {
-                                this.triggerToCompound.set(
-                                    triggerNodeIndex,
-                                    new Set([node.gltfObjectIndex])
-                                );
+                                this.triggerToCompound.set(triggerNode, new Set([node]));
                             }
                         }
                     } else {
@@ -203,15 +199,23 @@ class PhysicsController {
             }
 
             if (parentRigidBody !== undefined) {
-                this.nodeToMotion.set(node.gltfObjectIndex, parentRigidBody.gltfObjectIndex);
+                this.nodeToMotion.set(node, parentRigidBody);
             }
             for (const childIndex of node.children) {
-                gatherRigidBodies(childIndex, parentRigidBody);
+                gatherRigidBodies(document, childIndex, parentRigidBody);
+            }
+            // An instantiated external asset's physics hangs below the node that holds it.
+            const instance = node.externalAssetInstance;
+            if (instance !== undefined) {
+                const instanceScene = instance.scenes[instance.scene ?? 0];
+                for (const rootIndex of instanceScene?.nodes ?? []) {
+                    gatherRigidBodies(instance, rootIndex, parentRigidBody);
+                }
             }
         };
 
         for (const nodeIndex of scene.nodes) {
-            gatherRigidBodies(nodeIndex, undefined);
+            gatherRigidBodies(state.gltf, nodeIndex, undefined);
         }
         if (
             !this.engine ||
@@ -330,6 +334,9 @@ class PhysicsController {
 
     _updateColliders(state, node, isTrigger = false) {
         this.engine.updateActorTransform(node);
+        // Mesh and material indices resolve against the document that owns the node, not
+        // the root document, when the node came from an instantiated external asset.
+        const owner = node.ownerDocument ?? state.gltf;
 
         let collider;
         if (isTrigger) {
@@ -340,7 +347,7 @@ class PhysicsController {
 
         if (collider?.geometry?.shape !== undefined || collider?.geometry?.mesh !== undefined) {
             this.engine.updateCollider(
-                state.gltf,
+                owner,
                 node,
                 collider,
                 node,
@@ -357,7 +364,7 @@ class PhysicsController {
                 node.extensions?.KHR_physics_rigid_bodies?.trigger?.shape !== undefined)
         ) {
             this.engine.updateCollider(
-                state.gltf,
+                owner,
                 node,
                 node.extensions?.KHR_physics_rigid_bodies?.trigger,
                 node,
@@ -369,14 +376,14 @@ class PhysicsController {
         }
         if (!isTrigger) {
             for (const childIndex of node.children) {
-                const childNode = state.gltf.nodes[childIndex];
+                const childNode = owner.nodes[childIndex];
                 if (isTrigger) {
                     collider = childNode.extensions?.KHR_physics_rigid_bodies?.trigger;
                 } else {
                     collider = childNode.extensions?.KHR_physics_rigid_bodies?.collider;
                 }
                 PhysicsUtils.recurseCollider(
-                    state.gltf,
+                    owner,
                     childNode,
                     collider,
                     node,
@@ -390,6 +397,9 @@ class PhysicsController {
 
     _applyAnimations(state) {
         this.engine.updatePhysicMaterials(state.gltf);
+        for (const document of instantiatedDocuments(state.gltf)) {
+            this.engine.updatePhysicMaterials(document);
+        }
 
         for (const actorNode of this.staticActors) {
             this._updateColliders(state, actorNode);

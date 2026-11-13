@@ -284,25 +284,25 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const triggerFlags = new this.PhysX.PxShapeFlags(this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE);
 
         for (const node of staticActors) {
-            this.createActor(state.gltf, node, shapeFlags, triggerFlags, "static");
+            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "static");
         }
         for (const node of kinematicActors) {
-            this.createActor(state.gltf, node, shapeFlags, triggerFlags, "kinematic");
+            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "kinematic");
         }
         for (const node of dynamicActors) {
-            this.createActor(state.gltf, node, shapeFlags, triggerFlags, "dynamic", true);
+            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "dynamic", true);
         }
         for (const node of independentTriggerNodes) {
             if (
-                this.nodeToActor.has(node.gltfObjectIndex) ||
-                this.nodeToMotion.has(node.gltfObjectIndex)
+                this.nodeToActor.has(node) ||
+                this.nodeToMotion.has(node)
             ) {
                 continue;
             }
-            this.createActor(state.gltf, node, shapeFlags, triggerFlags, "trigger", true);
+            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "trigger", true);
         }
         for (const node of jointNodes) {
-            this.createJoint(state.gltf, node);
+            this.createJoint(node.ownerDocument ?? state.gltf, node);
         }
 
         this.PhysX.destroy(tmpVec);
@@ -344,8 +344,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      */
     subStepSimulation(state, deltaTime) {
         // eslint-disable-next-line no-unused-vars
-        for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
-            const node = state.gltf.nodes[nodeIndex];
+        for (const [node, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             if (node.dirtyTransform) {
                 // Node transform is currently animated
                 continue;
@@ -452,8 +451,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.subStepSimulation(state, deltaTime);
 
         // eslint-disable-next-line no-unused-vars
-        for (const [nodeIndex, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
-            const node = state.gltf.nodes[nodeIndex];
+        for (const [node, { actor, pxShapeMap }] of this.nodeToActor.entries()) {
             const motion = node.extensions?.KHR_physics_rigid_bodies?.motion;
             if (motion && !motion.isKinematic && !node.dirtyTransform) {
                 const transform = actor.getGlobalPose();
@@ -503,10 +501,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 scaledPhysicsTransform[14] = position[2];
 
                 node.scaledPhysicsTransform = scaledPhysicsTransform;
+                const owner = node.ownerDocument ?? state.gltf;
                 for (const childIndex of node.children) {
-                    const childNode = state.gltf.nodes[childIndex];
+                    const childNode = owner.nodes[childIndex];
                     PhysicsUtils.applyTransformRecursively(
-                        state.gltf,
+                        owner,
                         childNode,
                         node.scaledPhysicsTransform
                     );
@@ -751,7 +750,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      */
     updateActorTransform(node) {
         if (node.dirtyTransform) {
-            const actor = this.nodeToActor.get(node.gltfObjectIndex)?.actor;
+            const actor = this.nodeToActor.get(node)?.actor;
             if (actor === undefined) {
                 return;
             }
@@ -805,7 +804,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      */
     updateMotion(actorNode) {
         const motion = actorNode.extensions?.KHR_physics_rigid_bodies?.motion;
-        const actor = this.nodeToActor.get(actorNode.gltfObjectIndex).actor;
+        const actor = this.nodeToActor.get(actorNode).actor;
         if (motion.animatedPropertyObjects.isKinematic.dirty) {
             if (motion.isKinematic) {
                 const linearVelocity = actor.getLinearVelocity();
@@ -880,9 +879,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         scaleChanged,
         isTrigger
     ) {
-        const result = this.nodeToActor.get(actorNode.gltfObjectIndex);
+        const result = this.nodeToActor.get(actorNode);
         const actor = result?.actor;
-        const currentShape = result?.pxShapeMap.get(node.gltfObjectIndex);
+        const currentShape = result?.pxShapeMap.get(node);
 
         let currentGeometry = currentShape.getGeometry();
         const currentColliderType = currentGeometry.getType();
@@ -938,7 +937,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                         shapeFlags,
                         collider
                     );
-                    result?.pxShapeMap.set(node.gltfObjectIndex, shape);
+                    result?.pxShapeMap.set(node, shape);
                     actor.detachShape(currentShape);
                     actor.attachShape(shape);
                     this.PhysX.destroy(currentShape);
@@ -1002,17 +1001,18 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      * @param {object} jointNode - The glTF node whose joint properties should be updated.
      */
     updatePhysicsJoint(state, jointNode) {
-        const pxJoints = this.nodeToSimplifiedJoints.get(jointNode.gltfObjectIndex);
+        const pxJoints = this.nodeToSimplifiedJoints.get(jointNode);
         if (pxJoints === undefined) {
             return;
         }
+        const owner = jointNode.ownerDocument ?? state.gltf;
         const gltfJoint =
-            state.gltf.extensions.KHR_physics_rigid_bodies.physicsJoints[
+            owner.extensions.KHR_physics_rigid_bodies.physicsJoints[
                 jointNode.extensions.KHR_physics_rigid_bodies.joint.joint
             ];
 
         const connectedNode =
-            state.gltf.nodes[jointNode.extensions.KHR_physics_rigid_bodies.joint.connectedNode];
+            owner.nodes[jointNode.extensions.KHR_physics_rigid_bodies.joint.connectedNode];
 
         const simplifiedJoints = gltfJoint.simplifiedPhysicsJoints;
         if (simplifiedJoints.length !== pxJoints.length) {
@@ -1691,12 +1691,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     ) {
         let geometry = undefined;
         if (collider?.geometry?.shape !== undefined) {
-            if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
-                const simpleShape = gltf.shapes[collider.geometry.shape];
-                geometry = this.generateSimpleShape(simpleShape, scale, scaleAxis);
-            } else {
-                geometry = this.simpleShapes[collider.geometry.shape];
-            }
+            // Generate from the owning document's shape: the pre-generated `simpleShapes`
+            // cache is indexed by the root document's shape indices, which collide with an
+            // external asset's.
+            const simpleShape = gltf.shapes[collider.geometry.shape];
+            geometry = this.generateSimpleShape(simpleShape, scale, scaleAxis);
         } else if (collider?.geometry?.mesh !== undefined) {
             const mesh = gltf.meshes[collider.geometry.mesh];
             if (convexHull === true) {
@@ -1718,7 +1717,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             collider
         );
 
-        this.shapeToNode.set(shape.ptr, node.gltfObjectIndex);
+        this.shapeToNode.set(shape.ptr, node);
         return shape;
     }
 
@@ -1862,7 +1861,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 shape.setLocalPose(pose);
 
                 actor.attachShape(shape);
-                pxShapeMap.set(node.gltfObjectIndex, shape);
+                pxShapeMap.set(node, shape);
                 this.PhysX.destroy(PxPos);
                 this.PhysX.destroy(PxRotation);
                 this.PhysX.destroy(pose);
@@ -1949,7 +1948,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
         this.scene.addActor(actor);
 
-        this.nodeToActor.set(node.gltfObjectIndex, { actor, pxShapeMap: pxShapeMap });
+        this.nodeToActor.set(node, { actor, pxShapeMap: pxShapeMap });
     }
 
     /**
@@ -1967,7 +1966,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     computeJointOffsetAndActor(node, referencedJoint) {
         let currentNode = node;
         while (currentNode !== undefined) {
-            if (this.nodeToActor.has(currentNode.gltfObjectIndex)) {
+            if (this.nodeToActor.has(currentNode)) {
                 break;
             }
             currentNode = currentNode.parentNode;
@@ -1985,7 +1984,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
             return { actor: undefined, offsetPosition: pos, offsetRotation: nodeWorldRot };
         }
-        const actor = this.nodeToActor.get(currentNode.gltfObjectIndex)?.actor;
+        const actor = this.nodeToActor.get(currentNode)?.actor;
         const inverseActorRotation = quat.create();
         quat.invert(inverseActorRotation, currentNode.worldQuaternion);
         const offsetRotation = quat.create();
@@ -2200,7 +2199,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const physxJoint = this.createSimplifiedJoint(gltf, node, joint, simplifiedJoint);
             simplifiedJoints.push(physxJoint);
         }
-        this.nodeToSimplifiedJoints.set(node.gltfObjectIndex, simplifiedJoints);
+        this.nodeToSimplifiedJoints.set(node, simplifiedJoints);
     }
 
     /**
