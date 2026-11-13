@@ -161,13 +161,34 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         this.nodeToMotion = nodeToMotion;
         this.generateSimpleShapes(state.gltf);
-        this.computeFilterData(state.gltf);
+
+        // Collision filters and physics materials are declared by whichever document
+        // carries KHR_physics_rigid_bodies. A wrapper only instantiates them in a
+        // sub-asset, so resolve the document from the actors' owners rather than
+        // assuming the root, which would leave the filter table empty and the actors
+        // colliding with nothing.
+        const owners = new Set();
+        for (const node of [
+            ...staticActors,
+            ...kinematicActors,
+            ...dynamicActors,
+            ...jointNodes,
+            ...triggerNodes,
+            ...independentTriggerNodes
+        ]) {
+            owners.add(node.ownerDocument ?? state.gltf);
+        }
+        const physicsDocument = [...owners].find(
+            (document) => document.extensions?.KHR_physics_rigid_bodies !== undefined
+        ) ?? state.gltf;
+
+        this.computeFilterData(physicsDocument);
         for (let i = 0; i < this.filterData.length; i++) {
             const physXFilterData = this.createPhysXCollisionFilter(i);
             this.physXFilterData.push(physXFilterData);
         }
 
-        const materials = state.gltf.extensions?.KHR_physics_rigid_bodies?.physicsMaterials;
+        const materials = physicsDocument.extensions?.KHR_physics_rigid_bodies?.physicsMaterials;
         if (materials !== undefined) {
             for (const gltfMaterial of materials) {
                 const physxMaterial = this.createPhysXMaterial(gltfMaterial);
