@@ -817,10 +817,12 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         if (materials === undefined) {
             return;
         }
+        // Materials from a sub-asset sit at an offset in the combined table.
+        const offset = this.materialOffsets.get(gltf) ?? 0;
         for (let i = 0; i < materials.length; i++) {
             const material = materials[i];
             if (material.isDirty()) {
-                const physXMaterial = this.physXMaterials[i];
+                const physXMaterial = this.physXMaterials[offset + i];
                 physXMaterial.setStaticFriction(material.staticFriction);
                 physXMaterial.setDynamicFriction(material.dynamicFriction);
                 physXMaterial.setRestitution(material.restitution);
