@@ -7,7 +7,6 @@ class gltfShader {
         this.hash = hash;
         this.uniforms = new Map();
         this.attributes = new Map();
-        this.unknownAttributes = [];
         this.unknownUniforms = [];
         this.gl = gl;
 
@@ -44,14 +43,7 @@ class gltfShader {
 
     getAttributeLocation(name) {
         const loc = this.attributes.get(name);
-        if (loc === undefined) {
-            if (this.unknownAttributes.find((n) => n === name) === undefined) {
-                console.log("Attribute '%s' does not exist", name);
-                this.unknownAttributes.push(name);
-            }
-            return -1;
-        }
-        return loc;
+        return loc === undefined ? -1 : loc;
     }
 
     getUniformLocation(name) {
