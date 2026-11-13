@@ -2,7 +2,7 @@
 
 [![](assets/images/ToyCar.jpg)](https://github.khronos.org/glTF-Sample-Viewer-Release/)
 
-This is the official [Khronos glTF 2.0](https://www.khronos.org/gltf/) Sample Renderer using [WebGL](https://www.khronos.org/webgl/).
+This is the official [Khronos glTF](https://www.khronos.org/gltf/) Sample Renderer, supporting glTF 2.0 and 2.1, using [WebGL](https://www.khronos.org/webgl/).
 
 Try out the [glTF Sample Viewer](https://github.khronos.org/glTF-Sample-Viewer-Release/) which uses this renderer in combination with a custom frontend.
 
@@ -38,7 +38,7 @@ For KHR_interactivity, the behavior engine of the [glTF-InteractivityGraph-Autho
 
 ## Features
 
-- [x] glTF 2.0
+- [x] glTF 2.1 (and 2.0)
 - [KHR_accessor_float64](https://github.com/KhronosGroup/glTF/pull/2397)
     - [x] Animations
     - [x] KHR_animation_pointer
@@ -58,6 +58,7 @@ For KHR_interactivity, the behavior engine of the [glTF-InteractivityGraph-Autho
 - [x] [KHR_materials_ior](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_ior)
 - [x] [KHR_materials_iridescence](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_iridescence)
 - [x] [KHR_materials_pbrSpecularGlossiness](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness)
+- [x] [KHR_materials_retroreflection](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_retroreflection)
 - [x] [KHR_materials_sheen](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_sheen)
 - [x] [KHR_materials_specular](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_specular)
 - [x] [KHR_materials_transmission](https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_transmission)
