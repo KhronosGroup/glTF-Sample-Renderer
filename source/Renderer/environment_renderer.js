@@ -74,10 +74,10 @@ class EnvironmentRenderer {
 
         const envIntensity =
             state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
-        shader.updateUniform("u_EnvIntensity", envIntensity, true);
+        shader.updateUniform("u_EnvIntensity", envIntensity);
 
         shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
-        shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform("u_Exposure", state.renderingParameters.exposure);
 
         let rotMatrix4 = mat4.create();
         mat4.rotateY(

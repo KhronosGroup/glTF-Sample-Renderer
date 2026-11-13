@@ -57,28 +57,25 @@ class gltfShader {
         return uniform.loc;
     }
 
-    updateUniform(objectName, object, log = false) {
+    updateUniform(objectName, object) {
         if (object === undefined) {
-            if (log) {
-                console.log("update uniform: object undefined");
-            }
             return;
         }
         if (object instanceof UniformStruct) {
-            this.updateUniformStruct(objectName, object, log);
+            this.updateUniformStruct(objectName, object);
         } else if (Array.isArray(object)) {
-            this.updateUniformArray(objectName, object, log);
+            this.updateUniformArray(objectName, object);
         } else {
-            this.updateUniformValue(objectName, object, log);
+            this.updateUniformValue(objectName, object);
         }
     }
 
-    updateUniformArray(arrayName, array, log) {
+    updateUniformArray(arrayName, array) {
         if (array[0] instanceof UniformStruct) {
             for (let i = 0; i < array.length; ++i) {
                 let element = array[i];
                 let uniformName = arrayName + "[" + i + "]";
-                this.updateUniform(uniformName, element, log);
+                this.updateUniform(uniformName, element);
             }
         } else {
             let uniformName = arrayName + "[0]";
@@ -98,20 +95,20 @@ class gltfShader {
                 return;
             }
 
-            this.updateUniformValue(uniformName, flat, log);
+            this.updateUniformValue(uniformName, flat);
         }
     }
 
-    updateUniformStruct(structName, object, log) {
+    updateUniformStruct(structName, object) {
         let memberNames = Object.keys(object);
         for (let memberName of memberNames) {
             let uniformName = structName + "." + memberName;
-            this.updateUniform(uniformName, object[memberName], log);
+            this.updateUniform(uniformName, object[memberName]);
         }
     }
 
     // upload the values of a uniform with the given name using type resolve to get correct function call
-    updateUniformValue(uniformName, value, log) {
+    updateUniformValue(uniformName, value) {
         const uniform = this.uniforms.get(uniformName);
 
         if (uniform !== undefined) {
@@ -188,8 +185,6 @@ class gltfShader {
                     this.gl.context.uniformMatrix4fv(uniform.loc, false, value);
                     break;
             }
-        } else if (log) {
-            console.warn("Unkown uniform: " + uniformName);
         }
     }
 }

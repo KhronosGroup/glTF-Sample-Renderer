@@ -1685,7 +1685,7 @@ class gltfRenderer {
         gl.useProgram(shader.program);
         shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
         if (this.clippingPlanes !== undefined) {
-            shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+            shader.updateUniform("u_ClippingPlanes", this.clippingPlanes);
         }
 
         const style = parameters.style ?? GltfState.DebugShapeStyle.WIREFRAME;
@@ -2036,7 +2036,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_TextureWidth", primitive.splatTextureWidth);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition);
         if (this.clippingPlanes !== undefined) {
-            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes);
         }
 
         this.webGl.context.enable(GL.BLEND);
@@ -2112,11 +2112,10 @@ class gltfRenderer {
         gl.viewport(aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
 
         gl.useProgram(shader.program);
-        shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform("u_Exposure", state.renderingParameters.exposure);
         shader.updateUniform(
             "u_TextureSize",
-            new Float32Array([this.currentWidth, this.currentHeight]),
-            false
+            new Float32Array([this.currentWidth, this.currentHeight])
         );
 
         const hdrLoc = shader.getUniformLocation("u_MainSampler");
@@ -2172,11 +2171,10 @@ class gltfRenderer {
         gl.bindTexture(gl.TEXTURE_2D, splatTex ?? this.splatColorTexture);
         gl.uniform1i(samplerLoc, 0);
 
-        shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
+        shader.updateUniform("u_Exposure", state.renderingParameters.exposure);
         shader.updateUniform(
             "u_TextureSize",
-            new Float32Array([this.currentWidth, this.currentHeight]),
-            false
+            new Float32Array([this.currentWidth, this.currentHeight])
         );
 
         // Bind the fullscreen quad VBO (a_position attribute expected by fullscreen.vert).
@@ -2341,25 +2339,24 @@ class gltfRenderer {
         // update model dependant matrices once per node
         this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
-        this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
-        this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure, false);
-        this.shader.updateUniform("u_Camera", this.currentCameraPosition, false);
+        this.shader.updateUniform("u_NormalMatrix", normalMatrix);
+        this.shader.updateUniform("u_Exposure", state.renderingParameters.exposure);
+        this.shader.updateUniform("u_Camera", this.currentCameraPosition);
         // The channel names a set index in the file, which each primitive resolves against
         // its own slots, so primitives that number their sets differently each show the set
         // the author asked for. -1 when this primitive does not carry it.
         this.shader.updateUniform(
             "u_DebugUVSet",
-            primitive.texCoordSlots.get(this.debugUVSetIndex) ?? -1,
-            false
+            primitive.texCoordSlots.get(this.debugUVSetIndex) ?? -1
         );
         if (this.clippingPlanes !== undefined) {
-            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes);
         }
         if (
             renderpassConfiguration.picking ||
             state.renderingParameters.debugOutput === GltfState.DebugOutput.generic.PICKING_COLOR
         ) {
-            this.shader.updateUniform("u_PickingColor", node.pickingColor, false);
+            this.shader.updateUniform("u_PickingColor", node.pickingColor);
         }
 
         this.updateAnimationUniforms(state, node, primitive);
@@ -2699,11 +2696,11 @@ class gltfRenderer {
 
         this.shader.updateUniform("u_ViewProjectionMatrix", viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", worldTransform);
-        this.shader.updateUniform("u_NormalMatrix", normalMatrix, false);
-        this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1), false);
+        this.shader.updateUniform("u_NormalMatrix", normalMatrix);
+        this.shader.updateUniform("u_WireframeColor", vec4.fromValues(0, 0, 0, 1));
         this.shader.updateUniform("u_DepthBias", WIREFRAME_DEPTH_BIAS);
         if (this.clippingPlanes !== undefined) {
-            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes);
         }
         this.updateAnimationUniforms(state, node, primitive);
         this.applyAnimationTextures(state, node, primitive, 0);
@@ -2934,7 +2931,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", mat4.create());
         if (this.clippingPlanes !== undefined) {
-            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes);
         }
 
         if (this.debugGizmoBuffer === undefined) {
