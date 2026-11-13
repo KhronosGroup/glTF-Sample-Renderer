@@ -944,7 +944,9 @@ class gltfRenderer {
 
         if (state.cameraNodeIndex === undefined) {
             currentCamera = state.userCamera;
-            currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
+            if (!currentCamera.enforceAspectRatio) {
+                currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
+            }
         } else {
             currentCamera = state.gltf.cameras[state.gltf.nodes[state.cameraNodeIndex].camera];
             if (currentCamera === undefined) {

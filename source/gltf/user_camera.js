@@ -26,6 +26,9 @@ class UserCamera extends gltfCamera {
             min: vec3.create(),
             max: vec3.create()
         };
+        // When true the renderer keeps `perspective.aspectRatio` instead of fitting it
+        // to the viewport, so the user can letterbox to a fixed aspect ratio.
+        this.enforceAspectRatio = false;
     }
 
     getTransformMatrix() {
