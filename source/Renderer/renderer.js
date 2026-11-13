@@ -1664,8 +1664,9 @@ class gltfRenderer {
             return;
         }
 
+        const vertexDefines = this.clippingPlanes !== undefined ? ["USE_CLIPPING 1"] : [];
         const fragmentHash = this.shaderCache.selectShader("debug_shape.frag", []);
-        const vertexHash = this.shaderCache.selectShader("debug_shape.vert", []);
+        const vertexHash = this.shaderCache.selectShader("debug_shape.vert", vertexDefines);
         const shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
         if (shader === undefined) {
             return;
@@ -1683,6 +1684,9 @@ class gltfRenderer {
         this.shader = shader;
         gl.useProgram(shader.program);
         shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
+        if (this.clippingPlanes !== undefined) {
+            shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+        }
 
         const style = parameters.style ?? GltfState.DebugShapeStyle.WIREFRAME;
         const drawSolid = style !== GltfState.DebugShapeStyle.WIREFRAME;
@@ -1701,6 +1705,8 @@ class gltfRenderer {
         gl.blendEquation(gl.FUNC_ADD);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.enableVertexAttribArray(location);
+
+        this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
 
         // Coincident shapes are pulled towards the viewer by a depth bias in the shader
         // (see debug_shape.vert), so they never z-fight with the geometry they describe.
@@ -1736,6 +1742,7 @@ class gltfRenderer {
         gl.disableVertexAttribArray(location);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        this.setClipDistancesEnabled(false);
         gl.disable(gl.BLEND);
         gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
@@ -2908,8 +2915,9 @@ class gltfRenderer {
             return;
         }
 
+        const vertexDefines = this.clippingPlanes !== undefined ? ["USE_CLIPPING 1"] : [];
         const fragmentHash = this.shaderCache.selectShader("simple.frag", []);
-        const vertexHash = this.shaderCache.selectShader("picking.vert", []);
+        const vertexHash = this.shaderCache.selectShader("picking.vert", vertexDefines);
         this.shader = this.shaderCache.getShaderProgram(fragmentHash, vertexHash);
         if (this.shader === undefined) {
             return;
@@ -2925,6 +2933,9 @@ class gltfRenderer {
 
         this.shader.updateUniform("u_ViewProjectionMatrix", this.viewProjectionMatrix);
         this.shader.updateUniform("u_ModelMatrix", mat4.create());
+        if (this.clippingPlanes !== undefined) {
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+        }
 
         if (this.debugGizmoBuffer === undefined) {
             this.debugGizmoBuffer = gl.createBuffer();
@@ -2941,6 +2952,8 @@ class gltfRenderer {
         // buffer for this line pass, then restore it below.
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
 
+        this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
+
         for (const gizmo of gizmos) {
             this.shader.updateUniform("u_ModelMatrix", gizmo.modelMatrix);
             this.shader.updateUniform("u_Color", gizmo.color);
@@ -2948,6 +2961,8 @@ class gltfRenderer {
             gl.bufferData(gl.ARRAY_BUFFER, gizmo.lines, gl.STATIC_DRAW);
             gl.drawArrays(gl.LINES, 0, gizmo.lines.length / 3);
         }
+
+        this.setClipDistancesEnabled(false);
 
         gl.disableVertexAttribArray(location);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -2957,47 +2972,58 @@ class gltfRenderer {
 
     /// Collects joint markers and parent-child connection lines for all skins.
     collectJointGizmos(gltf, gizmos) {
-        if (gltf.skins === undefined) {
-            return;
-        }
-
-        // Build a child -> parent lookup across the whole node hierarchy.
-        const parentOf = new Map();
-        for (let i = 0; i < gltf.nodes.length; ++i) {
-            for (const child of gltf.nodes[i].children) {
-                parentOf.set(child, i);
+        // Skins belong to the document that declares them, so an instantiated external
+        // asset contributes its own joints and connections in addition to the root's.
+        const documents = new Set([gltf]);
+        for (const node of this.nodes ?? []) {
+            if (node.ownerDocument !== undefined) {
+                documents.add(node.ownerDocument);
             }
         }
 
         const connections = [];
         const marked = new Set();
 
-        for (const skin of gltf.skins) {
-            const joints = new Set(skin.joints);
-            if (skin.skeleton !== undefined) {
-                joints.add(skin.skeleton);
+        for (const document of documents) {
+            if (document.skins === undefined || document.skins.length === 0) {
+                continue;
             }
 
-            for (const jointIndex of joints) {
-                const joint = gltf.nodes[jointIndex];
-                const transform = joint.getRenderedWorldTransform();
+            // Build a child -> parent lookup across this document's node hierarchy.
+            const parentOf = new Map();
+            for (let i = 0; i < document.nodes.length; ++i) {
+                for (const child of document.nodes[i].children) {
+                    parentOf.set(child, i);
+                }
+            }
 
-                if (!marked.has(jointIndex)) {
-                    marked.add(jointIndex);
-                    gizmos.push({
-                        modelMatrix: transform,
-                        color: GIZMO_JOINT_COLOR,
-                        lines: createJointMarkerLines()
-                    });
+            for (const skin of document.skins) {
+                const joints = new Set(skin.joints);
+                if (skin.skeleton !== undefined) {
+                    joints.add(skin.skeleton);
                 }
 
-                const parent = parentOf.get(jointIndex);
-                if (parent !== undefined && joints.has(parent)) {
-                    const from = vec3.create();
-                    const to = vec3.create();
-                    mat4.getTranslation(from, gltf.nodes[parent].getRenderedWorldTransform());
-                    mat4.getTranslation(to, transform);
-                    connections.push(from[0], from[1], from[2], to[0], to[1], to[2]);
+                for (const jointIndex of joints) {
+                    const joint = document.nodes[jointIndex];
+                    const transform = joint.getRenderedWorldTransform();
+
+                    if (!marked.has(joint)) {
+                        marked.add(joint);
+                        gizmos.push({
+                            modelMatrix: transform,
+                            color: GIZMO_JOINT_COLOR,
+                            lines: createJointMarkerLines()
+                        });
+                    }
+
+                    const parent = parentOf.get(jointIndex);
+                    if (parent !== undefined && joints.has(parent)) {
+                        const from = vec3.create();
+                        const to = vec3.create();
+                        mat4.getTranslation(from, document.nodes[parent].getRenderedWorldTransform());
+                        mat4.getTranslation(to, transform);
+                        connections.push(from[0], from[1], from[2], to[0], to[1], to[2]);
+                    }
                 }
             }
         }
