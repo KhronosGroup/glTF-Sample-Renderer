@@ -57,8 +57,15 @@ class GraphController {
         return undefined;
     }
 
+    // True when a graph runs in the root document or in any instantiated external
+    // asset, so the controller keeps ticking even when the root document declares
+    // no interactivity of its own (e.g. a wrapper that only instantiates it).
+    hasGraphs() {
+        return this.graphIndex !== undefined || this.subControllers.length > 0;
+    }
+
     needsHover() {
-        if (this.graphIndex === undefined || !this.playing) {
+        if (!this.hasGraphs() || !this.playing) {
             return false;
         }
         if (
@@ -82,7 +89,7 @@ class GraphController {
 
     receiveSelection(pickingResult) {
         const node = pickingResult?.node;
-        if (this.graphIndex === undefined || node === undefined) {
+        if (!this.hasGraphs() || node === undefined) {
             return;
         }
         this.decoratorFor(node.ownerDocument)?.receiveSelection(pickingResult);
@@ -90,14 +97,14 @@ class GraphController {
 
     receiveHover(pickingResult) {
         const node = pickingResult?.node;
-        if (this.graphIndex === undefined || node === undefined) {
+        if (!this.hasGraphs() || node === undefined) {
             return;
         }
         this.decoratorFor(node.ownerDocument)?.receiveHover(pickingResult);
     }
 
     rigidBodyTriggerEntered(triggerNode, colliderNode, motionNode) {
-        if (this.graphIndex === undefined || triggerNode === undefined) {
+        if (!this.hasGraphs() || triggerNode === undefined) {
             return;
         }
         this.decoratorFor(triggerNode.ownerDocument)?.rigidBodyTriggerEntered(
@@ -108,7 +115,7 @@ class GraphController {
     }
 
     rigidBodyTriggerExited(triggerNode, colliderNode, motionNode) {
-        if (this.graphIndex === undefined || triggerNode === undefined) {
+        if (!this.hasGraphs() || triggerNode === undefined) {
             return;
         }
         this.decoratorFor(triggerNode.ownerDocument)?.rigidBodyTriggerExited(
@@ -172,7 +179,7 @@ class GraphController {
      * Stops the graph engine.
      */
     stopGraphEngine() {
-        if (this.graphIndex === undefined) {
+        if (!this.hasGraphs()) {
             return;
         }
         this.graphIndex = undefined;
@@ -189,7 +196,7 @@ class GraphController {
      * Pauses the currently playing graph.
      */
     pauseGraph() {
-        if (this.graphIndex === undefined || !this.playing) {
+        if (!this.hasGraphs() || !this.playing) {
             return;
         }
         this.decorator.pauseEventQueue();
@@ -203,7 +210,7 @@ class GraphController {
      * Resumes the currently paused graph.
      */
     resumeGraph() {
-        if (this.graphIndex === undefined || this.playing) {
+        if (!this.hasGraphs() || this.playing) {
             return;
         }
         this.playing = true;
@@ -217,10 +224,12 @@ class GraphController {
      * Resets the current graph.
      */
     resetGraph() {
-        if (this.graphIndex === undefined) {
+        if (!this.hasGraphs()) {
             return;
         }
-        this.loadGraph(this.graphIndex);
+        if (this.graphIndex !== undefined) {
+            this.loadGraph(this.graphIndex);
+        }
         for (const sub of this.subControllers) {
             sub.decorator.resetGraph();
             sub.decorator.loadGraph(sub.graphIndex);
@@ -228,7 +237,7 @@ class GraphController {
     }
 
     simulateTick() {
-        if (this.graphIndex === undefined) {
+        if (!this.hasGraphs()) {
             return;
         }
         this.decorator.executeEventQueueTick();
