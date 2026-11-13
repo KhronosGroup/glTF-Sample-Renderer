@@ -1,5 +1,9 @@
 // Original CUDA kernel https://github.com/graphdeco-inria/diff-gaussian-rasterization/blob/9c5c2028f6fbee2be239bc4c9421ff894fe4fbe0/cuda_rasterizer/forward.cu
 
+#ifdef USE_CLIPPING
+#extension GL_ANGLE_clip_cull_distance : require
+#endif
+
 precision highp float;
 precision highp int;
 
@@ -18,6 +22,11 @@ uniform uint u_TextureWidth;
 uniform ivec2 u_FramebufferSize;
 uniform vec2 u_FocalLength;
 uniform vec3 u_Camera;
+
+#ifdef USE_CLIPPING
+// Six half spaces forming a cuboid, each pointing at the part that is kept.
+uniform vec4 u_ClippingPlanes[6];
+#endif
 
 #ifdef POSITION_IS_INTEGER
 uniform mediump isampler2D u_POSITIONSampler;
@@ -175,6 +184,18 @@ void main()
 #endif
 
     splat_center = (u_ModelMatrix * vec4(splat_center, 1.0)).xyz;
+
+#ifdef USE_CLIPPING
+    // Clip the whole splat by its centre position. All four quad vertices share
+    // the same splat centre, so the clip distance is constant across the quad.
+    vec4 clipPosition = vec4(splat_center, 1.0);
+    gl_ClipDistance[0] = dot(clipPosition, u_ClippingPlanes[0]);
+    gl_ClipDistance[1] = dot(clipPosition, u_ClippingPlanes[1]);
+    gl_ClipDistance[2] = dot(clipPosition, u_ClippingPlanes[2]);
+    gl_ClipDistance[3] = dot(clipPosition, u_ClippingPlanes[3]);
+    gl_ClipDistance[4] = dot(clipPosition, u_ClippingPlanes[4]);
+    gl_ClipDistance[5] = dot(clipPosition, u_ClippingPlanes[5]);
+#endif
 
     vec4 view_splat_center = u_ViewMatrix * vec4(splat_center, 1.0);
     vec4 clip_splat_center = u_ProjectionMatrix * view_splat_center;

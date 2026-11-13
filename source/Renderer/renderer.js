@@ -1601,6 +1601,9 @@ class gltfRenderer {
         if (primitive.linear === true) {
             defines.push("LINEAR_OUTPUT 1");
         }
+        if (this.clippingPlanes !== undefined) {
+            defines.push("USE_CLIPPING 1");
+        }
 
         // Debug views
         if (state.renderingParameters.debugOutput !== GltfState.DebugOutput.NONE) {
@@ -1677,6 +1680,9 @@ class gltfRenderer {
         );
         this.shader.updateUniform("u_TextureWidth", primitive.splatTextureWidth);
         this.shader.updateUniform("u_Camera", this.currentCameraPosition);
+        if (this.clippingPlanes !== undefined) {
+            this.shader.updateUniform("u_ClippingPlanes", this.clippingPlanes, false);
+        }
 
         this.webGl.context.enable(GL.BLEND);
         this.webGl.context.blendFuncSeparate(
@@ -1724,7 +1730,11 @@ class gltfRenderer {
         this.webGl.context.vertexAttribDivisor(location, 1);
         this.webGl.context.bindBuffer(this.webGl.context.ARRAY_BUFFER, null);
 
+        this.setClipDistancesEnabled(this.clippingPlanes !== undefined);
+
         this.webGl.context.drawArraysInstanced(GL.TRIANGLE_STRIP, 0, 4, sortOrder.length);
+
+        this.setClipDistancesEnabled(false);
 
         this.webGl.context.vertexAttribDivisor(location, 0);
         this.webGl.context.disableVertexAttribArray(location);
