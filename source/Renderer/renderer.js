@@ -3037,12 +3037,11 @@ class gltfRenderer {
         }
     }
 
-    /// Collects world-space axis-aligned bounding boxes for every visible mesh node.
+    /// Collects the local-space AABB of every visible mesh node, transformed into
+    /// world space by the node's transform so it is not necessarily axis aligned.
     collectAabbGizmos(gltf, gizmos) {
-        const lines = [];
         const min = vec3.create();
         const max = vec3.create();
-        const corner = vec3.create();
 
         for (const node of this.nodes) {
             if (node.mesh === undefined) {
@@ -3060,7 +3059,6 @@ class gltfRenderer {
             vec3.set(max, -Infinity, -Infinity, -Infinity);
             let hasBounds = false;
 
-            const world = node.getRenderedWorldTransform();
             for (const primitive of mesh.primitives) {
                 const positionAttribute = primitive.glAttributes.find(
                     (attribute) => attribute.attribute === "POSITION"
@@ -3072,28 +3070,22 @@ class gltfRenderer {
                 if (accessor?.min === undefined || accessor?.max === undefined) {
                     continue;
                 }
-
-                const low = accessor.min;
-                const high = accessor.max;
-                for (let c = 0; c < 8; ++c) {
-                    corner[0] = c & 1 ? high[0] : low[0];
-                    corner[1] = c & 2 ? high[1] : low[1];
-                    corner[2] = c & 4 ? high[2] : low[2];
-                    vec3.transformMat4(corner, corner, world);
-                    vec3.min(min, min, corner);
-                    vec3.max(max, max, corner);
-                }
+                vec3.min(min, min, accessor.min);
+                vec3.max(max, max, accessor.max);
                 hasBounds = true;
             }
 
-            if (hasBounds) {
-                appendBoxLines(lines, min, max);
+            if (!hasBounds) {
+                continue;
             }
-        }
 
-        if (lines.length > 0) {
+            // Draw the box in the mesh's local space and transform it by the node's world
+            // transform, so the gizmo is the true (possibly rotated) AABB rather than the
+            // axis-aligned bounding box of the transformed corners.
+            const lines = [];
+            appendBoxLines(lines, min, max);
             gizmos.push({
-                modelMatrix: mat4.create(),
+                modelMatrix: node.getRenderedWorldTransform(),
                 color: GIZMO_AABB_COLOR,
                 lines: new Float32Array(lines)
             });
