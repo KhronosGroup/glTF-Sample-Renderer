@@ -3022,7 +3022,10 @@ class gltfRenderer {
             if (node.mesh === undefined) {
                 continue;
             }
-            const mesh = gltf.meshes[node.mesh];
+            // Mesh and accessor indices resolve against the document that owns the node,
+            // not the root document, when the node came from an instantiated external asset.
+            const owner = node.ownerDocument ?? gltf;
+            const mesh = owner.meshes[node.mesh];
             if (mesh?.primitives === undefined) {
                 continue;
             }
@@ -3039,7 +3042,7 @@ class gltfRenderer {
                 if (positionAttribute === undefined) {
                     continue;
                 }
-                const accessor = gltf.accessors[positionAttribute.accessor];
+                const accessor = owner.accessors[positionAttribute.accessor];
                 if (accessor?.min === undefined || accessor?.max === undefined) {
                     continue;
                 }
