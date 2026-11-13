@@ -302,10 +302,17 @@ function getMorphedNodeIndices(gltf) {
     return morphedNodes;
 }
 
-function recurseAllAnimatedProperties(gltfObject, callable, currentPath = "") {
+function recurseAllAnimatedProperties(gltfObject, callable, currentPath = "", visited = new Set()) {
     if (gltfObject === undefined || !(gltfObject instanceof GltfObject)) {
         return;
     }
+    // Nodes reference their owner document, parent and scene, and an instantiated
+    // external asset references its clone, so the object graph is cyclic. Visit each
+    // object once to avoid infinite recursion.
+    if (visited.has(gltfObject)) {
+        return;
+    }
+    visited.add(gltfObject);
 
     // Call for all animated properties of this gltfObject
     for (const property of gltfObject.constructor.animatedProperties) {
@@ -326,7 +333,7 @@ function recurseAllAnimatedProperties(gltfObject, callable, currentPath = "") {
     // Recurse into all GltfObject
     for (const key in gltfObject) {
         if (gltfObject[key] instanceof GltfObject) {
-            recurseAllAnimatedProperties(gltfObject[key], callable, currentPath + "/" + key);
+            recurseAllAnimatedProperties(gltfObject[key], callable, currentPath + "/" + key, visited);
         } else if (Array.isArray(gltfObject[key])) {
             if (gltfObject[key].length === 0 || !(gltfObject[key][0] instanceof GltfObject)) {
                 continue;
@@ -335,7 +342,8 @@ function recurseAllAnimatedProperties(gltfObject, callable, currentPath = "") {
                 recurseAllAnimatedProperties(
                     gltfObject[key][i],
                     callable,
-                    currentPath + "/" + key + "/" + i
+                    currentPath + "/" + key + "/" + i,
+                    visited
                 );
             }
         }
@@ -348,7 +356,8 @@ function recurseAllAnimatedProperties(gltfObject, callable, currentPath = "") {
             recurseAllAnimatedProperties(
                 extension,
                 callable,
-                currentPath + "/extensions/" + extensionName
+                currentPath + "/extensions/" + extensionName,
+                visited
             );
         }
     }
