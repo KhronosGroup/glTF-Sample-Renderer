@@ -36,6 +36,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.filterData = [];
         this.physXFilterData = [];
         this.physXMaterials = [];
+        // Per-document offsets into the combined filter/material tables, so multiple
+        // documents (root plus sub-assets) can each declare their own physics and
+        // still collide across documents.
+        this.filterOffsets = new Map();
+        this.materialOffsets = new Map();
 
         // Need for memory management
         this.convexMeshes = [];
@@ -162,11 +167,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.nodeToMotion = nodeToMotion;
         this.generateSimpleShapes(state.gltf);
 
-        // Collision filters and physics materials are declared by whichever document
-        // carries KHR_physics_rigid_bodies. A wrapper only instantiates them in a
-        // sub-asset, so resolve the document from the actors' owners rather than
-        // assuming the root, which would leave the filter table empty and the actors
-        // colliding with nothing.
+        // Collision filters and physics materials are declared per-document. A wrapper
+        // instantiates them in sub-assets, and several documents can each declare their
+        // own physics, so gather every owning document and build combined tables with a
+        // per-document offset so actors keep colliding across documents.
         const owners = new Set();
         for (const node of [
             ...staticActors,
@@ -178,22 +182,30 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         ]) {
             owners.add(node.ownerDocument ?? state.gltf);
         }
-        const physicsDocument = [...owners].find(
+        const physicsDocuments = [...owners].filter(
             (document) => document.extensions?.KHR_physics_rigid_bodies !== undefined
-        ) ?? state.gltf;
+        );
 
-        this.computeFilterData(physicsDocument);
+        const filters = [];
+        const materials = [];
+        this.filterOffsets = new Map();
+        this.materialOffsets = new Map();
+        for (const document of physicsDocuments) {
+            const physics = document.extensions.KHR_physics_rigid_bodies;
+            this.filterOffsets.set(document, filters.length);
+            filters.push(...(physics.collisionFilters ?? []));
+            this.materialOffsets.set(document, materials.length);
+            materials.push(...(physics.physicsMaterials ?? []));
+        }
+
+        this.computeFilterData(filters);
         for (let i = 0; i < this.filterData.length; i++) {
             const physXFilterData = this.createPhysXCollisionFilter(i);
             this.physXFilterData.push(physXFilterData);
         }
 
-        const materials = physicsDocument.extensions?.KHR_physics_rigid_bodies?.physicsMaterials;
-        if (materials !== undefined) {
-            for (const gltfMaterial of materials) {
-                const physxMaterial = this.createPhysXMaterial(gltfMaterial);
-                this.physXMaterials.push(physxMaterial);
-            }
+        for (const gltfMaterial of materials) {
+            this.physXMaterials.push(this.createPhysXMaterial(gltfMaterial));
         }
 
         const tmpVec = new this.PhysX.PxVec3(0, -9.81, 0);
@@ -951,10 +963,20 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                     if (this.debugColliders) {
                         shapeFlags |= this.PhysX.PxShapeFlagEnum.eVISUALIZATION;
                     }
+                    const materialOffset = this.materialOffsets.get(gltf) ?? 0;
+                    const filterOffset = this.filterOffsets.get(gltf) ?? 0;
+                    const material =
+                        collider?.physicsMaterial !== undefined
+                            ? this.physXMaterials[materialOffset + collider.physicsMaterial]
+                            : this.defaultMaterial;
+                    const physXFilterData =
+                        collider?.collisionFilter !== undefined
+                            ? this.physXFilterData[filterOffset + collider.collisionFilter]
+                            : this.physXFilterData[this.physXFilterData.length - 1];
                     const shape = this.createShapeFromGeometry(
                         newGeometry,
-                        undefined,
-                        undefined,
+                        material,
+                        physXFilterData,
                         shapeFlags,
                         collider
                     );
@@ -1550,17 +1572,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     //region Shapes
 
     /**
-     * Pre-computes a bit-mask collision matrix for all collision filters defined in
-     * the glTF `KHR_physics_rigid_bodies` extension. Each entry `filterData[i]` is a
-     * bitmask of filter indices that filter `i` should collide with. Index 31 is
-     * reserved as the default filter (collides with everything). A maximum of 31
-     * user-defined filters are supported.
+     * Pre-computes a bit-mask collision matrix for the given collision filters. Each
+     * entry `filterData[i]` is a bitmask of filter indices that filter `i` should
+     * collide with. Index 31 is reserved as the default filter (collides with
+     * everything). A maximum of 31 user-defined filters are supported.
      *
-     * @param {object} gltf - The glTF asset containing the collision filter definitions.
+     * @param {object[]|undefined} filters - The combined collision filter list.
      */
-    computeFilterData(gltf) {
+    computeFilterData(filters) {
         // Default filter is sign bit
-        const filters = gltf.extensions?.KHR_physics_rigid_bodies?.collisionFilters;
         this.filterData = new Array(32).fill(0);
         this.filterData[31] = Math.pow(2, 32) - 1; // Default filter with all bits set
         let filterCount = filters?.length ?? 0;
@@ -1852,15 +1872,18 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             // Calculate scale and scaleAxis
             const { scale, scaleAxis } = PhysicsUtils.calculateScaleAndAxis(node);
 
+            const materialOffset = this.materialOffsets.get(gltf) ?? 0;
+            const filterOffset = this.filterOffsets.get(gltf) ?? 0;
+
             const materialIndex = collider?.physicsMaterial;
             const material =
                 materialIndex !== undefined
-                    ? this.physXMaterials[materialIndex]
+                    ? this.physXMaterials[materialOffset + materialIndex]
                     : this.defaultMaterial;
 
             const physXFilterData =
                 collider?.collisionFilter !== undefined
-                    ? this.physXFilterData[collider.collisionFilter]
+                    ? this.physXFilterData[filterOffset + collider.collisionFilter]
                     : this.physXFilterData[this.physXFilterData.length - 1];
 
             const shape = this.createShape(
