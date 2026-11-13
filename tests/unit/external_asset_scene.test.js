@@ -118,8 +118,9 @@ describe("gathering across documents", () => {
         expect(gathered.nodes.map((node) => node.name)).toEqual(["slot", "default"]);
     });
 
-    // A 2.1 child may declare no scene at all, and its roots are what it contributes.
-    it("takes the node roots of a child that declares no scene", () => {
+    // A 2.1 child without a scenes array is a collection of objects, not a scene, so it
+    // contributes nothing: the instance is a leaf that instantiates no further nodes.
+    it("ignores a child that declares no scene", () => {
         const parent = parentWith(
             [{ name: "slot", externalAsset: 0 }],
             documentOf({ nodes: [{ name: "orphan" }] })
@@ -127,7 +128,7 @@ describe("gathering across documents", () => {
 
         const gathered = parent.scenes[0].gatherNodes(parent, ALL_EXTENSIONS);
 
-        expect(gathered.nodes.map((node) => node.name)).toEqual(["slot", "orphan"]);
+        expect(gathered.nodes.map((node) => node.name)).toEqual(["slot"]);
     });
 
     it("ignores a child that has nothing to contribute", () => {

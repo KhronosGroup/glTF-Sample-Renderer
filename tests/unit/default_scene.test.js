@@ -5,9 +5,9 @@ import { glTF } from "../../source/gltf/gltf.js";
 
 installWebGlConstants();
 
-// glTF 2.1 deprecates multiple scenes and lets a file declare none at all. Every pass in
-// the renderer starts from a scene, so one is stood up over the node hierarchy's roots.
-// glTF 2.0 requires the array and keeps its old behaviour.
+// A document without a scenes array is a collection of objects, not a scene. It renders
+// nothing on its own, and as an external asset it is a leaf that instantiates nothing.
+// glTF 2.1 allows omitting the array; glTF 2.0 requires it and keeps its old behaviour.
 
 function parse(json) {
     const gltf = new glTF("test.gltf");
@@ -16,24 +16,14 @@ function parse(json) {
 }
 
 describe("an asset that declares no scenes", () => {
-    it("gives a 2.1 asset a scene over its root nodes", () => {
+    it("gives a 2.1 asset no scene", () => {
         const gltf = parse({
             asset: { version: "2.1" },
             nodes: [{ name: "Root", children: [1] }, { name: "Child" }]
         });
 
-        expect(gltf.scene).toBe(0);
-        expect(gltf.scenes).toHaveLength(1);
-        expect(gltf.scenes[0].nodes).toEqual([0]);
-    });
-
-    it("keeps every root, not just the first", () => {
-        const gltf = parse({
-            asset: { version: "2.1" },
-            nodes: [{ name: "A", children: [2] }, { name: "B" }, { name: "AChild" }]
-        });
-
-        expect(gltf.scenes[0].nodes).toEqual([0, 1]);
+        expect(gltf.scene).toBeUndefined();
+        expect(gltf.scenes).toEqual([]);
     });
 
     it("leaves a 2.0 asset without one, as that version requires", () => {
