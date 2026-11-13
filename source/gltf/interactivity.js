@@ -3,6 +3,7 @@ import * as interactivity from "@khronosgroup/gltf-interactivity-engine";
 import { mat4 } from "gl-matrix";
 import { recurseAllAnimatedProperties } from "./gltf_utils";
 import { gltfNode } from "./node.js";
+import { instantiatedDocuments } from "./clone_document.js";
 
 class gltfGraph extends GltfObject {
     static animatedProperties = [];
@@ -37,6 +38,23 @@ class GraphController {
         this.engine = new interactivity.BasicBehaveEngine(this.fps, this.eventBus);
         this.decorator = new SampleViewerDecorator(this.engine, this.debug);
         this.eventSubscriptions = new Map();
+        // One decorator per instantiated external asset that declares its own graphs.
+        // Each runs strictly locally: its own engine, event bus and document, with no
+        // shared variables or cross-graph events.
+        this.subControllers = [];
+    }
+
+    // The decorator that owns the given document, or undefined when no graph runs there.
+    decoratorFor(document) {
+        if (document === undefined || document === this.state?.gltf) {
+            return this.decorator;
+        }
+        for (const sub of this.subControllers) {
+            if (sub.document === document) {
+                return sub.decorator;
+            }
+        }
+        return undefined;
     }
 
     needsHover() {
@@ -49,22 +67,33 @@ class GraphController {
         ) {
             return false;
         }
-        return (
+        if (
             this.state?.gltf?.extensions?.KHR_interactivity?.graphs[this.graphIndex]
                 ?.hasHoverEvent === true
+        ) {
+            return true;
+        }
+        return this.subControllers.some(
+            (sub) =>
+                sub.document.extensions?.KHR_interactivity?.graphs[sub.graphIndex]
+                    ?.hasHoverEvent === true
         );
     }
 
     receiveSelection(pickingResult) {
-        if (this.graphIndex !== undefined) {
-            this.decorator.receiveSelection(pickingResult);
+        const node = pickingResult?.node;
+        if (this.graphIndex === undefined || node === undefined) {
+            return;
         }
+        this.decoratorFor(node.ownerDocument)?.receiveSelection(pickingResult);
     }
 
     receiveHover(pickingResult) {
-        if (this.graphIndex !== undefined) {
-            this.decorator.receiveHover(pickingResult);
+        const node = pickingResult?.node;
+        if (this.graphIndex === undefined || node === undefined) {
+            return;
         }
+        this.decoratorFor(node.ownerDocument)?.receiveHover(pickingResult);
     }
 
     rigidBodyTriggerEntered(triggerNodeIndex, colliderNodeIndex, motionNodeIndex) {
@@ -111,6 +140,16 @@ class GraphController {
         for (const [eventName, callback] of this.eventSubscriptions) {
             this.decorator.addCustomEventListener(eventName, callback);
         }
+
+        // Spin up a strictly-local decorator for every instantiated external asset that
+        // declares its own interactivity graphs.
+        this.subControllers = [];
+        for (const document of instantiatedDocuments(state.gltf)) {
+            if (document.extensions?.KHR_interactivity?.graphs === undefined) {
+                continue;
+            }
+            this.subControllers.push(createSubController(state, document));
+        }
     }
 
     /**
@@ -140,6 +179,10 @@ class GraphController {
         this.playing = false;
         this.decorator.pauseEventQueue();
         this.decorator.resetGraph();
+        for (const sub of this.subControllers) {
+            sub.decorator.pauseEventQueue();
+            sub.decorator.resetGraph();
+        }
     }
 
     /**
@@ -151,6 +194,9 @@ class GraphController {
         }
         this.decorator.pauseEventQueue();
         this.playing = false;
+        for (const sub of this.subControllers) {
+            sub.decorator.pauseEventQueue();
+        }
     }
 
     /**
@@ -162,6 +208,9 @@ class GraphController {
         }
         this.playing = true;
         this.decorator.playEventQueue();
+        for (const sub of this.subControllers) {
+            sub.decorator.playEventQueue();
+        }
     }
 
     /**
@@ -172,6 +221,10 @@ class GraphController {
             return;
         }
         this.loadGraph(this.graphIndex);
+        for (const sub of this.subControllers) {
+            sub.decorator.resetGraph();
+            sub.decorator.loadGraph(sub.graphIndex);
+        }
     }
 
     simulateTick() {
@@ -179,6 +232,9 @@ class GraphController {
             return;
         }
         this.decorator.executeEventQueueTick();
+        for (const sub of this.subControllers) {
+            sub.decorator.executeEventQueueTick();
+        }
     }
 
     /**
@@ -1047,6 +1103,27 @@ class SampleViewerDecorator extends interactivity.ADecorator {
     applyPointImpulseToRigidBody(nodeIndex, impulse, position) {
         this.world.physicsController.applyPointImpulse(nodeIndex, impulse, position);
     }
+}
+
+// A decorator plus engine for one instantiated external asset, rooted at that document
+// so its JSON pointers and animated properties resolve strictly locally. Shares the
+// viewer's camera, animation timer and physics controller, but keeps its own engine,
+// event bus and document so there is no cross-graph event or variable sharing.
+function createSubController(state, document) {
+    const eventBus = new interactivity.DOMEventBus();
+    const engine = new interactivity.BasicBehaveEngine(60, eventBus);
+    const decorator = new SampleViewerDecorator(engine, false);
+    decorator.setState({
+        gltf: document,
+        sceneIndex: document.scene ?? 0,
+        userCamera: state.userCamera,
+        cameraNodeIndex: undefined,
+        animationTimer: state.animationTimer,
+        physicsController: state.physicsController
+    });
+    const graphIndex = document.extensions.KHR_interactivity.graph ?? 0;
+    decorator.loadGraph(graphIndex);
+    return { decorator, engine, graphIndex, document };
 }
 
 export { gltfGraph, GraphController };

@@ -21,8 +21,7 @@ import { FileResolver } from "./file_resolver.js";
 import { ExternalAssetLoader } from "./external_asset_loader.js";
 import {
     instantiateExternalAssets,
-    hasInstancedAnimations,
-    warnAboutIgnoredGraphs
+    hasInstancedAnimations
 } from "../gltf/clone_document.js";
 import { loadThumbnail } from "./thumbnail_loader.js";
 
@@ -148,7 +147,6 @@ class ResourceLoader {
         // document whose GPU resources already exist and can simply be shared.
         instantiateExternalAssets(gltf, this.view.context);
         gltf.hasInstancedAnimations = hasInstancedAnimations(gltf);
-        warnAboutIgnoredGraphs(gltf);
 
         return gltf;
     }
