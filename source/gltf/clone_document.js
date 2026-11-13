@@ -25,7 +25,6 @@ const SHARED_ARRAYS = [
     "externalAssets",
     "files",
     "images",
-    "imageBasedLights",
     "samplers",
     "shapes",
     "textures"

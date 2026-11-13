@@ -34,7 +34,6 @@ const allowedExtensions = [
     "KHR_gaussian_splatting",
     "KHR_implicit_shapes",
     "KHR_interactivity",
-    "KHR_lights_image_based",
     "KHR_lights_punctual",
     "KHR_materials_anisotropy",
     "KHR_materials_clearcoat",
@@ -87,7 +86,6 @@ class glTF extends GltfObject {
         this.scene = undefined; // the default scene to show.
         this.scenes = [];
         this.cameras = [];
-        this.imageBasedLights = [];
         this.textures = [];
         this.images = [];
         this.samplers = [];
