@@ -266,9 +266,17 @@ class PhysicsController {
         this.hasRuntimeAnimationTargets = false;
         this.morphWeights.clear();
         this.timeAccumulator = 0;
-        for (const node of gltf?.nodes ?? []) {
-            node.physicsTransform = undefined;
-            node.scaledPhysicsTransform = undefined;
+        // Clear the simulated transforms of the root document and every instantiated
+        // external asset, so rigid bodies snap back to their authored transforms.
+        const clearTransforms = (document) => {
+            for (const node of document?.nodes ?? []) {
+                node.physicsTransform = undefined;
+                node.scaledPhysicsTransform = undefined;
+            }
+        };
+        clearTransforms(gltf);
+        for (const document of instantiatedDocuments(gltf)) {
+            clearTransforms(document);
         }
         if (this.engine) {
             this.engine.resetSimulation();
