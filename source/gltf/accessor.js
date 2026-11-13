@@ -4,6 +4,38 @@ import { GL } from "../Renderer/webgl.js";
 import { GltfObject } from "./gltf_object.js";
 import { hasMeshOptCompression, getMeshOptExtensionObject } from "./extension_utils.js";
 
+// glTF 2.1 defines extra accessor component types. WebGL exposes no constant for most of
+// them, so they are referenced by their spec values.
+const COMPONENT_TYPE_INT32 = 5124;
+const COMPONENT_TYPE_HALF_FLOAT = 5131;
+const COMPONENT_TYPE_INT64 = 5134;
+const COMPONENT_TYPE_UINT64 = 5135;
+
+// Converts one IEEE 754 binary16 (half float) bit pattern to a binary32 value.
+function halfToFloat(h) {
+    const sign = (h & 0x8000) === 0 ? 1 : -1;
+    const exponent = (h >> 10) & 0x1f;
+    const mantissa = h & 0x3ff;
+    if (exponent === 0) {
+        // Zero and subnormal values.
+        return sign * Math.pow(2, -14) * (mantissa / 1024);
+    }
+    if (exponent === 0x1f) {
+        // Infinity and NaN.
+        return mantissa === 0 ? sign * Infinity : NaN;
+    }
+    return sign * Math.pow(2, exponent - 15) * (1 + mantissa / 1024);
+}
+
+// Converts a view of half-float bit patterns into float32 values.
+function halfFloatToFloat32(uint16) {
+    const result = new Float32Array(uint16.length);
+    for (let i = 0; i < uint16.length; i++) {
+        result[i] = halfToFloat(uint16[i]);
+    }
+    return result;
+}
+
 class gltfAccessor extends GltfObject {
     static animatedProperties = [];
     constructor() {
@@ -119,6 +151,20 @@ class gltfAccessor extends GltfObject {
                 case 5130: // KHR_accessor_float64
                     this.typedView = new Float64Array(buffer.buffer, byteOffset, arrayLength);
                     break;
+                case COMPONENT_TYPE_INT32:
+                    this.typedView = new Int32Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case COMPONENT_TYPE_HALF_FLOAT:
+                    this.typedView = halfFloatToFloat32(
+                        new Uint16Array(buffer.buffer, byteOffset, arrayLength)
+                    );
+                    break;
+                case COMPONENT_TYPE_INT64:
+                    this.typedView = new BigInt64Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
+                case COMPONENT_TYPE_UINT64:
+                    this.typedView = new BigUint64Array(buffer.buffer, byteOffset, arrayLength);
+                    break;
             }
         } else {
             this.typedView = this.createView();
@@ -217,6 +263,23 @@ class gltfAccessor extends GltfObject {
                     this.filteredView = new Float64Array(arrayLength);
                     func = "getFloat64";
                     break;
+                case COMPONENT_TYPE_INT32:
+                    this.filteredView = new Int32Array(arrayLength);
+                    func = "getInt32";
+                    break;
+                case COMPONENT_TYPE_HALF_FLOAT:
+                    // Read the 16-bit patterns and convert them after the loop.
+                    this.filteredView = new Float32Array(arrayLength);
+                    func = "getUint16";
+                    break;
+                case COMPONENT_TYPE_INT64:
+                    this.filteredView = new BigInt64Array(arrayLength);
+                    func = "getBigInt64";
+                    break;
+                case COMPONENT_TYPE_UINT64:
+                    this.filteredView = new BigUint64Array(arrayLength);
+                    func = "getBigUint64";
+                    break;
             }
 
             try {
@@ -233,6 +296,13 @@ class gltfAccessor extends GltfObject {
                 }
             } catch (e) {
                 console.error("Error while creating deinterlaced view for accessor", this, e);
+            }
+
+            if (this.componentType === COMPONENT_TYPE_HALF_FLOAT) {
+                // filteredView holds raw half-float bit patterns; convert them to float32.
+                for (let i = 0; i < this.filteredView.length; i++) {
+                    this.filteredView[i] = halfToFloat(this.filteredView[i]);
+                }
             }
         } else {
             this.filteredView = this.createView();
@@ -253,6 +323,10 @@ class gltfAccessor extends GltfObject {
         if (this.componentType == GL.UNSIGNED_SHORT) return new Uint16Array(size);
         if (this.componentType == GL.UNSIGNED_INT) return new Uint32Array(size);
         if (this.componentType == GL.FLOAT) return new Float32Array(size);
+        if (this.componentType == COMPONENT_TYPE_INT32) return new Int32Array(size);
+        if (this.componentType == COMPONENT_TYPE_HALF_FLOAT) return new Float32Array(size);
+        if (this.componentType == COMPONENT_TYPE_INT64) return new BigInt64Array(size);
+        if (this.componentType == COMPONENT_TYPE_UINT64) return new BigUint64Array(size);
         return undefined;
     }
 
@@ -388,6 +462,32 @@ class gltfAccessor extends GltfObject {
                     valuesArrayLength
                 );
                 break;
+            case COMPONENT_TYPE_INT32:
+                valuesTypedView = new Int32Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case COMPONENT_TYPE_HALF_FLOAT:
+                valuesTypedView = halfFloatToFloat32(
+                    new Uint16Array(valuesBuffer.buffer, valuesByteOffset, valuesArrayLength)
+                );
+                break;
+            case COMPONENT_TYPE_INT64:
+                valuesTypedView = new BigInt64Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
+            case COMPONENT_TYPE_UINT64:
+                valuesTypedView = new BigUint64Array(
+                    valuesBuffer.buffer,
+                    valuesByteOffset,
+                    valuesArrayLength
+                );
+                break;
         }
 
         // Overwrite values.
@@ -428,11 +528,15 @@ class gltfAccessor extends GltfObject {
                 return 1;
             case GL.SHORT:
             case GL.UNSIGNED_SHORT:
+            case COMPONENT_TYPE_HALF_FLOAT:
                 return 2;
             case GL.UNSIGNED_INT:
             case GL.FLOAT:
+            case COMPONENT_TYPE_INT32:
                 return 4;
             case 5130: // KHR_accessor_float64
+            case COMPONENT_TYPE_INT64:
+            case COMPONENT_TYPE_UINT64:
                 return 8;
             default:
                 return 0;
