@@ -947,6 +947,10 @@ class gltfRenderer {
             if (!currentCamera.enforceAspectRatio) {
                 currentCamera.perspective.aspectRatio = this.currentWidth / this.currentHeight;
             }
+            // The orthographic frustum mirrors the effective perspective aspect ratio, so
+            // an enforced ratio (and the default canvas ratio) letterboxes in both modes.
+            currentCamera.orthographic.xmag =
+                currentCamera.orthographic.ymag * (currentCamera.perspective.aspectRatio ?? 1);
         } else {
             currentCamera = state.gltf.cameras[state.gltf.nodes[state.cameraNodeIndex].camera];
             if (currentCamera === undefined) {
