@@ -12,6 +12,9 @@
     "scripts": {
         "build": "rolldown -c",
         "watch": "rolldown -c -w",
+        "test": "npx playwright test",
+        "test:unit": "vitest run",
+        "test:unit:watch": "vitest",
         "regression:baseline": "npm run build && node tests/regression/run.js --baseline",
         "regression:compare": "npm run build && node tests/regression/run.js --compare",
         "regression:update-pin": "node tests/regression/update_pin.js",
@@ -49,7 +52,8 @@
         "jsdoc-to-markdown": "^9.1.3",
         "pixelmatch": "^8.0.0",
         "prettier": "^3.9.10",
-        "rolldown": "^1.2.15"
+        "rolldown": "^1.2.15",
+        "vitest": "^4.1.11"
     },
     "overrides": {
         "minimatch": "^11.0.1"

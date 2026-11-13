@@ -55,4 +55,11 @@ const makeAnimatable = (object, json, properties) => {
     }
 };
 
-export { AnimatableProperty, makeAnimatable };
+// Binds a glTF 2.1 core property and its pre-2.1 extension counterpart to one
+// AnimatableProperty, so both JSON pointers keep addressing the same state.
+const linkPromotedProperty = (coreObject, coreProperty, extensionObject, extensionProperty) => {
+    extensionObject.animatedPropertyObjects[extensionProperty] =
+        coreObject.animatedPropertyObjects[coreProperty];
+};
+
+export { AnimatableProperty, makeAnimatable, linkPromotedProperty };

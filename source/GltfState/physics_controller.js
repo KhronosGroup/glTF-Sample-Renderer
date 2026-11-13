@@ -2,6 +2,11 @@ import { getAnimatedIndices } from "../gltf/gltf_utils";
 import { NvidiaPhysicsInterface } from "../PhysicsEngines/PhysX";
 import { PhysicsUtils } from "../gltf/physics_utils";
 
+// The largest per-frame time delta the simulation will accept. A backgrounded tab produces
+// a frame delta of many seconds when it becomes visible again; stepping that in one go
+// makes the physics engine explode. Clamping the accumulator keeps each step bounded.
+const MAX_PHYSICS_DELTA_TIME = 0.25; // seconds
+
 /**
  * Controller for managing the physics simulation of a glTF scene.
  */
@@ -306,7 +311,7 @@ class PhysicsController {
             this.skipFrames -= 1;
             return;
         }
-        this.timeAccumulator += deltaTime;
+        this.timeAccumulator += Math.min(deltaTime, MAX_PHYSICS_DELTA_TIME);
         if (this.pauseTime !== undefined && this.playing) {
             this.timeAccumulator = this.simulationStepTime;
             this.pauseTime = undefined;
