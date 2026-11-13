@@ -375,13 +375,10 @@ class SampleViewerDecorator extends interactivity.ADecorator {
 
     resetGraph() {
         this.pauseEventQueue();
-        this.behaveEngine.loadBehaveGraph({
-            nodes: [],
-            types: [],
-            events: [],
-            declarations: [],
-            variables: []
-        });
+        // Clearing the engine must not pass an empty-but-shaped graph: the engine rejects
+        // graphs whose arrays are present yet empty (schema minItems: 1). An empty object
+        // is valid and resets nodes/variables/events/types/declarations to nothing.
+        this.behaveEngine.loadBehaveGraph({});
         if (this.world === undefined) {
             return;
         }
