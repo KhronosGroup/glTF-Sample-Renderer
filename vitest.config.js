@@ -4,14 +4,12 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
     resolve: {
         alias: {
-            // The package declares `main` as a .ts file it does not publish, so
-            // node-style resolution fails. Only its `browser` entry actually exists, and
-            // that is what the browser bundle uses, so point straight at it.
+            // Resolve the engine entry through Node's module resolution so the alias
+            // follows npm workspace hoisting (the package lives in the repo root's
+            // node_modules, not the renderer's). The package's `exports` only defines
+            // an "import" condition, which import.meta.resolve honours.
             "@khronosgroup/gltf-interactivity-engine": fileURLToPath(
-                new URL(
-                    "./node_modules/@khronosgroup/gltf-interactivity-engine/build/index.js",
-                    import.meta.url
-                )
+                import.meta.resolve("@khronosgroup/gltf-interactivity-engine")
             )
         }
     },
