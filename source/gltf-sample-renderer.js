@@ -6,4 +6,6 @@ import { ResourceLoader } from "./ResourceLoader/resource_loader.js";
 
 import { ResourceLoaderUtils } from "./ResourceLoader/loader_utils.js";
 
-export { GltfView, GltfState, ResourceLoader, ResourceLoaderUtils };
+import { instantiatedDocuments } from "./gltf/clone_document.js";
+
+export { GltfView, GltfState, ResourceLoader, ResourceLoaderUtils, instantiatedDocuments };

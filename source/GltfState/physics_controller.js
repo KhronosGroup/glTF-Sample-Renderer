@@ -115,10 +115,11 @@ class PhysicsController {
      */
     loadScene(state, sceneIndex) {
         this.resetScene(state.gltf);
-        if (
-            state.gltf.extensionsUsed === undefined ||
-            state.gltf.extensionsUsed.includes("KHR_physics_rigid_bodies") === false
-        ) {
+        // Physics may live in the root document or in any instantiated external asset,
+        // so the extension is looked for across the whole document tree.
+        const declaresPhysics = (document) =>
+            document.extensionsUsed?.includes("KHR_physics_rigid_bodies") ?? false;
+        if (![state.gltf, ...instantiatedDocuments(state.gltf)].some(declaresPhysics)) {
             this.enabled = false;
             return;
         }
