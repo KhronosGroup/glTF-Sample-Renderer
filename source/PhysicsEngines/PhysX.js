@@ -1350,6 +1350,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let flag = 0;
         flag |= this.PhysX.PxConvexFlagEnum.eCOMPUTE_CONVEX;
         flag |= this.PhysX.PxConvexFlagEnum.eSHIFT_VERTICES;
+        // 16-bit indices so convex hulls with more than 256 vertices survive cooking.
+        flag |= this.PhysX.PxConvexFlagEnum.e16_BIT_INDICES;
         //flag |= this.PhysX.PxConvexFlagEnum.eDISABLE_MESH_VALIDATION;
         const pxflags = new this.PhysX.PxConvexFlags(flag);
         des.flags = pxflags;
@@ -1397,17 +1399,18 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             positions[i] = heapF32[vertexOffset + i];
         }
 
-        // Convex meshes are cooked with 8-bit indices, so each polygon is a
-        // triangle described by three byte indices.
-        const indexPtr = convexMesh.getIndexBuffer().ptr;
+        // Convex meshes are cooked with 16-bit indices, so each polygon is a
+        // triangle described by three 16-bit indices.
+        const heapU16 = new Uint16Array(this.PhysX.HEAPU8.buffer);
+        const indexOffset = convexMesh.getIndexBuffer().ptr >> 1;
         const triIndices = new Uint16Array(nbPolygons * 3);
         const polygon = new this.PhysX.PxHullPolygon();
         for (let p = 0; p < nbPolygons; p++) {
             convexMesh.getPolygonData(p, polygon);
             const base = polygon.mIndexBase;
-            triIndices[p * 3] = this.PhysX.HEAPU8[indexPtr + base];
-            triIndices[p * 3 + 1] = this.PhysX.HEAPU8[indexPtr + base + 1];
-            triIndices[p * 3 + 2] = this.PhysX.HEAPU8[indexPtr + base + 2];
+            triIndices[p * 3] = heapU16[indexOffset + base];
+            triIndices[p * 3 + 1] = heapU16[indexOffset + base + 1];
+            triIndices[p * 3 + 2] = heapU16[indexOffset + base + 2];
         }
         this.PhysX.destroy(polygon);
 
