@@ -3343,7 +3343,7 @@ class gltfRenderer {
         this.shader.updateUniform("u_UseUniformEnvironment", useUniform ? 1 : 0);
         this.shader.updateUniform(
             "u_UniformEnvironmentColor",
-            state.renderingParameters.uniformEnvironmentColor
+            jsToGl(state.renderingParameters.uniformEnvironmentColor)
         );
 
         let envIntensity = state.renderingParameters.iblIntensity;
