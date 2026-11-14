@@ -742,8 +742,11 @@ class gltfRenderer {
             // Clear depth.
             gl.clearBufferfv(gl.DEPTH, 0, new Float32Array([1.0]));
         }
+        // The default framebuffer only shows through in the letterbox bars (the
+        // tonemap pass covers the whole viewport), so clear it black rather than
+        // the background colour.
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        this.webGl.context.clearColor(...linearClearColor);
+        this.webGl.context.clearColor(0, 0, 0, 1);
         this.webGl.context.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
         this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, this.pickingFramebuffer);
