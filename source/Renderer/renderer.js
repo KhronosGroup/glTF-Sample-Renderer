@@ -3338,6 +3338,23 @@ class gltfRenderer {
 
     applyEnvironmentMap(state, texSlotOffset) {
         const environment = state.environment;
+        const useUniform = state.renderingParameters.useUniformEnvironment === true;
+
+        this.shader.updateUniform("u_UseUniformEnvironment", useUniform ? 1 : 0);
+        this.shader.updateUniform(
+            "u_UniformEnvironmentColor",
+            state.renderingParameters.uniformEnvironmentColor
+        );
+
+        let envIntensity = state.renderingParameters.iblIntensity;
+        if (environment !== undefined && !useUniform) {
+            envIntensity *= environment.iblIntensityScale;
+        }
+        if (state.renderingParameters.useIBL === false) {
+            envIntensity = 0.0;
+        }
+        this.shader.updateUniform("u_EnvIntensity", envIntensity);
+
         if (environment === undefined) {
             return texSlotOffset;
         }
@@ -3385,15 +3402,6 @@ class gltfRenderer {
         let rotMatrix3 = mat3.create();
         mat3.fromMat4(rotMatrix3, rotMatrix4);
         this.shader.updateUniform("u_EnvRotation", rotMatrix3);
-
-        let envIntensity =
-            state.renderingParameters.iblIntensity * state.environment.iblIntensityScale;
-
-        if (state.renderingParameters.useIBL === false) {
-            envIntensity = 0.0;
-        }
-
-        this.shader.updateUniform("u_EnvIntensity", envIntensity);
 
         return texSlotOffset;
     }

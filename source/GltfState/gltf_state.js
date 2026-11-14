@@ -137,6 +137,10 @@ class GltfState {
             renderEnvironmentMap: true,
             /** apply blur to the background environment map */
             blurEnvironmentMap: true,
+            /** illuminate with a uniform color instead of the environment map */
+            useUniformEnvironment: false,
+            /** the uniform color used when useUniformEnvironment is set */
+            uniformEnvironmentColor: [1, 1, 1],
             /** which tonemap to use, use KHR_PBR_NEUTRAL for best color reproduction */
             toneMap: GltfState.ToneMaps.KHR_PBR_NEUTRAL,
             /** render some debug output channes, such as for example the normals */
