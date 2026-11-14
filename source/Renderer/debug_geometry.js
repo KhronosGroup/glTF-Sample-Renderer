@@ -308,9 +308,38 @@ function meshGeometry(gltf, meshIndex) {
     return geometry(positions, triIndices, lineIndices);
 }
 
+// Builds the drawable geometry of a convex hull extracted from the physics engine.
+// Undefined when no hull is available, in which case the source mesh is used instead.
+function convexHullGeometry(hull) {
+    if (hull?.positions === undefined || hull?.triIndices === undefined) {
+        return undefined;
+    }
+    const positions = Array.from(hull.positions);
+    const triIndices = Array.from(hull.triIndices);
+    const lineIndices = [];
+    const edges = new Set();
+    for (let i = 0; i + 2 < triIndices.length; i += 3) {
+        const a = triIndices[i];
+        const b = triIndices[i + 1];
+        const c = triIndices[i + 2];
+        for (const [from, to] of [
+            [a, b],
+            [b, c],
+            [c, a]
+        ]) {
+            const key = from < to ? `${from}_${to}` : `${to}_${from}`;
+            if (!edges.has(key)) {
+                edges.add(key);
+                lineIndices.push(from, to);
+            }
+        }
+    }
+    return geometry(positions, triIndices, lineIndices);
+}
+
 // Builds the drawable geometry for a shape in its own local space, or undefined when the
-// shape cannot be visualised. Convex hulls are drawn as their source mesh for now, which
-// over-reports concavity but never misplaces the shape.
+// shape cannot be visualised. Convex hulls prefer the hull cooked by the physics engine and
+// fall back to the source mesh when none is available yet.
 function shapeGeometry(gltf, shape) {
     const parameters = shape.parameters();
     switch (shape.type) {
@@ -333,8 +362,12 @@ function shapeGeometry(gltf, shape) {
         case "plane":
             return planeGeometry(parameters?.sizeX, parameters?.sizeZ);
         case "mesh":
-        case "convexMesh":
             return parameters?.mesh !== undefined ? meshGeometry(gltf, parameters.mesh) : undefined;
+        case "convexMesh":
+            return (
+                convexHullGeometry(parameters?.convexHull) ??
+                (parameters?.mesh !== undefined ? meshGeometry(gltf, parameters.mesh) : undefined)
+            );
         default:
             return undefined;
     }
@@ -355,8 +388,9 @@ function shapeGeometryKey(shape) {
         case "plane":
             return `plane:${parameters?.sizeX}:${parameters?.sizeZ}`;
         case "mesh":
-        case "convexMesh":
             return `${shape.type}:${parameters?.mesh}`;
+        case "convexMesh":
+            return `${shape.type}:${parameters?.mesh}:${parameters?.convexHull?.version ?? 0}`;
         default:
             return `unsupported:${shape.type}`;
     }

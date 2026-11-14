@@ -104,7 +104,7 @@ function meshColliderShape(geometry) {
     if (geometry.debugMeshShape === undefined) {
         geometry.debugMeshShape = {
             type: geometry.convexHull ? "convexMesh" : "mesh",
-            parameters: () => ({ mesh: geometry.mesh })
+            parameters: () => ({ mesh: geometry.mesh, convexHull: geometry.debugConvexHull })
         };
     }
     return geometry.debugMeshShape;

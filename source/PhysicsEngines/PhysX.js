@@ -46,6 +46,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         this.convexMeshes = [];
         this.triangleMeshes = [];
 
+        // Monotonic id assigned to each cooked convex hull, used to invalidate the
+        // renderer's debug-shape cache when a collider is rebuilt.
+        this.debugHullVersion = 0;
+
         // Debug
         this.debugColliders = false;
         this.debugJoints = false;
@@ -1369,6 +1373,76 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
     }
 
     /**
+     * Extracts the cooked convex hull of a `PxConvexMesh` as plain indexed geometry
+     * in the input mesh's space. PhysX stores the hull with the `eSHIFT_VERTICES`
+     * offset applied, so the input AABB centre is added back before returning.
+     *
+     * @param {object} convexMesh - The cooked `PxConvexMesh`.
+     * @param {Float32Array} inputVertices - The vertices the hull was cooked from.
+     * @returns {{ positions: Float32Array, triIndices: Uint16Array, version: number }|undefined}
+     */
+    extractConvexHull(convexMesh, inputVertices) {
+        const nbVertices = convexMesh.getNbVertices();
+        const nbPolygons = convexMesh.getNbPolygons();
+        if (nbVertices === 0 || nbPolygons === 0) {
+            return undefined;
+        }
+
+        // getVertices() returns the first PxVec3; the remaining vertices are
+        // contiguous at a 12-byte stride in the wasm heap.
+        const heapF32 = new Float32Array(this.PhysX.HEAPU8.buffer);
+        const vertexOffset = convexMesh.getVertices().ptr >> 2;
+        const positions = new Float32Array(nbVertices * 3);
+        for (let i = 0; i < positions.length; i++) {
+            positions[i] = heapF32[vertexOffset + i];
+        }
+
+        // Convex meshes are cooked with 8-bit indices, so each polygon is a
+        // triangle described by three byte indices.
+        const indexPtr = convexMesh.getIndexBuffer().ptr;
+        const triIndices = new Uint16Array(nbPolygons * 3);
+        const polygon = new this.PhysX.PxHullPolygon();
+        for (let p = 0; p < nbPolygons; p++) {
+            convexMesh.getPolygonData(p, polygon);
+            const base = polygon.mIndexBase;
+            triIndices[p * 3] = this.PhysX.HEAPU8[indexPtr + base];
+            triIndices[p * 3 + 1] = this.PhysX.HEAPU8[indexPtr + base + 1];
+            triIndices[p * 3 + 2] = this.PhysX.HEAPU8[indexPtr + base + 2];
+        }
+        this.PhysX.destroy(polygon);
+
+        // Undo the eSHIFT_VERTICES offset: the hull was centred on the input
+        // AABB centre, so translate it back into the mesh's local space.
+        let minX = Infinity;
+        let minY = Infinity;
+        let minZ = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        let maxZ = -Infinity;
+        for (let i = 0; i < inputVertices.length; i += 3) {
+            const x = inputVertices[i];
+            const y = inputVertices[i + 1];
+            const z = inputVertices[i + 2];
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (z < minZ) minZ = z;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+            if (z > maxZ) maxZ = z;
+        }
+        const shiftX = (minX + maxX) / 2;
+        const shiftY = (minY + maxY) / 2;
+        const shiftZ = (minZ + maxZ) / 2;
+        for (let i = 0; i < nbVertices; i++) {
+            positions[i * 3] += shiftX;
+            positions[i * 3 + 1] += shiftY;
+            positions[i * 3 + 2] += shiftZ;
+        }
+
+        return { positions, triIndices, version: ++this.debugHullVersion };
+    }
+
+    /**
      * Extracts and flattens vertex position and (optionally) index data from all
      * primitives of a glTF mesh. Morph targets are applied on the CPU using the
      * mesh's current weights. Triangle-strip and triangle-fan primitives are
@@ -1480,7 +1554,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      */
     createConvexMesh(gltf, mesh, scale = vec3.fromValues(1, 1, 1), scaleAxis = quat.create()) {
         const result = this.collectVerticesAndIndicesFromMesh(gltf, mesh, false);
-        return this.createConvexPxMesh(result.vertices, scale, scaleAxis);
+        const geometry = this.createConvexPxMesh(result.vertices, scale, scaleAxis);
+        if (geometry !== undefined) {
+            geometry.debugConvexHull = this.extractConvexHull(geometry.convexMesh, result.vertices);
+        }
+        return geometry;
     }
 
     /**
@@ -1743,6 +1821,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const mesh = gltf.meshes[collider.geometry.mesh];
             if (convexHull === true) {
                 geometry = this.createConvexMesh(gltf, mesh, scale, scaleAxis);
+                if (geometry?.debugConvexHull !== undefined) {
+                    collider.geometry.debugConvexHull = geometry.debugConvexHull;
+                }
             } else {
                 geometry = this.createPxMesh(gltf, mesh, scale, scaleAxis);
             }
