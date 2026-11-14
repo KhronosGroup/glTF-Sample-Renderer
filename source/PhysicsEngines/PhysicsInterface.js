@@ -20,9 +20,7 @@ class PhysicsInterface {
         triggerNodes,
         independentTriggerNodes,
         nodeToMotion,
-        hasRuntimeAnimationTargets,
-        staticMeshColliderCount,
-        dynamicMeshColliderCount
+        hasRuntimeAnimationTargets
     ) {}
     resetSimulation() {}
     simulateStep(state, deltaTime) {}

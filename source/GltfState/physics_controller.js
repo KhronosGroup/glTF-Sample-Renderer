@@ -138,8 +138,6 @@ class PhysicsController {
             "rotation",
             "scale"
         ]);
-        let dynamicMeshColliderCount = 0;
-        let staticMeshColliderCount = 0;
         this.hasRuntimeAnimationTargets = result.runtimeChanges;
         // Walks a document's hierarchy and descends into instantiated external assets, so
         // rigid bodies, joints and triggers declared by any sub-asset take part in the
@@ -159,18 +157,6 @@ class PhysicsController {
                     parentRigidBody = node;
                 } else if (currentRigidBody === undefined && rigidBody.collider !== undefined) {
                     this.staticActors.push(node);
-                }
-                if (rigidBody.collider?.geometry?.mesh !== undefined) {
-                    if (!rigidBody.collider.geometry.convexHull) {
-                        if (
-                            parentRigidBody === undefined ||
-                            parentRigidBody.extensions.KHR_physics_rigid_bodies.motion.isKinematic
-                        ) {
-                            staticMeshColliderCount++;
-                        } else if (currentRigidBody !== parentRigidBody) {
-                            dynamicMeshColliderCount++;
-                        }
-                    }
                 }
                 if (rigidBody.joint !== undefined) {
                     this.jointNodes.push(node);
@@ -238,9 +224,7 @@ class PhysicsController {
             this.triggerNodes,
             this.independentTriggerNodes,
             this.nodeToMotion,
-            this.hasRuntimeAnimationTargets,
-            staticMeshColliderCount,
-            dynamicMeshColliderCount
+            this.hasRuntimeAnimationTargets
         );
         this.loading = false;
         state.gltf.resetAllDirtyFlags();

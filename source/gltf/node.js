@@ -319,9 +319,7 @@ class KHR_physics_rigid_bodies_geometry extends GltfObject {
     static animatedProperties = [];
     constructor() {
         super();
-        this.convexHull = false;
         this.shape = undefined;
-        this.mesh = undefined;
     }
 }
 

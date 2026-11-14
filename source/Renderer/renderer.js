@@ -97,19 +97,6 @@ const SHAPE_FILL_DEPTH_BIAS = 0.000002;
 // the translucent fill rather than z-fighting with it.
 const SHAPE_LINE_DEPTH_BIAS = 0.000005;
 
-// A draft-era mesh collider points straight at a mesh instead of a shape, so synthesise the
-// shape the debug pass would have used. Memoised on the geometry so the buffer cache stays
-// stable across frames.
-function meshColliderShape(geometry) {
-    if (geometry.debugMeshShape === undefined) {
-        geometry.debugMeshShape = {
-            type: geometry.convexHull ? "convexMesh" : "mesh",
-            parameters: () => ({ mesh: geometry.mesh, convexHull: geometry.debugConvexHull })
-        };
-    }
-    return geometry.debugMeshShape;
-}
-
 class gltfRenderer {
     constructor(context) {
         this.shader = undefined; // current shader
@@ -1808,8 +1795,6 @@ class gltfRenderer {
                 for (const geometry of [physics?.collider?.geometry, physics?.trigger?.geometry]) {
                     if (geometry?.shape !== undefined) {
                         add(gltf.shapes[geometry.shape], node.getRenderedWorldTransform(), false);
-                    } else if (geometry?.mesh !== undefined) {
-                        add(meshColliderShape(geometry), node.getRenderedWorldTransform(), false);
                     }
                 }
             }

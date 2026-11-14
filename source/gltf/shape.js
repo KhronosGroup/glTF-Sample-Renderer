@@ -124,6 +124,12 @@ class gltfShapeMesh extends GltfObject {
 class gltfShapeConvexMesh extends gltfShapeMesh {
     static animatedProperties = [];
     static readOnlyAnimatedProperties = ["mesh"];
+    constructor() {
+        super();
+        // Non-glTF runtime cache: the convex hull the physics engine cooks from the
+        // mesh, so the debug pass can draw the actual hull rather than the source mesh.
+        this.convexHull = undefined;
+    }
 }
 
 export {

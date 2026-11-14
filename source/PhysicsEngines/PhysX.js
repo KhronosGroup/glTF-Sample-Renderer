@@ -149,8 +149,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      * @param {Array<object>} independentTriggerNodes - Trigger nodes not already covered by another actor.
      * @param {Map<number, object>} nodeToMotion - Mapping from node index to motion data.
      * @param {boolean} _hasRuntimeAnimationTargets - Unused; reserved for future use.
-     * @param {number} _staticMeshColliderCount - Unused; reserved for future use.
-     * @param {number} _dynamicMeshColliderCount - Unused; reserved for future use.
      */
     initializeSimulation(
         state,
@@ -161,9 +159,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         triggerNodes,
         independentTriggerNodes,
         nodeToMotion,
-        _hasRuntimeAnimationTargets,
-        _staticMeshColliderCount,
-        _dynamicMeshColliderCount
+        _hasRuntimeAnimationTargets
     ) {
         if (!this.PhysX) {
             return;
@@ -951,95 +947,97 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let scale = vec3.fromValues(1, 1, 1);
         let scaleAxis = quat.create();
         if (shapeIndex !== undefined) {
-            // Simple shapes need to be recreated if scale changed
-            // If properties changed we also need to recreate the mesh colliders
-            const dirty = gltf.shapes[shapeIndex].isDirty();
-            if (
-                scaleChanged &&
-                !dirty &&
-                currentColliderType === this.PhysX.PxGeometryTypeEnum.eCONVEXMESH
-            ) {
-                // Update convex mesh scale
-                currentGeometry = this.PhysX.castObject(
-                    currentGeometry,
-                    this.PhysX.PxConvexMeshGeometry
-                );
-                const result = PhysicsUtils.calculateScaleAndAxis(node);
-                scale = result.scale;
-                scaleAxis = result.scaleAxis;
-                const pxScale = new this.PhysX.PxVec3(...scale);
-                const pxRotation = new this.PhysX.PxQuat(...scaleAxis);
-                const meshScale = new this.PhysX.PxMeshScale(pxScale, pxRotation);
-                currentGeometry.scale = meshScale;
-                this.PhysX.destroy(pxScale);
-                this.PhysX.destroy(pxRotation);
-            } else if (dirty || scaleChanged) {
-                // Recreate simple shape collider
-                const newGeometry = this.generateSimpleShape(
-                    gltf.shapes[shapeIndex],
-                    scale,
-                    scaleAxis
-                );
-                currentGeometry.release?.();
-                if (newGeometry.getType() !== currentColliderType) {
-                    // We need to recreate the shape
-                    let shapeFlags;
-                    if (isTrigger) {
-                        shapeFlags = this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE;
-                    } else {
-                        shapeFlags = this.PhysX.PxShapeFlagEnum.eSIMULATION_SHAPE;
+            const gltfShape = gltf.shapes[shapeIndex];
+            if (gltfShape.type === "mesh" || gltfShape.type === "convexMesh") {
+                // Mesh shapes have no mutable properties besides scale, which is baked
+                // into the cooked geometry in place.
+                if (scaleChanged) {
+                    if (currentColliderType === this.PhysX.PxGeometryTypeEnum.eCONVEXMESH) {
+                        currentGeometry = this.PhysX.castObject(
+                            currentGeometry,
+                            this.PhysX.PxConvexMeshGeometry
+                        );
+                    } else if (
+                        currentColliderType === this.PhysX.PxGeometryTypeEnum.eTRIANGLEMESH
+                    ) {
+                        currentGeometry = this.PhysX.castObject(
+                            currentGeometry,
+                            this.PhysX.PxTriangleMeshGeometry
+                        );
                     }
-                    if (this.debugColliders) {
-                        shapeFlags |= this.PhysX.PxShapeFlagEnum.eVISUALIZATION;
-                    }
-                    const materialOffset = this.materialOffsets.get(gltf) ?? 0;
-                    const filterOffset = this.filterOffsets.get(gltf) ?? 0;
-                    const material =
-                        collider?.physicsMaterial !== undefined
-                            ? this.physXMaterials[materialOffset + collider.physicsMaterial]
-                            : this.defaultMaterial;
-                    const physXFilterData =
-                        collider?.collisionFilter !== undefined
-                            ? this.physXFilterData[filterOffset + collider.collisionFilter]
-                            : this.physXFilterData[this.physXFilterData.length - 1];
-                    const shape = this.createShapeFromGeometry(
-                        newGeometry,
-                        material,
-                        physXFilterData,
-                        shapeFlags,
-                        collider
-                    );
-                    result?.pxShapeMap.set(node, shape);
-                    actor.detachShape(currentShape);
-                    actor.attachShape(shape);
-                    this.PhysX.destroy(currentShape);
-                } else {
-                    currentShape.setGeometry(newGeometry);
+                    const result = PhysicsUtils.calculateScaleAndAxis(node);
+                    scale = result.scale;
+                    scaleAxis = result.scaleAxis;
+                    const pxScale = new this.PhysX.PxVec3(...scale);
+                    const pxRotation = new this.PhysX.PxQuat(...scaleAxis);
+                    const meshScale = new this.PhysX.PxMeshScale(pxScale, pxRotation);
+                    currentGeometry.scale = meshScale;
+                    this.PhysX.destroy(pxScale);
+                    this.PhysX.destroy(pxRotation);
                 }
-            }
-        } else if (collider?.geometry?.mesh !== undefined) {
-            if (scaleChanged) {
-                if (currentColliderType === this.PhysX.PxGeometryTypeEnum.eCONVEXMESH) {
+            } else {
+                // Simple shapes need to be recreated if scale changed.
+                // If properties changed we also need to recreate the mesh colliders.
+                const dirty = gltfShape.isDirty();
+                if (
+                    scaleChanged &&
+                    !dirty &&
+                    currentColliderType === this.PhysX.PxGeometryTypeEnum.eCONVEXMESH
+                ) {
+                    // Update convex mesh scale
                     currentGeometry = this.PhysX.castObject(
                         currentGeometry,
                         this.PhysX.PxConvexMeshGeometry
                     );
-                } else if (currentColliderType === this.PhysX.PxGeometryTypeEnum.eTRIANGLEMESH) {
-                    currentGeometry = this.PhysX.castObject(
-                        currentGeometry,
-                        this.PhysX.PxTriangleMeshGeometry
-                    );
+                    const result = PhysicsUtils.calculateScaleAndAxis(node);
+                    scale = result.scale;
+                    scaleAxis = result.scaleAxis;
+                    const pxScale = new this.PhysX.PxVec3(...scale);
+                    const pxRotation = new this.PhysX.PxQuat(...scaleAxis);
+                    const meshScale = new this.PhysX.PxMeshScale(pxScale, pxRotation);
+                    currentGeometry.scale = meshScale;
+                    this.PhysX.destroy(pxScale);
+                    this.PhysX.destroy(pxRotation);
+                } else if (dirty || scaleChanged) {
+                    // Recreate simple shape collider
+                    const newGeometry = this.generateSimpleShape(gltfShape, scale, scaleAxis);
+                    currentGeometry.release?.();
+                    if (newGeometry.getType() !== currentColliderType) {
+                        // We need to recreate the shape
+                        let shapeFlags;
+                        if (isTrigger) {
+                            shapeFlags = this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE;
+                        } else {
+                            shapeFlags = this.PhysX.PxShapeFlagEnum.eSIMULATION_SHAPE;
+                        }
+                        if (this.debugColliders) {
+                            shapeFlags |= this.PhysX.PxShapeFlagEnum.eVISUALIZATION;
+                        }
+                        const materialOffset = this.materialOffsets.get(gltf) ?? 0;
+                        const filterOffset = this.filterOffsets.get(gltf) ?? 0;
+                        const material =
+                            collider?.physicsMaterial !== undefined
+                                ? this.physXMaterials[materialOffset + collider.physicsMaterial]
+                                : this.defaultMaterial;
+                        const physXFilterData =
+                            collider?.collisionFilter !== undefined
+                                ? this.physXFilterData[filterOffset + collider.collisionFilter]
+                                : this.physXFilterData[this.physXFilterData.length - 1];
+                        const shape = this.createShapeFromGeometry(
+                            newGeometry,
+                            material,
+                            physXFilterData,
+                            shapeFlags,
+                            collider
+                        );
+                        result?.pxShapeMap.set(node, shape);
+                        actor.detachShape(currentShape);
+                        actor.attachShape(shape);
+                        this.PhysX.destroy(currentShape);
+                    } else {
+                        currentShape.setGeometry(newGeometry);
+                    }
                 }
-                // apply scale
-                const result = PhysicsUtils.calculateScaleAndAxis(node);
-                scale = result.scale;
-                scaleAxis = result.scaleAxis;
-                const pxScale = new this.PhysX.PxVec3(...scale);
-                const pxRotation = new this.PhysX.PxQuat(...scaleAxis);
-                const meshScale = new this.PhysX.PxMeshScale(pxScale, pxRotation);
-                currentGeometry.scale = meshScale;
-                this.PhysX.destroy(pxScale);
-                this.PhysX.destroy(pxRotation);
             }
         }
         if (offsetChanged) {
@@ -1868,9 +1866,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
 
     /**
      * Creates a PhysX shape for a given glTF node and collider descriptor.
-     * Resolves the geometry from either an implicit shape index or a glTF mesh,
-     * then delegates to {@link createShapeFromGeometry} and records the
-     * shape-to-node mapping.
+     * Resolves the geometry from a shape index, then delegates to
+     * {@link createShapeFromGeometry} and records the shape-to-node mapping.
      *
      * @param {object} gltf - The glTF asset.
      * @param {object} node - The glTF node the shape belongs to.
@@ -1878,7 +1875,8 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      * @param {object} shapeFlags - `PxShapeFlags` for the new shape.
      * @param {object|undefined} physXMaterial - Override material, or `undefined`.
      * @param {object|undefined} physXFilterData - Override filter data, or `undefined`.
-     * @param {boolean} convexHull - `true` to force a convex-hull mesh for mesh colliders.
+     * @param {boolean} noMeshShapes - When `true`, a triangle-mesh shape is cooked as a
+     *   convex hull instead (dynamic and trigger actors cannot take triangle meshes).
      * @param {number[]} [scale] - Per-axis scale factors; defaults to `[1, 1, 1]`.
      * @param {quat} [scaleAxis] - Quaternion for scale-axis rotation; defaults to identity.
      * @returns {object|undefined} The created `PxShape`, or `undefined` if no
@@ -1891,7 +1889,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         shapeFlags,
         physXMaterial,
         physXFilterData,
-        convexHull,
+        noMeshShapes,
         scale = vec3.fromValues(1, 1, 1),
         scaleAxis = quat.create()
     ) {
@@ -1900,17 +1898,20 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             // Generate from the owning document's shape: the pre-generated `simpleShapes`
             // cache is indexed by the root document's shape indices, which collide with an
             // external asset's.
-            const simpleShape = gltf.shapes[collider.geometry.shape];
-            geometry = this.generateSimpleShape(simpleShape, scale, scaleAxis);
-        } else if (collider?.geometry?.mesh !== undefined) {
-            const mesh = gltf.meshes[collider.geometry.mesh];
-            if (convexHull === true) {
+            const shape = gltf.shapes[collider.geometry.shape];
+            if (shape.type === "convexMesh" || (shape.type === "mesh" && noMeshShapes)) {
+                // Convex hull: either an explicit convexMesh shape, or a mesh shape on an
+                // actor that cannot take a triangle mesh.
+                const mesh = gltf.meshes[shape.parameters().mesh];
                 geometry = this.createConvexMesh(gltf, mesh, scale, scaleAxis);
                 if (geometry?.debugConvexHull !== undefined) {
-                    collider.geometry.debugConvexHull = geometry.debugConvexHull;
+                    shape.parameters().convexHull = geometry.debugConvexHull;
                 }
-            } else {
+            } else if (shape.type === "mesh") {
+                const mesh = gltf.meshes[shape.parameters().mesh];
                 geometry = this.createPxMesh(gltf, mesh, scale, scaleAxis);
+            } else {
+                geometry = this.generateSimpleShape(shape, scale, scaleAxis);
             }
         }
 
@@ -2061,7 +2062,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
                 isTrigger ? triggerFlags : shapeFlags,
                 material,
                 physXFilterData,
-                noMeshShapes || collider?.geometry?.convexHull === true,
+                noMeshShapes,
                 scale,
                 scaleAxis
             );
