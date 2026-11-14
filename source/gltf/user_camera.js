@@ -3,7 +3,7 @@ import { gltfCamera } from "./camera.js";
 import { clamp } from "./utils.js";
 import { getSceneExtents } from "./gltf_utils.js";
 
-const PanSpeedDenominator = 3500;
+const PanSpeedDenominator = 1750;
 const MaxNearFarRatio = 10000;
 
 class UserCamera extends gltfCamera {
