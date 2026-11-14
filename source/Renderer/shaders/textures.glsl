@@ -339,7 +339,7 @@ uniform sampler2D u_ScatterBackDepthFramebufferSampler;
 
 vec2 getScatterStrengthUV()
 {
-    vec3 uv = vec3(u_ScatterStrengthUVSet < 1 ? v_texcoord_0 : v_texcoord_1, 1.0);
+    vec3 uv = vec3(getTexCoord(u_ScatterStrengthUVSet), 1.0);
 #ifdef HAS_SCATTERSTRENGTH_UV_TRANSFORM
     uv = u_ScatterStrengthUVTransform * uv;
 #endif
@@ -348,7 +348,7 @@ vec2 getScatterStrengthUV()
 
 vec2 getMultiScatterColorUV()
 {
-    vec3 uv = vec3(u_MultiScatterColorUVSet < 1 ? v_texcoord_0 : v_texcoord_1, 1.0);
+    vec3 uv = vec3(getTexCoord(u_MultiScatterColorUVSet), 1.0);
 #ifdef HAS_MULTISCATTERCOLOR_UV_TRANSFORM
     uv = u_MultiScatterColorUVTransform * uv;
 #endif
