@@ -1393,11 +1393,10 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         let flag = 0;
         flag |= this.PhysX.PxConvexFlagEnum.eCOMPUTE_CONVEX;
         flag |= this.PhysX.PxConvexFlagEnum.eSHIFT_VERTICES;
-        // 8-bit indices cap the hull at 256 vertices. Switch to 16-bit only when the
-        // input could produce a larger hull, since 16-bit indices are otherwise just
-        // wasted bytes.
-        const use16BitIndices = vertices.length / 3 > 256;
-        if (use16BitIndices) {
+        // 16-bit indices are required for hulls over 256 vertices. PhysX ignores
+        // this flag for smaller hulls, so it is safe to request whenever the input
+        // might produce a large hull.
+        if (vertices.length / 3 > 256) {
             flag |= this.PhysX.PxConvexFlagEnum.e16_BIT_INDICES;
         }
         //flag |= this.PhysX.PxConvexFlagEnum.eDISABLE_MESH_VALIDATION;
@@ -1419,7 +1418,6 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const ms = new this.PhysX.PxMeshScale(PxScale, PxQuat);
         const f = new this.PhysX.PxConvexMeshGeometryFlags();
         const geometry = new this.PhysX.PxConvexMeshGeometry(tri, ms, f);
-        geometry.debug16BitIndices = use16BitIndices;
         this.PhysX.destroy(PxScale);
         this.PhysX.destroy(PxQuat);
         this.PhysX.destroy(ms);
@@ -1436,11 +1434,9 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
      *
      * @param {object} convexMesh - The cooked `PxConvexMesh`.
      * @param {Float32Array} inputVertices - The vertices the hull was cooked from.
-     * @param {boolean} [use16BitIndices=false] - Whether the mesh was cooked with
-     *   `e16_BIT_INDICES`, which changes the index buffer to 16-bit words.
      * @returns {{ positions: Float32Array, triIndices: Uint16Array, version: number }|undefined}
      */
-    extractConvexHull(convexMesh, inputVertices, use16BitIndices = false) {
+    extractConvexHull(convexMesh, inputVertices) {
         const nbVertices = convexMesh.getNbVertices();
         const nbPolygons = convexMesh.getNbPolygons();
         if (nbVertices === 0 || nbPolygons === 0) {
@@ -1456,24 +1452,32 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             positions[i] = heapF32[vertexOffset + i];
         }
 
-        // Each polygon is a triangle described by three indices. The index buffer is
-        // 8-bit bytes by default, or 16-bit words when cooked with e16_BIT_INDICES.
-        const indexPtr = convexMesh.getIndexBuffer().ptr;
-        const heapU16 = use16BitIndices ? new Uint16Array(this.PhysX.HEAPU8.buffer) : undefined;
+        // Each hull face is an n-gon: getPolygonData exposes its vertex count and
+        // index offset. Indices are 8-bit when the hull has 256 or fewer vertices
+        // and 16-bit otherwise (the e16_BIT_INDICES cook flag is ignored for small
+        // hulls). getIndexBuffer() is bound as a PxU8ConstPtr *value*, so the
+        // pointer it returns is a pointer-to-pointer that must be dereferenced once.
+        const use16BitIndices = nbVertices > 256;
+        const heapU32 = new Uint32Array(this.PhysX.HEAPU8.buffer);
+        const indexPtr = heapU32[convexMesh.getIndexBuffer().ptr >> 2];
+        const indexData = use16BitIndices
+            ? new Uint16Array(this.PhysX.HEAPU8.buffer)
+            : this.PhysX.HEAPU8;
         const indexOffset = use16BitIndices ? indexPtr >> 1 : indexPtr;
-        const triIndices = new Uint16Array(nbPolygons * 3);
+
+        // Triangulate each face as a fan from its first vertex.
+        const triangles = [];
         const polygon = new this.PhysX.PxHullPolygon();
         for (let p = 0; p < nbPolygons; p++) {
             convexMesh.getPolygonData(p, polygon);
             const base = polygon.mIndexBase;
-            if (use16BitIndices) {
-                triIndices[p * 3] = heapU16[indexOffset + base];
-                triIndices[p * 3 + 1] = heapU16[indexOffset + base + 1];
-                triIndices[p * 3 + 2] = heapU16[indexOffset + base + 2];
-            } else {
-                triIndices[p * 3] = this.PhysX.HEAPU8[indexOffset + base];
-                triIndices[p * 3 + 1] = this.PhysX.HEAPU8[indexOffset + base + 1];
-                triIndices[p * 3 + 2] = this.PhysX.HEAPU8[indexOffset + base + 2];
+            const first = indexData[indexOffset + base];
+            for (let v = 1; v + 1 < polygon.mNbVerts; v++) {
+                triangles.push(
+                    first,
+                    indexData[indexOffset + base + v],
+                    indexData[indexOffset + base + v + 1]
+                );
             }
         }
         this.PhysX.destroy(polygon);
@@ -1506,7 +1510,11 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             positions[i * 3 + 2] += shiftZ;
         }
 
-        return { positions, triIndices, version: ++this.debugHullVersion };
+        return {
+            positions,
+            triIndices: Uint16Array.from(triangles),
+            version: ++this.debugHullVersion
+        };
     }
 
     /**
@@ -1626,8 +1634,7 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             try {
                 geometry.debugConvexHull = this.extractConvexHull(
                     geometry.convexMesh,
-                    result.vertices,
-                    geometry.debug16BitIndices
+                    result.vertices
                 );
             } catch (error) {
                 // Hull extraction is only for the debug overlay; a failure must not
