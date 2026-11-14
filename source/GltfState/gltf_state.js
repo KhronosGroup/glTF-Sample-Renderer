@@ -146,13 +146,14 @@ class GltfState {
             /** render some debug output channes, such as for example the normals */
             debugOutput: GltfState.DebugOutput.NONE,
             /**
-             * Orientation of the environment's front face, as a yaw (around Y) and
-             * pitch (around X) in degrees. The horizontal directions use yaw only:
-             * +X = 0, +Z = 90, -X = 180, -Z = 270. The vertical directions use
-             * pitch only: +Y = 90, -Y = -90.
+             * By default the front face of the environment is +Z (90)
+             * Front faces:
+             * +X = 0
+             * +Z = 90
+             * -X = 180
+             * -Z = 270
              */
             environmentRotation: 90.0,
-            environmentRotationX: 0.0,
             /** If this is set to true, directional lights will be generated if IBL is disabled */
             useDirectionalLightsWithDisabledIBL: false,
             /** MSAA used for cases which are not handled by the browser (e.g. Transmission)*/
