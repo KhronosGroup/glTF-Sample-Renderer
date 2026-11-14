@@ -321,22 +321,45 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         const triggerFlags = new this.PhysX.PxShapeFlags(this.PhysX.PxShapeFlagEnum.eTRIGGER_SHAPE);
 
         for (const node of staticActors) {
-            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "static");
+            this.createActor(
+                node.ownerDocument ?? state.gltf,
+                node,
+                shapeFlags,
+                triggerFlags,
+                "static"
+            );
         }
         for (const node of kinematicActors) {
-            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "kinematic");
+            this.createActor(
+                node.ownerDocument ?? state.gltf,
+                node,
+                shapeFlags,
+                triggerFlags,
+                "kinematic"
+            );
         }
         for (const node of dynamicActors) {
-            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "dynamic", true);
+            this.createActor(
+                node.ownerDocument ?? state.gltf,
+                node,
+                shapeFlags,
+                triggerFlags,
+                "dynamic",
+                true
+            );
         }
         for (const node of independentTriggerNodes) {
-            if (
-                this.nodeToActor.has(node) ||
-                this.nodeToMotion.has(node)
-            ) {
+            if (this.nodeToActor.has(node) || this.nodeToMotion.has(node)) {
                 continue;
             }
-            this.createActor(node.ownerDocument ?? state.gltf, node, shapeFlags, triggerFlags, "trigger", true);
+            this.createActor(
+                node.ownerDocument ?? state.gltf,
+                node,
+                shapeFlags,
+                triggerFlags,
+                "trigger",
+                true
+            );
         }
         for (const node of jointNodes) {
             this.createJoint(node.ownerDocument ?? state.gltf, node);
@@ -1035,8 +1058,15 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             const rotation = quat.create();
             quat.multiply(rotation, invertedActorRotation, node.worldQuaternion);
 
+            // PhysX planes are oriented with their normal along local +X, but glTF
+            // planes have their normal along +Y, so bake in the 90-degree rotation.
+            let shapeRotation = rotation;
+            if (currentColliderType === this.PhysX.PxGeometryTypeEnum.ePLANE) {
+                shapeRotation = quat.multiply(quat.create(), rotation, this.planeNormalRotation());
+            }
+
             const PxPos = new this.PhysX.PxVec3(...translation);
-            const PxRotation = new this.PhysX.PxQuat(...rotation);
+            const PxRotation = new this.PhysX.PxQuat(...shapeRotation);
             const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
             currentShape.setLocalPose(pose);
         }
@@ -1322,6 +1352,19 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
         }
         const geometry = new this.PhysX.PxPlaneGeometry();
         return geometry;
+    }
+
+    /**
+     * Returns the rotation that maps PhysX's plane normal (the shape's local +X
+     * axis) onto glTF's plane normal (+Y), a 90-degree rotation about the Z axis.
+     * PhysX's `PxPlaneGeometry` places the plane through the origin with its
+     * normal along +X, while the glTF plane shape is defined with its normal along
+     * +Y, so the shape's local pose must carry this rotation.
+     *
+     * @returns {quat} A fresh quaternion.
+     */
+    planeNormalRotation() {
+        return quat.setAxisAngle(quat.create(), [0, 0, 1], Math.PI / 2);
     }
 
     /**
@@ -2017,8 +2060,20 @@ class NvidiaPhysicsInterface extends PhysicsInterface {
             );
 
             if (shape !== undefined) {
+                // PhysX planes are oriented with their normal along local +X, but
+                // glTF planes have their normal along +Y, so bake in the 90-degree
+                // rotation before applying the node offset rotation.
+                let shapeRotation = rotation;
+                if (shape.getGeometry().getType() === this.PhysX.PxGeometryTypeEnum.ePLANE) {
+                    shapeRotation = quat.multiply(
+                        quat.create(),
+                        rotation,
+                        this.planeNormalRotation()
+                    );
+                }
+
                 const PxPos = new this.PhysX.PxVec3(...translation);
-                const PxRotation = new this.PhysX.PxQuat(...rotation);
+                const PxRotation = new this.PhysX.PxQuat(...shapeRotation);
                 const pose = new this.PhysX.PxTransform(PxPos, PxRotation);
                 shape.setLocalPose(pose);
 
