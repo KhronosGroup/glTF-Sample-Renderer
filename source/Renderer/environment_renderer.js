@@ -80,6 +80,11 @@ class EnvironmentRenderer {
         shader.updateUniform("u_Exposure", state.renderingParameters.exposure);
 
         let rotMatrix4 = mat4.create();
+        mat4.rotateX(
+            rotMatrix4,
+            rotMatrix4,
+            ((state.renderingParameters.environmentRotationX ?? 0.0) / 180.0) * Math.PI
+        );
         mat4.rotateY(
             rotMatrix4,
             rotMatrix4,
