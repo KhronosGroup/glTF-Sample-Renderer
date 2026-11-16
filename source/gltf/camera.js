@@ -265,10 +265,16 @@ class gltfCamera extends GltfObject {
             // prettier-ignore
             translation: [translation[0], translation[1], translation[2]],
             // prettier-ignore
-            rotation: [rotation[0], rotation[1], rotation[2], rotation[3]],
-            // prettier-ignore
-            scale: [scale[0], scale[1], scale[2]]
+            rotation: [rotation[0], rotation[1], rotation[2], rotation[3]]
         };
+        // The glTF default scale is 1, so omit it when the transform is rigid.
+        const isUnitScale =
+            Math.abs(scale[0] - 1) < 1e-6 &&
+            Math.abs(scale[1] - 1) < 1e-6 &&
+            Math.abs(scale[2] - 1) < 1e-6;
+        if (!isUnitScale) {
+            node["scale"] = [scale[0], scale[1], scale[2]];
+        }
 
         if (this.node !== undefined && gltf.nodes[this.node].name !== undefined) {
             node["name"] = gltf.nodes[this.node].name;
