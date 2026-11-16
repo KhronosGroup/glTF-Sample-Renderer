@@ -4,7 +4,7 @@ import { gltfBufferView } from "./buffer_view.js";
 import { gltfCamera } from "./camera.js";
 import { gltfImage } from "./image.js";
 import { gltfLight } from "./light.js";
-import { gltfShape } from "./shape.js";
+import { gltfShape, gltfShapeConvexMesh, gltfShapeMesh } from "./shape.js";
 import { gltfMaterial } from "./material.js";
 import { gltfMesh } from "./mesh.js";
 import { gltfNode } from "./node.js";
@@ -64,6 +64,35 @@ const allowedExtensions = [
     "EXT_meshopt_compression",
     "EXT_texture_webp" // 2.1 core
 ];
+
+// Draft-era physics assets let a collider or trigger reference a collision mesh
+// directly via `geometry.mesh` / `geometry.convexHull` instead of through the
+// `shapes` array. Synthesise a mesh/convexMesh shape for each such reference so
+// the rest of the pipeline only needs to handle shapes.
+function promoteMeshColliders(gltf) {
+    for (const node of gltf.nodes) {
+        const physics = node.extensions?.KHR_physics_rigid_bodies;
+        for (const holder of [physics?.collider, physics?.trigger]) {
+            const geometry = holder?.geometry;
+            if (
+                geometry === undefined ||
+                geometry.shape !== undefined ||
+                geometry.mesh === undefined
+            ) {
+                continue;
+            }
+            const shape = new gltfShape();
+            shape.type = geometry.convexHull ? "convexMesh" : "mesh";
+            const parameters = new (geometry.convexHull
+                ? gltfShapeConvexMesh
+                : gltfShapeMesh)();
+            parameters.mesh = geometry.mesh;
+            shape[shape.type] = parameters;
+            geometry.shape = gltf.shapes.length;
+            gltf.shapes.push(shape);
+        }
+    }
+}
 
 class glTF extends GltfObject {
     static animatedProperties = [];
@@ -194,6 +223,8 @@ class glTF extends GltfObject {
                 json.extensions.KHR_physics_rigid_bodies
             );
         }
+
+        promoteMeshColliders(this);
 
         this.materials.push(gltfMaterial.createDefault());
         this.samplers.push(gltfSampler.createDefault());
