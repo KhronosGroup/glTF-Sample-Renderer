@@ -229,7 +229,11 @@ class gltfCamera extends GltfObject {
 
         if (this.type === "perspective") {
             camera["perspective"] = {};
-            if (this.perspective.aspectRatio) {
+            // Only include the aspect ratio if it was explicitly set: the user
+            // camera auto-fits its aspect ratio to the viewport unless "enforce
+            // aspect ratio" is on, and a glTF camera node only carries one when
+            // it was authored. Avoid baking the viewport ratio into the export.
+            if (this.enforceAspectRatio !== false && this.perspective.aspectRatio) {
                 camera["perspective"]["aspectRatio"] = this.perspective.aspectRatio;
             }
             camera["perspective"]["yfov"] = this.perspective.yfov;
