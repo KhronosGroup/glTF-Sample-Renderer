@@ -83,6 +83,8 @@ class GltfState {
             jointGizmos: false,
             /** draw debug gizmos for mesh bounds */
             aabbGizmos: false,
+            /** use the back-face depth pass for scatter thickness instead of the thickness map */
+            scatterBackfacePass: false,
 
             /** enabled extensions */
             enabledExtensions: {

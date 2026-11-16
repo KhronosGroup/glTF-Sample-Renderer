@@ -60,26 +60,12 @@ vec3 getVolumeSingleScattering(
     vec3 attenuationColor,
     float attenuationDistance,
     float scatterAnisotropy,
-    vec3 frontWorldPos
+    vec3 frontWorldPos,
+    float thicknessMap,
+    mat4 modelMatrix
 )
 {
     vec2 uv = gl_FragCoord.xy / vec2(u_FramebufferSize);
-
-    float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, uv, 0.0).r;
-    if (backDepth >= 1.0)
-    {
-        return vec3(0.0);
-    }
-
-    vec3 backWorldPos = reconstructWorldPosition(uv, backDepth);
-    vec3 viewRay = backWorldPos - frontWorldPos;
-    float thickness = length(viewRay);
-    if (thickness <= 0.0)
-    {
-        return vec3(0.0);
-    }
-
-    vec3 viewRayDir = viewRay / thickness;
     vec3 outgoingDir = normalize(viewDir);
 
     // Refract the incoming view ray at the front surface. For total internal
@@ -91,11 +77,39 @@ vec3 getVolumeSingleScattering(
     }
     refractedDir = normalize(refractedDir);
 
-    // The back-face depth gives thickness along the view ray; convert that to
-    // the chord length travelled along the refracted ray (planar-slab
-    // approximation, avoids depth peeling).
-    float cosRay = max(dot(refractedDir, viewRayDir), 0.05);
-    float chordLength = thickness / cosRay;
+    float cosRay;
+    float chordLength;
+    if (u_ScatterUseBackfacePass > 0)
+    {
+        // Volumetric: measure the actual thickness through the geometry from the
+        // back-face depth pass, then convert that view-ray thickness to the chord
+        // length travelled along the refracted ray (planar-slab approximation,
+        // avoids depth peeling).
+        float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, uv, 0.0).r;
+        if (backDepth >= 1.0)
+        {
+            return vec3(0.0);
+        }
+        vec3 backWorldPos = reconstructWorldPosition(uv, backDepth);
+        vec3 viewRay = backWorldPos - frontWorldPos;
+        float thickness = length(viewRay);
+        if (thickness <= 0.0)
+        {
+            return vec3(0.0);
+        }
+        vec3 viewRayDir = viewRay / thickness;
+        cosRay = max(dot(refractedDir, viewRayDir), 0.05);
+        chordLength = thickness / cosRay;
+    }
+    else
+    {
+        // Thin-walled: march the authored thickness map directly as a flat slab
+        // (symmetric entry/exit), matching getVolumeTransmissionRay's no-cosine
+        // model. The thickness is in local space, so scale it to world space.
+        float modelScale = length(modelMatrix[0].xyz);
+        cosRay = 1.0;
+        chordLength = thicknessMap * modelScale;
+    }
 
     // Beer-Lambert attenuation coefficient. attenuationDistance == 0 means no attenuation.
     vec3 sigma_t = vec3(0.0);
@@ -605,7 +619,9 @@ void main()
             materialInfo.attenuationColor,
             materialInfo.attenuationDistance,
             materialInfo.scatterAnisotropy,
-            v_Position
+            v_Position,
+            materialInfo.thickness,
+            u_ModelMatrix
         );
 
         // Diffuse multiple scattering. Christensen & Burley (2015),

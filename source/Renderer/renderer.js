@@ -2524,6 +2524,10 @@ class gltfRenderer {
         this.shader.updateUniform("u_ScatterAnisotropy", material.extensions?.KHR_materials_scatter?.scatterAnisotropy);
         this.shader.updateUniform("u_MultiScatterColorFactor", jsToGl(material.extensions?.KHR_materials_scatter?.multiscatterColorFactor));
         this.shader.updateUniform("u_MultiScatterColorUVSet", material.extensions?.KHR_materials_scatter?.multiscatterColorTexture?.texCoord);
+        this.shader.updateUniform(
+            "u_ScatterUseBackfacePass",
+            state.renderingParameters.scatterBackfacePass ? 1 : 0
+        );
     
         let textureIndex = 0;
         for (; textureIndex < material.textures.length; ++textureIndex)
