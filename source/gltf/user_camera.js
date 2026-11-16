@@ -5,7 +5,7 @@ import { getSceneExtents } from "./gltf_utils.js";
 
 const PanSpeedDenominator = 1750;
 // Pan speed scale factor applied over the original tuning.
-const PanSpeedScale = 1.5;
+const PanSpeedScale = 0.75;
 const MaxNearFarRatio = 10000;
 
 class UserCamera extends gltfCamera {
