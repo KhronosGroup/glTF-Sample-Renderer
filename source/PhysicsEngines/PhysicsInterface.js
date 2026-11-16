@@ -51,7 +51,13 @@ class PhysicsInterface {
     generateSimpleShapes(gltf) {
         this.simpleShapes = [];
         for (const shape of gltf?.shapes ?? []) {
-            this.simpleShapes.push(this.generateSimpleShape(shape));
+            const simpleShape = this.generateSimpleShape(shape);
+            // `mesh` and `convexMesh` shapes are cooked lazily and tracked elsewhere;
+            // they are not simple shapes, and `generateSimpleShape` returns undefined
+            // for them, so skip them rather than storing a null entry.
+            if (simpleShape !== undefined) {
+                this.simpleShapes.push(simpleShape);
+            }
         }
     }
 
