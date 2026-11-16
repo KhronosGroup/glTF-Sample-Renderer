@@ -135,8 +135,11 @@ GltfState containing a state for visualization in GltfView
         * [.renderingParameters](#GltfState+renderingParameters)
             * [.morphing](#GltfState+renderingParameters.morphing)
             * [.skinning](#GltfState+renderingParameters.skinning)
-    * [.wireframe](#GltfState+renderingParameters.wireframe)
             * [.wireframe](#GltfState+renderingParameters.wireframe)
+            * [.lightGizmos](#GltfState+renderingParameters.lightGizmos)
+            * [.cameraGizmos](#GltfState+renderingParameters.cameraGizmos)
+            * [.jointGizmos](#GltfState+renderingParameters.jointGizmos)
+            * [.aabbGizmos](#GltfState+renderingParameters.aabbGizmos)
             * [.enabledExtensions](#GltfState+renderingParameters.enabledExtensions)
                 * [.KHR_materials_clearcoat](#GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat)
                 * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
@@ -163,12 +166,22 @@ GltfState containing a state for visualization in GltfView
             * [.iblIntensity](#GltfState+renderingParameters.iblIntensity)
             * [.renderEnvironmentMap](#GltfState+renderingParameters.renderEnvironmentMap)
             * [.blurEnvironmentMap](#GltfState+renderingParameters.blurEnvironmentMap)
+            * [.useUniformEnvironment](#GltfState+renderingParameters.useUniformEnvironment)
+            * [.uniformEnvironmentColor](#GltfState+renderingParameters.uniformEnvironmentColor)
             * [.toneMap](#GltfState+renderingParameters.toneMap)
             * [.debugOutput](#GltfState+renderingParameters.debugOutput)
             * [.environmentRotation](#GltfState+renderingParameters.environmentRotation)
             * [.useDirectionalLightsWithDisabledIBL](#GltfState+renderingParameters.useDirectionalLightsWithDisabledIBL)
             * [.internalMSAA](#GltfState+renderingParameters.internalMSAA)
             * [.floatingPointFramebuffer](#GltfState+renderingParameters.floatingPointFramebuffer)
+            * [.cullByBoundingVolume](#GltfState+renderingParameters.cullByBoundingVolume)
+            * [.debugShapes](#GltfState+renderingParameters.debugShapes)
+                * [.boundingVolumes](#GltfState+renderingParameters.debugShapes.boundingVolumes)
+                * [.allShapes](#GltfState+renderingParameters.debugShapes.allShapes)
+                * [.style](#GltfState+renderingParameters.debugShapes.style)
+                * [.colorMode](#GltfState+renderingParameters.debugShapes.colorMode)
+                * [.depthTest](#GltfState+renderingParameters.debugShapes.depthTest)
+                * [.highlightNonEnclosing](#GltfState+renderingParameters.debugShapes.highlightNonEnclosing)
             * [.clipping](#GltfState+renderingParameters.clipping)
                 * [.enabled](#GltfState+renderingParameters.clipping.enabled)
                 * [.orientation](#GltfState+renderingParameters.clipping.orientation)
@@ -181,23 +194,33 @@ GltfState containing a state for visualization in GltfView
             * [.ACES_NARKOWICZ](#GltfState.ToneMaps.ACES_NARKOWICZ)
             * [.ACES_HILL](#GltfState.ToneMaps.ACES_HILL)
             * [.NONE](#GltfState.ToneMaps.NONE)
+        * [.BoundingVolumeMode](#GltfState.BoundingVolumeMode)
+            * [.NONE](#GltfState.BoundingVolumeMode.NONE)
+            * [.ALL](#GltfState.BoundingVolumeMode.ALL)
+        * [.DebugShapeStyle](#GltfState.DebugShapeStyle)
+            * [.WIREFRAME](#GltfState.DebugShapeStyle.WIREFRAME)
+            * [.SOLID](#GltfState.DebugShapeStyle.SOLID)
+            * [.BOTH](#GltfState.DebugShapeStyle.BOTH)
+        * [.DebugShapeColor](#GltfState.DebugShapeColor)
+            * [.UNIFORM](#GltfState.DebugShapeColor.UNIFORM)
+            * [.DEPTH](#GltfState.DebugShapeColor.DEPTH)
+            * [.TYPE](#GltfState.DebugShapeColor.TYPE)
         * [.ClippingOrientations](#GltfState.ClippingOrientations)
             * [.AXIS_ALIGNED](#GltfState.ClippingOrientations.AXIS_ALIGNED)
             * [.VIEW_ALIGNED](#GltfState.ClippingOrientations.VIEW_ALIGNED)
         * [.DebugOutput](#GltfState.DebugOutput)
             * [.NONE](#GltfState.DebugOutput.NONE)
             * [.generic](#GltfState.DebugOutput.generic)
-                * [.UV_COORDS_0](#GltfState.DebugOutput.generic.UV_COORDS_0)
-                * [.UV_COORDS_1](#GltfState.DebugOutput.generic.UV_COORDS_1)
                 * [.NORMAL](#GltfState.DebugOutput.generic.NORMAL)
-                * [.GEOMETRYNORMAL](#GltfState.DebugOutput.generic.GEOMETRYNORMAL)
-                * [.TANGENT](#GltfState.DebugOutput.generic.TANGENT)
-                * [.BITANGENT](#GltfState.DebugOutput.generic.BITANGENT)
-                * [.TANGENTW](#GltfState.DebugOutput.generic.TANGENTW)
-                * [.WORLDSPACENORMAL](#GltfState.DebugOutput.generic.WORLDSPACENORMAL)
                 * [.ALPHA](#GltfState.DebugOutput.generic.ALPHA)
                 * [.OCCLUSION](#GltfState.DebugOutput.generic.OCCLUSION)
                 * [.EMISSIVE](#GltfState.DebugOutput.generic.EMISSIVE)
+            * [.shading](#GltfState.DebugOutput.shading)
+                * [.GEOMETRYNORMAL](#GltfState.DebugOutput.shading.GEOMETRYNORMAL)
+                * [.TANGENT](#GltfState.DebugOutput.shading.TANGENT)
+                * [.BITANGENT](#GltfState.DebugOutput.shading.BITANGENT)
+                * [.TANGENTW](#GltfState.DebugOutput.shading.TANGENTW)
+                * [.WORLDSPACENORMAL](#GltfState.DebugOutput.shading.WORLDSPACENORMAL)
             * [.mr](#GltfState.DebugOutput.mr)
                 * [.BASECOLOR](#GltfState.DebugOutput.mr.BASECOLOR)
                 * [.METALLIC](#GltfState.DebugOutput.mr.METALLIC)
@@ -214,18 +237,30 @@ GltfState containing a state for visualization in GltfView
                 * [.SPECULAR_COLOR](#GltfState.DebugOutput.specular.SPECULAR_COLOR)
             * [.transmission](#GltfState.DebugOutput.transmission)
                 * [.TRANSMISSION_FACTOR](#GltfState.DebugOutput.transmission.TRANSMISSION_FACTOR)
-                * [.VOLUME_THICKNESS](#GltfState.DebugOutput.transmission.VOLUME_THICKNESS)
+            * [.volume](#GltfState.DebugOutput.volume)
+                * [.VOLUME_THICKNESS](#GltfState.DebugOutput.volume.VOLUME_THICKNESS)
+                * [.VOLUME_ATTENUATION_DISTANCE](#GltfState.DebugOutput.volume.VOLUME_ATTENUATION_DISTANCE)
+                * [.VOLUME_ATTENUATION_COLOR](#GltfState.DebugOutput.volume.VOLUME_ATTENUATION_COLOR)
+            * [.ior](#GltfState.DebugOutput.ior)
+                * [.IOR](#GltfState.DebugOutput.ior.IOR)
+            * [.dispersion](#GltfState.DebugOutput.dispersion)
+                * [.DISPERSION](#GltfState.DebugOutput.dispersion.DISPERSION)
             * [.diffuseTransmission](#GltfState.DebugOutput.diffuseTransmission)
                 * [.DIFFUSE_TRANSMISSION_FACTOR](#GltfState.DebugOutput.diffuseTransmission.DIFFUSE_TRANSMISSION_FACTOR)
                 * [.DIFFUSE_TRANSMISSION_COLOR_FACTOR](#GltfState.DebugOutput.diffuseTransmission.DIFFUSE_TRANSMISSION_COLOR_FACTOR)
             * [.iridescence](#GltfState.DebugOutput.iridescence)
                 * [.IRIDESCENCE_FACTOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_FACTOR)
                 * [.IRIDESCENCE_THICKNESS](#GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS)
+                * [.IRIDESCENCE_IOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_IOR)
             * [.retroreflection](#GltfState.DebugOutput.retroreflection)
                 * [.RETROREFLECTION_FACTOR](#GltfState.DebugOutput.retroreflection.RETROREFLECTION_FACTOR)
             * [.anisotropy](#GltfState.DebugOutput.anisotropy)
                 * [.ANISOTROPIC_STRENGTH](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_STRENGTH)
                 * [.ANISOTROPIC_DIRECTION](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_DIRECTION)
+            * [.emissiveStrength](#GltfState.DebugOutput.emissiveStrength)
+                * [.EMISSIVE_STRENGTH](#GltfState.DebugOutput.emissiveStrength.EMISSIVE_STRENGTH)
+            * [.misc](#GltfState.DebugOutput.misc)
+                * [.PICKING_COLOR](#GltfState.DebugOutput.misc.PICKING_COLOR)
 
 <a name="new_GltfState_new"></a>
 
@@ -337,6 +372,11 @@ parameters used to configure the rendering
 * [.renderingParameters](#GltfState+renderingParameters)
     * [.morphing](#GltfState+renderingParameters.morphing)
     * [.skinning](#GltfState+renderingParameters.skinning)
+    * [.wireframe](#GltfState+renderingParameters.wireframe)
+    * [.lightGizmos](#GltfState+renderingParameters.lightGizmos)
+    * [.cameraGizmos](#GltfState+renderingParameters.cameraGizmos)
+    * [.jointGizmos](#GltfState+renderingParameters.jointGizmos)
+    * [.aabbGizmos](#GltfState+renderingParameters.aabbGizmos)
     * [.enabledExtensions](#GltfState+renderingParameters.enabledExtensions)
         * [.KHR_materials_clearcoat](#GltfState+renderingParameters.enabledExtensions.KHR_materials_clearcoat)
         * [.KHR_materials_sheen](#GltfState+renderingParameters.enabledExtensions.KHR_materials_sheen)
@@ -363,12 +403,22 @@ parameters used to configure the rendering
     * [.iblIntensity](#GltfState+renderingParameters.iblIntensity)
     * [.renderEnvironmentMap](#GltfState+renderingParameters.renderEnvironmentMap)
     * [.blurEnvironmentMap](#GltfState+renderingParameters.blurEnvironmentMap)
+    * [.useUniformEnvironment](#GltfState+renderingParameters.useUniformEnvironment)
+    * [.uniformEnvironmentColor](#GltfState+renderingParameters.uniformEnvironmentColor)
     * [.toneMap](#GltfState+renderingParameters.toneMap)
     * [.debugOutput](#GltfState+renderingParameters.debugOutput)
     * [.environmentRotation](#GltfState+renderingParameters.environmentRotation)
     * [.useDirectionalLightsWithDisabledIBL](#GltfState+renderingParameters.useDirectionalLightsWithDisabledIBL)
     * [.internalMSAA](#GltfState+renderingParameters.internalMSAA)
     * [.floatingPointFramebuffer](#GltfState+renderingParameters.floatingPointFramebuffer)
+    * [.cullByBoundingVolume](#GltfState+renderingParameters.cullByBoundingVolume)
+    * [.debugShapes](#GltfState+renderingParameters.debugShapes)
+        * [.boundingVolumes](#GltfState+renderingParameters.debugShapes.boundingVolumes)
+        * [.allShapes](#GltfState+renderingParameters.debugShapes.allShapes)
+        * [.style](#GltfState+renderingParameters.debugShapes.style)
+        * [.colorMode](#GltfState+renderingParameters.debugShapes.colorMode)
+        * [.depthTest](#GltfState+renderingParameters.debugShapes.depthTest)
+        * [.highlightNonEnclosing](#GltfState+renderingParameters.debugShapes.highlightNonEnclosing)
     * [.clipping](#GltfState+renderingParameters.clipping)
         * [.enabled](#GltfState+renderingParameters.clipping.enabled)
         * [.orientation](#GltfState+renderingParameters.clipping.orientation)
@@ -391,6 +441,30 @@ skin / skeleton
 
 #### renderingParameters.wireframe
 overlay the triangle edges of all meshes as black lines (wireframe), requires WEBGL_polygon_mode
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.lightGizmos"></a>
+
+#### renderingParameters.lightGizmos
+draw debug gizmos for the scene's lights
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.cameraGizmos"></a>
+
+#### renderingParameters.cameraGizmos
+draw debug gizmos for the scene's cameras
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.jointGizmos"></a>
+
+#### renderingParameters.jointGizmos
+draw debug gizmos for skeletal joints
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.aabbGizmos"></a>
+
+#### renderingParameters.aabbGizmos
+draw debug gizmos for mesh bounds
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
 <a name="GltfState+renderingParameters.enabledExtensions"></a>
@@ -570,6 +644,18 @@ render the environment map in the background
 apply blur to the background environment map
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.useUniformEnvironment"></a>
+
+#### renderingParameters.useUniformEnvironment
+illuminate with a uniform color instead of the environment map
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.uniformEnvironmentColor"></a>
+
+#### renderingParameters.uniformEnvironmentColor
+the uniform color used when useUniformEnvironment is set
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
 <a name="GltfState+renderingParameters.toneMap"></a>
 
 #### renderingParameters.toneMap
@@ -611,6 +697,63 @@ MSAA used for cases which are not handled by the browser (e.g. Transmission)
 Use RGBA16F floating-point main framebuffer instead of RGBA8
 
 **Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.cullByBoundingVolume"></a>
+
+#### renderingParameters.cullByBoundingVolume
+skip nodes whose glTF 2.1 bounding volume is outside the view
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+<a name="GltfState+renderingParameters.debugShapes"></a>
+
+#### renderingParameters.debugShapes
+debug visualization of glTF 2.1 shapes and bounding volumes
+
+**Kind**: static property of [<code>renderingParameters</code>](#GltfState+renderingParameters)  
+
+* [.debugShapes](#GltfState+renderingParameters.debugShapes)
+    * [.boundingVolumes](#GltfState+renderingParameters.debugShapes.boundingVolumes)
+    * [.allShapes](#GltfState+renderingParameters.debugShapes.allShapes)
+    * [.style](#GltfState+renderingParameters.debugShapes.style)
+    * [.colorMode](#GltfState+renderingParameters.debugShapes.colorMode)
+    * [.depthTest](#GltfState+renderingParameters.debugShapes.depthTest)
+    * [.highlightNonEnclosing](#GltfState+renderingParameters.debugShapes.highlightNonEnclosing)
+
+<a name="GltfState+renderingParameters.debugShapes.boundingVolumes"></a>
+
+##### debugShapes.boundingVolumes
+draw node bounding volumes, see [BoundingVolumeMode](#GltfState.BoundingVolumeMode)
+
+**Kind**: static property of [<code>debugShapes</code>](#GltfState+renderingParameters.debugShapes)  
+<a name="GltfState+renderingParameters.debugShapes.allShapes"></a>
+
+##### debugShapes.allShapes
+draw every entry of the shapes array at the nodes referencing it
+
+**Kind**: static property of [<code>debugShapes</code>](#GltfState+renderingParameters.debugShapes)  
+<a name="GltfState+renderingParameters.debugShapes.style"></a>
+
+##### debugShapes.style
+how shapes are drawn, see [DebugShapeStyle](#GltfState.DebugShapeStyle)
+
+**Kind**: static property of [<code>debugShapes</code>](#GltfState+renderingParameters.debugShapes)  
+<a name="GltfState+renderingParameters.debugShapes.colorMode"></a>
+
+##### debugShapes.colorMode
+how shapes are coloured, see [DebugShapeColor](#GltfState.DebugShapeColor)
+
+**Kind**: static property of [<code>debugShapes</code>](#GltfState+renderingParameters.debugShapes)  
+<a name="GltfState+renderingParameters.debugShapes.depthTest"></a>
+
+##### debugShapes.depthTest
+when false, shapes are drawn through geometry (x-ray)
+
+**Kind**: static property of [<code>debugShapes</code>](#GltfState+renderingParameters.debugShapes)  
+<a name="GltfState+renderingParameters.debugShapes.highlightNonEnclosing"></a>
+
+##### debugShapes.highlightNonEnclosing
+flag bounding volumes that fail to enclose their node's geometry
+
+**Kind**: static property of [<code>debugShapes</code>](#GltfState+renderingParameters.debugShapes)  
 <a name="GltfState+renderingParameters.clipping"></a>
 
 #### renderingParameters.clipping
@@ -696,6 +839,89 @@ more accurate implementation of the ACES sRGB RRT+ODT based on Stephen Hill's im
 Linear mapping, clamped at 1.0 per channel
 
 **Kind**: static property of [<code>ToneMaps</code>](#GltfState.ToneMaps)  
+<a name="GltfState.BoundingVolumeMode"></a>
+
+### GltfState.BoundingVolumeMode
+Which node bounding volumes the shape debug pass draws
+
+**Kind**: static property of [<code>GltfState</code>](#GltfState)  
+
+* [.BoundingVolumeMode](#GltfState.BoundingVolumeMode)
+    * [.NONE](#GltfState.BoundingVolumeMode.NONE)
+    * [.ALL](#GltfState.BoundingVolumeMode.ALL)
+
+<a name="GltfState.BoundingVolumeMode.NONE"></a>
+
+#### BoundingVolumeMode.NONE
+bounding volumes are not drawn
+
+**Kind**: static property of [<code>BoundingVolumeMode</code>](#GltfState.BoundingVolumeMode)  
+<a name="GltfState.BoundingVolumeMode.ALL"></a>
+
+#### BoundingVolumeMode.ALL
+draw the bounding volume of every node in the scene
+
+**Kind**: static property of [<code>BoundingVolumeMode</code>](#GltfState.BoundingVolumeMode)  
+<a name="GltfState.DebugShapeStyle"></a>
+
+### GltfState.DebugShapeStyle
+How the shape debug pass draws a shape
+
+**Kind**: static property of [<code>GltfState</code>](#GltfState)  
+
+* [.DebugShapeStyle](#GltfState.DebugShapeStyle)
+    * [.WIREFRAME](#GltfState.DebugShapeStyle.WIREFRAME)
+    * [.SOLID](#GltfState.DebugShapeStyle.SOLID)
+    * [.BOTH](#GltfState.DebugShapeStyle.BOTH)
+
+<a name="GltfState.DebugShapeStyle.WIREFRAME"></a>
+
+#### DebugShapeStyle.WIREFRAME
+edges only
+
+**Kind**: static property of [<code>DebugShapeStyle</code>](#GltfState.DebugShapeStyle)  
+<a name="GltfState.DebugShapeStyle.SOLID"></a>
+
+#### DebugShapeStyle.SOLID
+translucent solid surfaces
+
+**Kind**: static property of [<code>DebugShapeStyle</code>](#GltfState.DebugShapeStyle)  
+<a name="GltfState.DebugShapeStyle.BOTH"></a>
+
+#### DebugShapeStyle.BOTH
+translucent solid surfaces with their edges on top
+
+**Kind**: static property of [<code>DebugShapeStyle</code>](#GltfState.DebugShapeStyle)  
+<a name="GltfState.DebugShapeColor"></a>
+
+### GltfState.DebugShapeColor
+How the shape debug pass colours a shape
+
+**Kind**: static property of [<code>GltfState</code>](#GltfState)  
+
+* [.DebugShapeColor](#GltfState.DebugShapeColor)
+    * [.UNIFORM](#GltfState.DebugShapeColor.UNIFORM)
+    * [.DEPTH](#GltfState.DebugShapeColor.DEPTH)
+    * [.TYPE](#GltfState.DebugShapeColor.TYPE)
+
+<a name="GltfState.DebugShapeColor.UNIFORM"></a>
+
+#### DebugShapeColor.UNIFORM
+one colour for everything
+
+**Kind**: static property of [<code>DebugShapeColor</code>](#GltfState.DebugShapeColor)  
+<a name="GltfState.DebugShapeColor.DEPTH"></a>
+
+#### DebugShapeColor.DEPTH
+by depth in the node hierarchy, which makes a bounding volume hierarchy legible
+
+**Kind**: static property of [<code>DebugShapeColor</code>](#GltfState.DebugShapeColor)  
+<a name="GltfState.DebugShapeColor.TYPE"></a>
+
+#### DebugShapeColor.TYPE
+by shape type
+
+**Kind**: static property of [<code>DebugShapeColor</code>](#GltfState.DebugShapeColor)  
 <a name="GltfState.ClippingOrientations"></a>
 
 ### GltfState.ClippingOrientations
@@ -730,17 +956,16 @@ such as "NORMAL"
 * [.DebugOutput](#GltfState.DebugOutput)
     * [.NONE](#GltfState.DebugOutput.NONE)
     * [.generic](#GltfState.DebugOutput.generic)
-        * [.UV_COORDS_0](#GltfState.DebugOutput.generic.UV_COORDS_0)
-        * [.UV_COORDS_1](#GltfState.DebugOutput.generic.UV_COORDS_1)
         * [.NORMAL](#GltfState.DebugOutput.generic.NORMAL)
-        * [.GEOMETRYNORMAL](#GltfState.DebugOutput.generic.GEOMETRYNORMAL)
-        * [.TANGENT](#GltfState.DebugOutput.generic.TANGENT)
-        * [.BITANGENT](#GltfState.DebugOutput.generic.BITANGENT)
-        * [.TANGENTW](#GltfState.DebugOutput.generic.TANGENTW)
-        * [.WORLDSPACENORMAL](#GltfState.DebugOutput.generic.WORLDSPACENORMAL)
         * [.ALPHA](#GltfState.DebugOutput.generic.ALPHA)
         * [.OCCLUSION](#GltfState.DebugOutput.generic.OCCLUSION)
         * [.EMISSIVE](#GltfState.DebugOutput.generic.EMISSIVE)
+    * [.shading](#GltfState.DebugOutput.shading)
+        * [.GEOMETRYNORMAL](#GltfState.DebugOutput.shading.GEOMETRYNORMAL)
+        * [.TANGENT](#GltfState.DebugOutput.shading.TANGENT)
+        * [.BITANGENT](#GltfState.DebugOutput.shading.BITANGENT)
+        * [.TANGENTW](#GltfState.DebugOutput.shading.TANGENTW)
+        * [.WORLDSPACENORMAL](#GltfState.DebugOutput.shading.WORLDSPACENORMAL)
     * [.mr](#GltfState.DebugOutput.mr)
         * [.BASECOLOR](#GltfState.DebugOutput.mr.BASECOLOR)
         * [.METALLIC](#GltfState.DebugOutput.mr.METALLIC)
@@ -757,18 +982,30 @@ such as "NORMAL"
         * [.SPECULAR_COLOR](#GltfState.DebugOutput.specular.SPECULAR_COLOR)
     * [.transmission](#GltfState.DebugOutput.transmission)
         * [.TRANSMISSION_FACTOR](#GltfState.DebugOutput.transmission.TRANSMISSION_FACTOR)
-        * [.VOLUME_THICKNESS](#GltfState.DebugOutput.transmission.VOLUME_THICKNESS)
+    * [.volume](#GltfState.DebugOutput.volume)
+        * [.VOLUME_THICKNESS](#GltfState.DebugOutput.volume.VOLUME_THICKNESS)
+        * [.VOLUME_ATTENUATION_DISTANCE](#GltfState.DebugOutput.volume.VOLUME_ATTENUATION_DISTANCE)
+        * [.VOLUME_ATTENUATION_COLOR](#GltfState.DebugOutput.volume.VOLUME_ATTENUATION_COLOR)
+    * [.ior](#GltfState.DebugOutput.ior)
+        * [.IOR](#GltfState.DebugOutput.ior.IOR)
+    * [.dispersion](#GltfState.DebugOutput.dispersion)
+        * [.DISPERSION](#GltfState.DebugOutput.dispersion.DISPERSION)
     * [.diffuseTransmission](#GltfState.DebugOutput.diffuseTransmission)
         * [.DIFFUSE_TRANSMISSION_FACTOR](#GltfState.DebugOutput.diffuseTransmission.DIFFUSE_TRANSMISSION_FACTOR)
         * [.DIFFUSE_TRANSMISSION_COLOR_FACTOR](#GltfState.DebugOutput.diffuseTransmission.DIFFUSE_TRANSMISSION_COLOR_FACTOR)
     * [.iridescence](#GltfState.DebugOutput.iridescence)
         * [.IRIDESCENCE_FACTOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_FACTOR)
         * [.IRIDESCENCE_THICKNESS](#GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS)
+        * [.IRIDESCENCE_IOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_IOR)
     * [.retroreflection](#GltfState.DebugOutput.retroreflection)
         * [.RETROREFLECTION_FACTOR](#GltfState.DebugOutput.retroreflection.RETROREFLECTION_FACTOR)
     * [.anisotropy](#GltfState.DebugOutput.anisotropy)
         * [.ANISOTROPIC_STRENGTH](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_STRENGTH)
         * [.ANISOTROPIC_DIRECTION](#GltfState.DebugOutput.anisotropy.ANISOTROPIC_DIRECTION)
+    * [.emissiveStrength](#GltfState.DebugOutput.emissiveStrength)
+        * [.EMISSIVE_STRENGTH](#GltfState.DebugOutput.emissiveStrength.EMISSIVE_STRENGTH)
+    * [.misc](#GltfState.DebugOutput.misc)
+        * [.PICKING_COLOR](#GltfState.DebugOutput.misc.PICKING_COLOR)
 
 <a name="GltfState.DebugOutput.NONE"></a>
 
@@ -784,64 +1021,15 @@ generic debug outputs
 **Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
 
 * [.generic](#GltfState.DebugOutput.generic)
-    * [.UV_COORDS_0](#GltfState.DebugOutput.generic.UV_COORDS_0)
-    * [.UV_COORDS_1](#GltfState.DebugOutput.generic.UV_COORDS_1)
     * [.NORMAL](#GltfState.DebugOutput.generic.NORMAL)
-    * [.GEOMETRYNORMAL](#GltfState.DebugOutput.generic.GEOMETRYNORMAL)
-    * [.TANGENT](#GltfState.DebugOutput.generic.TANGENT)
-    * [.BITANGENT](#GltfState.DebugOutput.generic.BITANGENT)
-    * [.TANGENTW](#GltfState.DebugOutput.generic.TANGENTW)
-    * [.WORLDSPACENORMAL](#GltfState.DebugOutput.generic.WORLDSPACENORMAL)
     * [.ALPHA](#GltfState.DebugOutput.generic.ALPHA)
     * [.OCCLUSION](#GltfState.DebugOutput.generic.OCCLUSION)
     * [.EMISSIVE](#GltfState.DebugOutput.generic.EMISSIVE)
 
-<a name="GltfState.DebugOutput.generic.UV_COORDS_0"></a>
-
-##### generic.UV\_COORDS\_0
-output the texture coordinates 0
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
-<a name="GltfState.DebugOutput.generic.UV_COORDS_1"></a>
-
-##### generic.UV\_COORDS\_1
-output the texture coordinates 1
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
 <a name="GltfState.DebugOutput.generic.NORMAL"></a>
 
 ##### generic.NORMAL
-output the world space normals (i.e. with TBN applied)
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
-<a name="GltfState.DebugOutput.generic.GEOMETRYNORMAL"></a>
-
-##### generic.GEOMETRYNORMAL
-output the normal from the TBN
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
-<a name="GltfState.DebugOutput.generic.TANGENT"></a>
-
-##### generic.TANGENT
-output the tangent from the TBN
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
-<a name="GltfState.DebugOutput.generic.BITANGENT"></a>
-
-##### generic.BITANGENT
-output the bitangent from the TBN
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
-<a name="GltfState.DebugOutput.generic.TANGENTW"></a>
-
-##### generic.TANGENTW
-output the tangent w from the TBN (black corresponds to -1; white to 1
-
-**Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
-<a name="GltfState.DebugOutput.generic.WORLDSPACENORMAL"></a>
-
-##### generic.WORLDSPACENORMAL
-output the world space normals (i.e. with TBN applied)
+output the normal texture value
 
 **Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
 <a name="GltfState.DebugOutput.generic.ALPHA"></a>
@@ -862,6 +1050,50 @@ output the occlusion value
 output the emissive value
 
 **Kind**: static property of [<code>generic</code>](#GltfState.DebugOutput.generic)  
+<a name="GltfState.DebugOutput.shading"></a>
+
+#### DebugOutput.shading
+the geometric and shading normal/tangent frame
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+
+* [.shading](#GltfState.DebugOutput.shading)
+    * [.GEOMETRYNORMAL](#GltfState.DebugOutput.shading.GEOMETRYNORMAL)
+    * [.TANGENT](#GltfState.DebugOutput.shading.TANGENT)
+    * [.BITANGENT](#GltfState.DebugOutput.shading.BITANGENT)
+    * [.TANGENTW](#GltfState.DebugOutput.shading.TANGENTW)
+    * [.WORLDSPACENORMAL](#GltfState.DebugOutput.shading.WORLDSPACENORMAL)
+
+<a name="GltfState.DebugOutput.shading.GEOMETRYNORMAL"></a>
+
+##### shading.GEOMETRYNORMAL
+output the normal from the TBN
+
+**Kind**: static property of [<code>shading</code>](#GltfState.DebugOutput.shading)  
+<a name="GltfState.DebugOutput.shading.TANGENT"></a>
+
+##### shading.TANGENT
+output the tangent from the TBN
+
+**Kind**: static property of [<code>shading</code>](#GltfState.DebugOutput.shading)  
+<a name="GltfState.DebugOutput.shading.BITANGENT"></a>
+
+##### shading.BITANGENT
+output the bitangent from the TBN
+
+**Kind**: static property of [<code>shading</code>](#GltfState.DebugOutput.shading)  
+<a name="GltfState.DebugOutput.shading.TANGENTW"></a>
+
+##### shading.TANGENTW
+output the tangent w from the TBN (black corresponds to -1; white to 1
+
+**Kind**: static property of [<code>shading</code>](#GltfState.DebugOutput.shading)  
+<a name="GltfState.DebugOutput.shading.WORLDSPACENORMAL"></a>
+
+##### shading.WORLDSPACENORMAL
+output the world space normals (i.e. with TBN applied)
+
+**Kind**: static property of [<code>shading</code>](#GltfState.DebugOutput.shading)  
 <a name="GltfState.DebugOutput.mr"></a>
 
 #### DebugOutput.mr
@@ -907,19 +1139,19 @@ KHR_materials_clearcoat
 <a name="GltfState.DebugOutput.clearcoat.CLEARCOAT_FACTOR"></a>
 
 ##### clearcoat.CLEARCOAT\_FACTOR
-output the clear coat strength
+output the clearcoat strength
 
 **Kind**: static property of [<code>clearcoat</code>](#GltfState.DebugOutput.clearcoat)  
 <a name="GltfState.DebugOutput.clearcoat.CLEARCOAT_ROUGHNESS"></a>
 
 ##### clearcoat.CLEARCOAT\_ROUGHNESS
-output the clear coat roughness
+output the clearcoat roughness
 
 **Kind**: static property of [<code>clearcoat</code>](#GltfState.DebugOutput.clearcoat)  
 <a name="GltfState.DebugOutput.clearcoat.CLEARCOAT_NORMAL"></a>
 
 ##### clearcoat.CLEARCOAT\_NORMAL
-output the clear coat normal
+output the clearcoat normal
 
 **Kind**: static property of [<code>clearcoat</code>](#GltfState.DebugOutput.clearcoat)  
 <a name="GltfState.DebugOutput.sheen"></a>
@@ -974,23 +1206,66 @@ output the specular color
 KHR_materials_transmission
 
 **Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
-
-* [.transmission](#GltfState.DebugOutput.transmission)
-    * [.TRANSMISSION_FACTOR](#GltfState.DebugOutput.transmission.TRANSMISSION_FACTOR)
-    * [.VOLUME_THICKNESS](#GltfState.DebugOutput.transmission.VOLUME_THICKNESS)
-
 <a name="GltfState.DebugOutput.transmission.TRANSMISSION_FACTOR"></a>
 
 ##### transmission.TRANSMISSION\_FACTOR
 output the transmission strength
 
 **Kind**: static property of [<code>transmission</code>](#GltfState.DebugOutput.transmission)  
-<a name="GltfState.DebugOutput.transmission.VOLUME_THICKNESS"></a>
+<a name="GltfState.DebugOutput.volume"></a>
 
-##### transmission.VOLUME\_THICKNESS
+#### DebugOutput.volume
+KHR_materials_volume
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+
+* [.volume](#GltfState.DebugOutput.volume)
+    * [.VOLUME_THICKNESS](#GltfState.DebugOutput.volume.VOLUME_THICKNESS)
+    * [.VOLUME_ATTENUATION_DISTANCE](#GltfState.DebugOutput.volume.VOLUME_ATTENUATION_DISTANCE)
+    * [.VOLUME_ATTENUATION_COLOR](#GltfState.DebugOutput.volume.VOLUME_ATTENUATION_COLOR)
+
+<a name="GltfState.DebugOutput.volume.VOLUME_THICKNESS"></a>
+
+##### volume.VOLUME\_THICKNESS
 output the volume thickness
 
-**Kind**: static property of [<code>transmission</code>](#GltfState.DebugOutput.transmission)  
+**Kind**: static property of [<code>volume</code>](#GltfState.DebugOutput.volume)  
+<a name="GltfState.DebugOutput.volume.VOLUME_ATTENUATION_DISTANCE"></a>
+
+##### volume.VOLUME\_ATTENUATION\_DISTANCE
+output the attenuation distance
+
+**Kind**: static property of [<code>volume</code>](#GltfState.DebugOutput.volume)  
+<a name="GltfState.DebugOutput.volume.VOLUME_ATTENUATION_COLOR"></a>
+
+##### volume.VOLUME\_ATTENUATION\_COLOR
+output the attenuation color
+
+**Kind**: static property of [<code>volume</code>](#GltfState.DebugOutput.volume)  
+<a name="GltfState.DebugOutput.ior"></a>
+
+#### DebugOutput.ior
+KHR_materials_ior
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+<a name="GltfState.DebugOutput.ior.IOR"></a>
+
+##### ior.IOR
+output the index of refraction
+
+**Kind**: static property of [<code>ior</code>](#GltfState.DebugOutput.ior)  
+<a name="GltfState.DebugOutput.dispersion"></a>
+
+#### DebugOutput.dispersion
+KHR_materials_dispersion
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+<a name="GltfState.DebugOutput.dispersion.DISPERSION"></a>
+
+##### dispersion.DISPERSION
+output the dispersion strength
+
+**Kind**: static property of [<code>dispersion</code>](#GltfState.DebugOutput.dispersion)  
 <a name="GltfState.DebugOutput.diffuseTransmission"></a>
 
 #### DebugOutput.diffuseTransmission
@@ -1024,6 +1299,7 @@ KHR_materials_iridescence
 * [.iridescence](#GltfState.DebugOutput.iridescence)
     * [.IRIDESCENCE_FACTOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_FACTOR)
     * [.IRIDESCENCE_THICKNESS](#GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS)
+    * [.IRIDESCENCE_IOR](#GltfState.DebugOutput.iridescence.IRIDESCENCE_IOR)
 
 <a name="GltfState.DebugOutput.iridescence.IRIDESCENCE_FACTOR"></a>
 
@@ -1035,6 +1311,12 @@ output the iridescence strength
 
 ##### iridescence.IRIDESCENCE\_THICKNESS
 output the iridescence thickness
+
+**Kind**: static property of [<code>iridescence</code>](#GltfState.DebugOutput.iridescence)  
+<a name="GltfState.DebugOutput.iridescence.IRIDESCENCE_IOR"></a>
+
+##### iridescence.IRIDESCENCE\_IOR
+output the iridescence index of refraction
 
 **Kind**: static property of [<code>iridescence</code>](#GltfState.DebugOutput.iridescence)  
 <a name="GltfState.DebugOutput.retroreflection"></a>
@@ -1063,15 +1345,39 @@ KHR_materials_anisotropy
 <a name="GltfState.DebugOutput.anisotropy.ANISOTROPIC_STRENGTH"></a>
 
 ##### anisotropy.ANISOTROPIC\_STRENGTH
-output the anisotropic strength
+output the anisotropy strength
 
 **Kind**: static property of [<code>anisotropy</code>](#GltfState.DebugOutput.anisotropy)  
 <a name="GltfState.DebugOutput.anisotropy.ANISOTROPIC_DIRECTION"></a>
 
 ##### anisotropy.ANISOTROPIC\_DIRECTION
-output final direction as defined by the anisotropyTexture and rotation
+output the final direction as defined by the anisotropyTexture and rotation
 
 **Kind**: static property of [<code>anisotropy</code>](#GltfState.DebugOutput.anisotropy)  
+<a name="GltfState.DebugOutput.emissiveStrength"></a>
+
+#### DebugOutput.emissiveStrength
+KHR_materials_emissive_strength
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+<a name="GltfState.DebugOutput.emissiveStrength.EMISSIVE_STRENGTH"></a>
+
+##### emissiveStrength.EMISSIVE\_STRENGTH
+output the emissive strength
+
+**Kind**: static property of [<code>emissiveStrength</code>](#GltfState.DebugOutput.emissiveStrength)  
+<a name="GltfState.DebugOutput.misc"></a>
+
+#### DebugOutput.misc
+miscellaneous debug outputs
+
+**Kind**: static property of [<code>DebugOutput</code>](#GltfState.DebugOutput)  
+<a name="GltfState.DebugOutput.misc.PICKING_COLOR"></a>
+
+##### misc.PICKING\_COLOR
+color each node with its picking color (used by the picking pass)
+
+**Kind**: static property of [<code>misc</code>](#GltfState.DebugOutput.misc)  
 <a name="AnimationTimer"></a>
 
 ## AnimationTimer
@@ -1086,6 +1392,8 @@ AnimationTimer class to control animation playback.
     * [.toggle()](#AnimationTimer+toggle)
     * [.reset()](#AnimationTimer+reset)
     * [.setFixedTime(timeInSec)](#AnimationTimer+setFixedTime)
+    * [.setTimeOverride(timeInSec)](#AnimationTimer+setTimeOverride)
+    * [.clearTimeOverride()](#AnimationTimer+clearTimeOverride)
     * [.elapsedSec()](#AnimationTimer+elapsedSec)
 
 <a name="AnimationTimer+start"></a>
@@ -1129,6 +1437,24 @@ Plays all animations starting from the specified time
 | --- | --- | --- |
 | timeInSec | <code>number</code> | The time in seconds to set the animation timer to |
 
+<a name="AnimationTimer+setTimeOverride"></a>
+
+### animationTimer.setTimeOverride(timeInSec)
+Sets the animation time override. While set, elapsedSec() returns this
+value instead of the running clock, which keeps advancing underneath.
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| timeInSec | <code>number</code> | The time in seconds to override the animation to |
+
+<a name="AnimationTimer+clearTimeOverride"></a>
+
+### animationTimer.clearTimeOverride()
+Clears the time override so the running clock is used again.
+
+**Kind**: instance method of [<code>AnimationTimer</code>](#AnimationTimer)  
 <a name="AnimationTimer+elapsedSec"></a>
 
 ### animationTimer.elapsedSec()
@@ -1146,6 +1472,8 @@ that are then used to display the loaded data with GltfView
 * [ResourceLoader](#ResourceLoader)
     * [new ResourceLoader(view, libPath)](#new_ResourceLoader_new)
     * [.loadGltf(gltfFile, [externalFiles], allowResourceAbsolutePath)](#ResourceLoader+loadGltf) ⇒ <code>Promise</code>
+    * [.buildDocument()](#ResourceLoader+buildDocument)
+    * [.loadThumbnail(gltfFile, [externalFiles])](#ResourceLoader+loadThumbnail) ⇒ <code>Promise.&lt;(Object\|undefined)&gt;</code>
     * [.loadEnvironment(environmentFile, [lutFiles])](#ResourceLoader+loadEnvironment) ⇒ <code>Promise</code>
     * [.initKtxLib([externalKtxLib])](#ResourceLoader+initKtxLib)
     * [.initDracoLib([externalDracoLib])](#ResourceLoader+initDracoLib) ⇒ <code>Promise</code>
@@ -1177,6 +1505,29 @@ loadGltf asynchroneously and create resources for rendering
 | gltfFile | <code>String</code> \| <code>ArrayBuffer</code> \| <code>File</code> |  | the .gltf or .glb file either as path or as preloaded resource. In node.js environments, only ArrayBuffer types are accepted. |
 | [externalFiles] | <code>Array.&lt;File&gt;</code> |  | additional files containing resources that are referenced in the gltf |
 | allowResourceAbsolutePath | <code>Boolean</code> | <code>true</code> | whether to allow absolute paths for images/buffers. |
+
+<a name="ResourceLoader+buildDocument"></a>
+
+### resourceLoader.buildDocument()
+Parses one glTF document, loads its resources, then recurses into the assets it
+references. Buffers have to land before the recursion, because a referenced asset
+may live in a bufferView of this one.
+
+**Kind**: instance method of [<code>ResourceLoader</code>](#ResourceLoader)  
+<a name="ResourceLoader+loadThumbnail"></a>
+
+### resourceLoader.loadThumbnail(gltfFile, [externalFiles]) ⇒ <code>Promise.&lt;(Object\|undefined)&gt;</code>
+loadThumbnail reads only the `asset.thumbnail` image of a glTF 2.1 asset, without
+building a glTF document or touching WebGL. Use it to preview an asset cheaply.
+
+**Kind**: instance method of [<code>ResourceLoader</code>](#ResourceLoader)  
+**Returns**: <code>Promise.&lt;(Object\|undefined)&gt;</code> - `{ url, mimeType }`, or undefined when the
+  asset declares no thumbnail. The caller owns `url` and must revoke it.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| gltfFile | <code>String</code> \| <code>ArrayBuffer</code> \| <code>File</code> \| <code>Array</code> | the .gltf or .glb file |
+| [externalFiles] | <code>Array.&lt;File&gt;</code> | files accompanying a dropped asset |
 
 <a name="ResourceLoader+loadEnvironment"></a>
 
@@ -1513,6 +1864,7 @@ Controller for managing the physics simulation of a glTF scene.
 
 * [PhysicsController](#PhysicsController)
     * [.initializeEngine(engine)](#PhysicsController+initializeEngine)
+    * [.getEngineVersion()](#PhysicsController+getEngineVersion) ⇒ <code>string</code> \| <code>undefined</code>
     * [.loadScene(state, sceneIndex)](#PhysicsController+loadScene)
     * [.resetScene(gltf)](#PhysicsController+resetScene)
     * [.resumeSimulation()](#PhysicsController+resumeSimulation)
@@ -1536,6 +1888,13 @@ Currently, only "NvidiaPhysX" is supported.
 | --- | --- |
 | engine | <code>string</code> | 
 
+<a name="PhysicsController+getEngineVersion"></a>
+
+### physicsController.getEngineVersion() ⇒ <code>string</code> \| <code>undefined</code>
+Returns the version string of the initialized physics engine, or undefined
+if the engine has not been initialized yet.
+
+**Kind**: instance method of [<code>PhysicsController</code>](#PhysicsController)  
 <a name="PhysicsController+loadScene"></a>
 
 ### physicsController.loadScene(state, sceneIndex)

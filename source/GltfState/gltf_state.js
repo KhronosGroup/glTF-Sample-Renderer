@@ -276,7 +276,17 @@ GltfState.DebugOutput = {
         // Texture coordinate channels are not listed here. They depend on the asset, so
         // they come from textureCoordinateDebugOutputs instead.
         /** output the normal texture value */
-        NORMAL: "Normal Texture",
+        NORMAL: "Normal",
+        /** output the alpha value */
+        ALPHA: "Alpha",
+        /** output the occlusion value */
+        OCCLUSION: "Occlusion",
+        /** output the emissive value */
+        EMISSIVE: "Emissive"
+    },
+
+    /** the geometric and shading normal/tangent frame */
+    shading: {
         /** output the normal from the TBN*/
         GEOMETRYNORMAL: "Geometry Normal",
         /** output the tangent from the TBN*/
@@ -286,15 +296,7 @@ GltfState.DebugOutput = {
         /** output the tangent w from the TBN (black corresponds to -1; white to 1*/
         TANGENTW: "Geometry Tangent W",
         /** output the world space normals (i.e. with TBN applied) */
-        WORLDSPACENORMAL: "Shading Normal",
-        /** output the alpha value */
-        ALPHA: "Alpha",
-        /** output the occlusion value */
-        OCCLUSION: "Occlusion",
-        /** output the emissive value */
-        EMISSIVE: "Emissive",
-        /** color each node with its picking color (used by the picking pass) */
-        PICKING_COLOR: "Node ID"
+        WORLDSPACENORMAL: "Shading Normal"
     },
 
     /** metallic roughness */
@@ -417,6 +419,12 @@ GltfState.DebugOutput = {
         SH_DEGREE_2: "SH Degree 2",
         /** output the spherical harmonics degree 0-3 */
         SH_DEGREE_3: "SH Degree 3"
+    },
+
+    /** miscellaneous debug outputs */
+    misc: {
+        /** color each node with its picking color (used by the picking pass) */
+        PICKING_COLOR: "Node ID"
     }
 };
 

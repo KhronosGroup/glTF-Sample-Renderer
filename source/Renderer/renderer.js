@@ -2261,7 +2261,7 @@ class gltfRenderer {
         }
         if (
             renderpassConfiguration.picking ||
-            state.renderingParameters.debugOutput === GltfState.DebugOutput.generic.PICKING_COLOR
+            state.renderingParameters.debugOutput === GltfState.DebugOutput.misc.PICKING_COLOR
         ) {
             this.shader.updateUniform("u_PickingColor", node.pickingColor);
         }
@@ -3006,7 +3006,7 @@ class gltfRenderer {
 
         vertDefines.push("DEBUG_VERT_NONE 0");
         vertDefines.push("DEBUG_VERT_TANGENT_W 1");
-        if (debugOutput == GltfState.DebugOutput.generic.TANGENTW) {
+        if (debugOutput == GltfState.DebugOutput.shading.TANGENTW) {
             vertDefines.push("DEBUG_VERT DEBUG_VERT_TANGENT_W");
         } else {
             vertDefines.push("DEBUG_VERT DEBUG_VERT_NONE");
@@ -3059,7 +3059,7 @@ class gltfRenderer {
             { debugOutput: GltfState.DebugOutput.NONE, shaderDefine: "DEBUG_NONE" },
 
             {
-                debugOutput: GltfState.DebugOutput.generic.WORLDSPACENORMAL,
+                debugOutput: GltfState.DebugOutput.shading.WORLDSPACENORMAL,
                 shaderDefine: "DEBUG_NORMAL_SHADING"
             },
             {
@@ -3067,16 +3067,16 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_NORMAL_TEXTURE"
             },
             {
-                debugOutput: GltfState.DebugOutput.generic.GEOMETRYNORMAL,
+                debugOutput: GltfState.DebugOutput.shading.GEOMETRYNORMAL,
                 shaderDefine: "DEBUG_NORMAL_GEOMETRY"
             },
-            { debugOutput: GltfState.DebugOutput.generic.TANGENT, shaderDefine: "DEBUG_TANGENT" },
+            { debugOutput: GltfState.DebugOutput.shading.TANGENT, shaderDefine: "DEBUG_TANGENT" },
             {
-                debugOutput: GltfState.DebugOutput.generic.TANGENTW,
+                debugOutput: GltfState.DebugOutput.shading.TANGENTW,
                 shaderDefine: "DEBUG_TANGENT_W"
             },
             {
-                debugOutput: GltfState.DebugOutput.generic.BITANGENT,
+                debugOutput: GltfState.DebugOutput.shading.BITANGENT,
                 shaderDefine: "DEBUG_BITANGENT"
             },
             { debugOutput: GltfState.DebugOutput.generic.ALPHA, shaderDefine: "DEBUG_ALPHA" },
@@ -3086,7 +3086,7 @@ class gltfRenderer {
             },
             { debugOutput: GltfState.DebugOutput.generic.EMISSIVE, shaderDefine: "DEBUG_EMISSIVE" },
             {
-                debugOutput: GltfState.DebugOutput.generic.PICKING_COLOR,
+                debugOutput: GltfState.DebugOutput.misc.PICKING_COLOR,
                 shaderDefine: "DEBUG_PICKING_COLOR"
             },
 
