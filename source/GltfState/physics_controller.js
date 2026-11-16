@@ -30,6 +30,9 @@ class PhysicsController {
 
         this.playing = false;
         this.enabled = false;
+        // Master switch for physics as a whole. When off, `loadScene` builds no
+        // simulation and the rendered nodes sit at their authored transforms.
+        this.physicsEnabled = true;
         this.simulationStepTime = 1 / 60;
         this.timeAccumulator = 0;
         this.pauseTime = undefined;
@@ -115,6 +118,10 @@ class PhysicsController {
      */
     loadScene(state, sceneIndex) {
         this.resetScene(state.gltf);
+        if (!this.physicsEnabled) {
+            this.enabled = false;
+            return;
+        }
         // Physics may live in the root document or in any instantiated external asset,
         // so the extension is looked for across the whole document tree.
         const declaresPhysics = (document) =>
@@ -264,6 +271,29 @@ class PhysicsController {
         }
         if (this.engine) {
             this.engine.resetSimulation();
+        }
+    }
+
+    /**
+     * Enables or disables physics as a whole.
+     *
+     * Disabling pauses the simulation, tears it down and snaps any simulated
+     * nodes back to their authored transforms. Enabling rebuilds the simulation
+     * for the current scene.
+     * @param {GltfState} state
+     * @param {boolean} enabled
+     */
+    setPhysicsEnabled(state, enabled) {
+        if (this.physicsEnabled === enabled) {
+            return;
+        }
+        this.physicsEnabled = enabled;
+        if (enabled) {
+            this.loadScene(state, state.sceneIndex);
+        } else {
+            this.pauseSimulation();
+            this.resetScene(state.gltf);
+            this.enabled = false;
         }
     }
 
