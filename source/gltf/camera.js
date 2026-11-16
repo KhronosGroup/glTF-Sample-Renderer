@@ -1,4 +1,4 @@
-import { mat4, vec3 } from "gl-matrix";
+import { mat4, quat, vec3 } from "gl-matrix";
 import { GltfObject } from "./gltf_object.js";
 
 class gltfCamera extends GltfObject {
@@ -251,15 +251,23 @@ class gltfCamera extends GltfObject {
 
         const mat = this.getTransformMatrix(gltf);
 
+        // Decompose the transform into translation/rotation/scale so the export
+        // is human-readable rather than a raw 16-number matrix.
+        const translation = vec3.create();
+        const rotation = quat.create();
+        const scale = vec3.create();
+        mat4.getTranslation(translation, mat);
+        mat4.getRotation(rotation, mat);
+        mat4.getScaling(scale, mat);
+
         const node = {
             camera: 0,
             // prettier-ignore
-            matrix: [
-                mat[0], mat[1], mat[2], mat[3],
-                mat[4], mat[5], mat[6], mat[7],
-                mat[8], mat[9], mat[10], mat[11],
-                mat[12], mat[13], mat[14], mat[15]
-            ]
+            translation: [translation[0], translation[1], translation[2]],
+            // prettier-ignore
+            rotation: [rotation[0], rotation[1], rotation[2], rotation[3]],
+            // prettier-ignore
+            scale: [scale[0], scale[1], scale[2]]
         };
 
         if (this.node !== undefined && gltf.nodes[this.node].name !== undefined) {

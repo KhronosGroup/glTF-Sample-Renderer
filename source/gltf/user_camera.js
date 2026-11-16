@@ -31,8 +31,6 @@ class UserCamera extends gltfCamera {
         // When true the renderer keeps `perspective.aspectRatio` instead of fitting it
         // to the viewport, so the user can letterbox to a fixed aspect ratio.
         this.enforceAspectRatio = false;
-        // Roll angle (radians) around the look direction, applied by setRotation.
-        this.roll = 0;
     }
 
     getTransformMatrix() {
@@ -134,24 +132,11 @@ class UserCamera extends gltfCamera {
         const tmpPos = this.getPosition();
         let mat4x = mat4.create();
         let mat4y = mat4.create();
-        let mat4z = mat4.create();
         mat4.fromXRotation(mat4x, pitch);
         mat4.fromYRotation(mat4y, yaw);
-        mat4.fromZRotation(mat4z, this.roll);
         this.transform = mat4y;
         this.setPosition(tmpPos);
         mat4.multiply(this.transform, this.transform, mat4x);
-        mat4.multiply(this.transform, this.transform, mat4z);
-    }
-
-    /**
-     * Sets the roll angle (rotation around the look direction) and re-applies the
-     * current yaw/pitch so the new roll takes effect immediately.
-     * @param {number} roll
-     */
-    setRoll(roll) {
-        this.roll = roll;
-        this.setRotation(this.rotAroundY, this.rotAroundX);
     }
 
     /**
