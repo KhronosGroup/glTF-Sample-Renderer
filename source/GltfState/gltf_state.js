@@ -83,8 +83,6 @@ class GltfState {
             jointGizmos: false,
             /** draw debug gizmos for mesh bounds */
             aabbGizmos: false,
-            /** use the back-face depth pass for scatter thickness instead of the thickness map */
-            scatterBackfacePass: false,
 
             /** enabled extensions */
             enabledExtensions: {
@@ -382,8 +380,6 @@ GltfState.DebugOutput = {
         SCATTER_STRENGTH: "Scatter Strength",
         /** output the scatter anisotropy */
         SCATTER_ANISOTROPY: "Scatter Anisotropy",
-        /** output the back-face depth used by the volumetric single-scattering ray march */
-        BACK_DEPTH: "Back Depth",
         /** output for the pre scatter pass, which collects all lighting contribution for scattering */
         PRE_SCATTER_PASS: "Pre-Scatter Pass"
     },

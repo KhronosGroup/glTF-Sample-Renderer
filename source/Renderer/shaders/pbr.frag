@@ -33,17 +33,6 @@ precision highp float;
 
 const int SCATTER_VOLUME_STEPS = 16;
 
-vec3 reconstructWorldPosition(vec2 uv, float depth)
-{
-    float ndcDepth = depth * 2.0 - 1.0;
-    vec2 clipUV = uv * 2.0 - 1.0;
-    vec4 clipPosition = vec4(clipUV.x, clipUV.y, ndcDepth, 1.0);
-    vec4 viewPosition = inverse(u_ProjectionMatrix) * clipPosition;
-    vec3 viewPos = viewPosition.xyz / viewPosition.w;
-    vec4 worldPosition = inverse(u_ViewMatrix) * vec4(viewPos, 1.0);
-    return worldPosition.xyz / worldPosition.w;
-}
-
 float henyeyGreenstein(float g, float cosTheta)
 {
     // Henyey-Greenstein phase function.
@@ -65,7 +54,6 @@ vec3 getVolumeSingleScattering(
     mat4 modelMatrix
 )
 {
-    vec2 uv = gl_FragCoord.xy / vec2(u_FramebufferSize);
     vec3 outgoingDir = normalize(viewDir);
 
     // Refract the incoming view ray at the front surface. For total internal
@@ -77,39 +65,12 @@ vec3 getVolumeSingleScattering(
     }
     refractedDir = normalize(refractedDir);
 
-    float cosRay;
-    float chordLength;
-    if (u_ScatterUseBackfacePass > 0)
-    {
-        // Volumetric: measure the actual thickness through the geometry from the
-        // back-face depth pass, then convert that view-ray thickness to the chord
-        // length travelled along the refracted ray (planar-slab approximation,
-        // avoids depth peeling).
-        float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, uv, 0.0).r;
-        if (backDepth >= 1.0)
-        {
-            return vec3(0.0);
-        }
-        vec3 backWorldPos = reconstructWorldPosition(uv, backDepth);
-        vec3 viewRay = backWorldPos - frontWorldPos;
-        float thickness = length(viewRay);
-        if (thickness <= 0.0)
-        {
-            return vec3(0.0);
-        }
-        vec3 viewRayDir = viewRay / thickness;
-        cosRay = max(dot(refractedDir, viewRayDir), 0.05);
-        chordLength = thickness / cosRay;
-    }
-    else
-    {
-        // Thin-walled: march the authored thickness map directly as a flat slab
-        // (symmetric entry/exit), matching getVolumeTransmissionRay's no-cosine
-        // model. The thickness is in local space, so scale it to world space.
-        float modelScale = length(modelMatrix[0].xyz);
-        cosRay = 1.0;
-        chordLength = thicknessMap * modelScale;
-    }
+    // Thin-walled: march the authored thickness map directly as a flat slab
+    // (symmetric entry/exit), matching getVolumeTransmissionRay's no-cosine
+    // model. The thickness is in local space, so scale it to world space.
+    float modelScale = length(modelMatrix[0].xyz);
+    float cosRay = 1.0;
+    float chordLength = thicknessMap * modelScale;
 
     // Beer-Lambert attenuation coefficient. attenuationDistance == 0 means no attenuation.
     vec3 sigma_t = vec3(0.0);
@@ -859,21 +820,6 @@ vec3 specularTexture = vec3(1.0);
     // Anisotropy is in [-1, 1]; remap to [0, 1] so backward scattering reads
     // dark and forward scattering reads bright.
     g_finalColor.rgb = vec3(u_ScatterAnisotropy * 0.5 + 0.5);
-#endif
-#if defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
-#if DEBUG == DEBUG_SCATTER_BACK_DEPTH
-    vec2 scatterUV = gl_FragCoord.xy / vec2(u_FramebufferSize);
-    float backDepth = textureLod(u_ScatterBackDepthFramebufferSampler, scatterUV, 0.0).r;
-
-    // Raw NDC depth sits close to 1.0 for typical objects, which makes the
-    // debug view look solid white. Reconstruct linear view-space depth and
-    // normalize it by the camera far plane instead.
-    vec4 clipPosition = vec4(scatterUV * 2.0 - 1.0, backDepth * 2.0 - 1.0, 1.0);
-    vec4 viewPosition = inverse(u_ProjectionMatrix) * clipPosition;
-    float linearDepth = -viewPosition.z / viewPosition.w;
-    float farPlane = u_ProjectionMatrix[3][2] / (u_ProjectionMatrix[2][2] + 1.0);
-    g_finalColor.rgb = vec3(clamp(linearDepth / max(farPlane, 1e-4), 0.0, 1.0));
-#endif
 #endif
 #endif
 #endif

@@ -335,11 +335,6 @@ uniform mat3 u_MultiScatterColorUVTransform;
 
 uniform sampler2D u_ScatterFramebufferSampler;
 uniform sampler2D u_ScatterDepthFramebufferSampler;
-uniform sampler2D u_ScatterBackDepthFramebufferSampler;
-
-// 1 = measure the scattering thickness from the back-face depth pass,
-// 0 = use the thickness map.
-uniform int u_ScatterUseBackfacePass;
 
 vec2 getScatterStrengthUV()
 {
