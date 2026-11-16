@@ -338,7 +338,7 @@ GltfState.DebugOutput = {
         /** output the transmission strength*/
         TRANSMISSION_FACTOR: "Transmission Strength",
         /** output the volume thickness*/
-        VOLUME_THICKNESS: "Volume Thickness"
+        VOLUME_THICKNESS: "Thickness"
     },
 
     /** KHR_materials_diffuse_tranmission */
