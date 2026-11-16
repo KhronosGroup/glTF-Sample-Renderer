@@ -3130,7 +3130,7 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_TRANSMISSION_FACTOR"
             },
             {
-                debugOutput: GltfState.DebugOutput.transmission.VOLUME_THICKNESS,
+                debugOutput: GltfState.DebugOutput.volume.VOLUME_THICKNESS,
                 shaderDefine: "DEBUG_VOLUME_THICKNESS"
             },
 

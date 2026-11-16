@@ -275,7 +275,7 @@ GltfState.DebugOutput = {
     generic: {
         // Texture coordinate channels are not listed here. They depend on the asset, so
         // they come from textureCoordinateDebugOutputs instead.
-        /** output the world space normals (i.e. with TBN applied) */
+        /** output the normal texture value */
         NORMAL: "Normal Texture",
         /** output the normal from the TBN*/
         GEOMETRYNORMAL: "Geometry Normal",
@@ -309,12 +309,12 @@ GltfState.DebugOutput = {
 
     /** KHR_materials_clearcoat */
     clearcoat: {
-        /** output the clear coat strength */
-        CLEARCOAT_FACTOR: "ClearCoat Strength",
-        /** output the clear coat roughness */
-        CLEARCOAT_ROUGHNESS: "ClearCoat Roughness",
-        /** output the clear coat normal */
-        CLEARCOAT_NORMAL: "ClearCoat Normal"
+        /** output the clearcoat strength */
+        CLEARCOAT_FACTOR: "Clearcoat Strength",
+        /** output the clearcoat roughness */
+        CLEARCOAT_ROUGHNESS: "Clearcoat Roughness",
+        /** output the clearcoat normal */
+        CLEARCOAT_NORMAL: "Clearcoat Normal"
     },
 
     /** KHR_materials_sheen */
@@ -336,8 +336,12 @@ GltfState.DebugOutput = {
     /** KHR_materials_transmission */
     transmission: {
         /** output the transmission strength*/
-        TRANSMISSION_FACTOR: "Transmission Strength",
-        /** output the volume thickness*/
+        TRANSMISSION_FACTOR: "Transmission Strength"
+    },
+
+    /** KHR_materials_volume */
+    volume: {
+        /** output the volume thickness */
         VOLUME_THICKNESS: "Thickness"
     },
 
@@ -365,10 +369,10 @@ GltfState.DebugOutput = {
 
     /** KHR_materials_anisotropy */
     anisotropy: {
-        /** output the anisotropic strength*/
-        ANISOTROPIC_STRENGTH: "Anisotropic Strength",
-        /** output final direction as defined by the anisotropyTexture and rotation*/
-        ANISOTROPIC_DIRECTION: "Anisotropic Direction"
+        /** output the anisotropy strength */
+        ANISOTROPIC_STRENGTH: "Anisotropy Strength",
+        /** output the final direction as defined by the anisotropyTexture and rotation */
+        ANISOTROPIC_DIRECTION: "Anisotropy Direction"
     },
 
     scatter: {
