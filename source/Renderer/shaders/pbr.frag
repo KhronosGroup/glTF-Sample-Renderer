@@ -462,19 +462,13 @@ void main()
             float diffuseNdotL = clampedDot(-n, l);
             l_diffuse_btdf = lightIntensity * diffuseNdotL * BRDF_lambertian(materialInfo.diffuseTransmissionColorFactor);
 
-            vec3 l_mirror = normalize(l + 2.0 * n * dot(-l, n)); // Mirror light reflection vector on surface
-            float diffuseVdotH = clampedDot(v, normalize(l_mirror + v));
-            dielectric_fresnel = F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, abs(diffuseVdotH));
-
 #ifdef MATERIAL_VOLUME
             l_diffuse_btdf = applyVolumeAttenuation(l_diffuse_btdf, diffuseTransmissionThickness, materialInfo.attenuationColor, materialInfo.attenuationDistance);
 #endif
 #ifdef MATERIAL_SCATTER
             l_diffuse_btdf *= (1.0 - singleScatter);
 #endif
-            l_diffuse += l_diffuse_btdf * materialInfo.diffuseTransmissionFactor;
         }
-        
 #endif // MATERIAL_DIFFUSE_TRANSMISSION
 
         // BTDF (Bidirectional Transmittance Distribution Function)
@@ -570,13 +564,24 @@ void main()
             1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotL, materialInfo.sheenRoughnessFactor));
 #endif
         
+#if defined(MATERIAL_DIFFUSE_TRANSMISSION) || defined(MATERIAL_TRANSMISSION)
+        // Transmitted light exits through the front face, so it is gated by the
+        // front-face transmittance at the view angle, not by the reflection Fresnel.
+        // The reflection Fresnel approaches 1 for a light directly behind the
+        // surface (VdotH ~ 0), which would otherwise erase the transmission.
+        vec3 transmittance = 1.0 - F_Schlick(materialInfo.f0_dielectric * materialInfo.specularWeight, materialInfo.f90_dielectric, NdotV);
+#endif
+#ifdef MATERIAL_DIFFUSE_TRANSMISSION
+        // Specular transmission (KHR_materials_transmission) overrides diffuse
+        // transmission when both are present.
+        float diffuseTransmissionScale = materialInfo.diffuseTransmissionFactor;
 #ifdef MATERIAL_TRANSMISSION
-        // Transmitted light exits through the front face, so gate it by the
-        // front-face transmittance at the view angle, not by the reflection
-        // Fresnel. The reflection Fresnel approaches 1 for a light directly behind
-        // the surface (VdotH ~ 0), which would otherwise erase the transmission.
-        l_dielectric_brdf += l_transmission * materialInfo.transmissionFactor
-            * (1.0 - F_Schlick(materialInfo.f0_dielectric, materialInfo.f90_dielectric, NdotV));
+        diffuseTransmissionScale *= 1.0 - materialInfo.transmissionFactor;
+#endif
+        l_dielectric_brdf += l_diffuse_btdf * diffuseTransmissionScale * transmittance;
+#endif
+#ifdef MATERIAL_TRANSMISSION
+        l_dielectric_brdf += l_transmission * materialInfo.transmissionFactor * transmittance;
 #endif
 
         vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, materialInfo.metallic);
