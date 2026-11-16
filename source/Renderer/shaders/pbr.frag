@@ -689,6 +689,12 @@ void main()
 #if DEBUG == DEBUG_EMISSIVE
     g_finalColor.rgb = linearTosRGB(f_emissive);
 #endif
+#ifdef MATERIAL_EMISSIVE_STRENGTH
+#if DEBUG == DEBUG_EMISSIVE_STRENGTH
+    // Emissive strength spans 1 to 1000+, so show it on a log2 scale mapped to [0, 1].
+    g_finalColor.rgb = vec3(clamp(log2(u_EmissiveStrength), 0.0, 10.0) / 10.0);
+#endif
+#endif
 #if DEBUG == DEBUG_PICKING_COLOR
     // Color each node by its picking color (the ID written by the picking pass).
     uint nodeId = u_PickingColor;
@@ -748,7 +754,7 @@ vec3 specularTexture = vec3(1.0);
 #endif
 #endif
 
-    // Transmission, Volume:
+    // Transmission, Volume, IOR, Dispersion:
 #ifdef MATERIAL_TRANSMISSION
 #if DEBUG == DEBUG_TRANSMISSION_FACTOR
     g_finalColor.rgb = vec3(materialInfo.transmissionFactor);
@@ -757,6 +763,23 @@ vec3 specularTexture = vec3(1.0);
 #ifdef MATERIAL_VOLUME
 #if DEBUG == DEBUG_VOLUME_THICKNESS
     g_finalColor.rgb = vec3(materialInfo.thickness / u_ThicknessFactor);
+#endif
+#if DEBUG == DEBUG_VOLUME_ATTENUATION_DISTANCE
+    g_finalColor.rgb = vec3(clamp(u_AttenuationDistance, 0.0, 1.0));
+#endif
+#if DEBUG == DEBUG_VOLUME_ATTENUATION_COLOR
+    g_finalColor.rgb = u_AttenuationColor;
+#endif
+#endif
+#ifdef MATERIAL_IOR
+#if DEBUG == DEBUG_IOR
+    // Index of refraction: map the common dielectric range [1.0, 3.0] to [0, 1].
+    g_finalColor.rgb = vec3(clamp((u_Ior - 1.0) / 2.0, 0.0, 1.0));
+#endif
+#endif
+#ifdef MATERIAL_DISPERSION
+#if DEBUG == DEBUG_DISPERSION
+    g_finalColor.rgb = vec3(clamp(u_Dispersion, 0.0, 1.0));
 #endif
 #endif
 
@@ -767,6 +790,9 @@ vec3 specularTexture = vec3(1.0);
 #endif
 #if DEBUG == DEBUG_IRIDESCENCE_THICKNESS
     g_finalColor.rgb = vec3(materialInfo.iridescenceThickness / 1200.0);
+#endif
+#if DEBUG == DEBUG_IRIDESCENCE_IOR
+    g_finalColor.rgb = vec3(clamp((materialInfo.iridescenceIor - 1.0) / 2.0, 0.0, 1.0));
 #endif
 #endif
 

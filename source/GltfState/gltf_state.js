@@ -342,7 +342,23 @@ GltfState.DebugOutput = {
     /** KHR_materials_volume */
     volume: {
         /** output the volume thickness */
-        VOLUME_THICKNESS: "Thickness"
+        VOLUME_THICKNESS: "Thickness",
+        /** output the attenuation distance */
+        VOLUME_ATTENUATION_DISTANCE: "Attenuation Distance",
+        /** output the attenuation color */
+        VOLUME_ATTENUATION_COLOR: "Attenuation Color"
+    },
+
+    /** KHR_materials_ior */
+    ior: {
+        /** output the index of refraction */
+        IOR: "IOR"
+    },
+
+    /** KHR_materials_dispersion */
+    dispersion: {
+        /** output the dispersion strength */
+        DISPERSION: "Dispersion"
     },
 
     /** KHR_materials_diffuse_tranmission */
@@ -358,7 +374,9 @@ GltfState.DebugOutput = {
         /** output the iridescence strength*/
         IRIDESCENCE_FACTOR: "Iridescence Strength",
         /** output the iridescence thickness*/
-        IRIDESCENCE_THICKNESS: "Iridescence Thickness"
+        IRIDESCENCE_THICKNESS: "Iridescence Thickness",
+        /** output the iridescence index of refraction */
+        IRIDESCENCE_IOR: "Iridescence IOR"
     },
 
     /** KHR_materials_retroreflection */
@@ -382,6 +400,12 @@ GltfState.DebugOutput = {
         SCATTER_STRENGTH: "Scatter Strength",
         /** output the scatter anisotropy */
         SCATTER_ANISOTROPY: "Scatter Anisotropy"
+    },
+
+    /** KHR_materials_emissive_strength */
+    emissiveStrength: {
+        /** output the emissive strength */
+        EMISSIVE_STRENGTH: "Emissive Strength"
     },
 
     gaussianSplatting: {

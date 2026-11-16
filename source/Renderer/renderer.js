@@ -3133,6 +3133,23 @@ class gltfRenderer {
                 debugOutput: GltfState.DebugOutput.volume.VOLUME_THICKNESS,
                 shaderDefine: "DEBUG_VOLUME_THICKNESS"
             },
+            {
+                debugOutput: GltfState.DebugOutput.volume.VOLUME_ATTENUATION_DISTANCE,
+                shaderDefine: "DEBUG_VOLUME_ATTENUATION_DISTANCE"
+            },
+            {
+                debugOutput: GltfState.DebugOutput.volume.VOLUME_ATTENUATION_COLOR,
+                shaderDefine: "DEBUG_VOLUME_ATTENUATION_COLOR"
+            },
+
+            {
+                debugOutput: GltfState.DebugOutput.ior.IOR,
+                shaderDefine: "DEBUG_IOR"
+            },
+            {
+                debugOutput: GltfState.DebugOutput.dispersion.DISPERSION,
+                shaderDefine: "DEBUG_DISPERSION"
+            },
 
             {
                 debugOutput: GltfState.DebugOutput.diffuseTransmission.DIFFUSE_TRANSMISSION_FACTOR,
@@ -3151,6 +3168,10 @@ class gltfRenderer {
             {
                 debugOutput: GltfState.DebugOutput.iridescence.IRIDESCENCE_THICKNESS,
                 shaderDefine: "DEBUG_IRIDESCENCE_THICKNESS"
+            },
+            {
+                debugOutput: GltfState.DebugOutput.iridescence.IRIDESCENCE_IOR,
+                shaderDefine: "DEBUG_IRIDESCENCE_IOR"
             },
 
             {
@@ -3178,6 +3199,10 @@ class gltfRenderer {
             {
                 debugOutput: GltfState.DebugOutput.scatter.SCATTER_ANISOTROPY,
                 shaderDefine: "DEBUG_SCATTER_ANISOTROPY"
+            },
+            {
+                debugOutput: GltfState.DebugOutput.emissiveStrength.EMISSIVE_STRENGTH,
+                shaderDefine: "DEBUG_EMISSIVE_STRENGTH"
             }
         ];
 
