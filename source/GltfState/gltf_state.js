@@ -374,14 +374,10 @@ GltfState.DebugOutput = {
     scatter: {
         /** output the multi-scatter color */
         MULTI_SCATTER_COLOR: "Multi-Scatter Color",
-        /** output the single-scatter color */
-        SINGLE_SCATTER_COLOR: "Single-Scatter Color",
         /** output the scatter strength (factor times strength texture) */
         SCATTER_STRENGTH: "Scatter Strength",
         /** output the scatter anisotropy */
-        SCATTER_ANISOTROPY: "Scatter Anisotropy",
-        /** output for the pre scatter pass, which collects all lighting contribution for scattering */
-        PRE_SCATTER_PASS: "Pre-Scatter Pass"
+        SCATTER_ANISOTROPY: "Scatter Anisotropy"
     },
 
     gaussianSplatting: {

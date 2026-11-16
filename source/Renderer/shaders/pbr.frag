@@ -810,9 +810,6 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_SCATTER_MULTI_SCATTER_COLOR
     g_finalColor.rgb = getMultiScatterColor();
 #endif
-#if DEBUG == DEBUG_SCATTER_SINGLE_SCATTER_COLOR
-    g_finalColor.rgb = singleScatter;
-#endif
 #if DEBUG == DEBUG_SCATTER_STRENGTH
     g_finalColor.rgb = vec3(getScatterStrength());
 #endif

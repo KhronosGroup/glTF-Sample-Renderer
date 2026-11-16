@@ -1000,12 +1000,6 @@ class gltfRenderer {
                 this.webGl.context.FRAMEBUFFER,
                 this.scatterFramebuffer
             );
-            if (
-                state.renderingParameters.debugOutput ===
-                GltfState.DebugOutput.scatter.PRE_SCATTER_PASS
-            ) {
-                this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-            }
             this.webGl.context.viewport(aspectOffsetX, aspectOffsetY, aspectWidth, aspectHeight);
 
             let counter = 1;
@@ -1025,11 +1019,6 @@ class gltfRenderer {
                 ++counter;
             }
             this.webGl.context.bindFramebuffer(this.webGl.context.FRAMEBUFFER, null);
-        }
-        if (
-            state.renderingParameters.debugOutput === GltfState.DebugOutput.scatter.PRE_SCATTER_PASS
-        ) {
-            return;
         }
 
         let pickingProjection = undefined;
@@ -3181,10 +3170,6 @@ class gltfRenderer {
             {
                 debugOutput: GltfState.DebugOutput.scatter.MULTI_SCATTER_COLOR,
                 shaderDefine: "DEBUG_SCATTER_MULTI_SCATTER_COLOR"
-            },
-            {
-                debugOutput: GltfState.DebugOutput.scatter.SINGLE_SCATTER_COLOR,
-                shaderDefine: "DEBUG_SCATTER_SINGLE_SCATTER_COLOR"
             },
             {
                 debugOutput: GltfState.DebugOutput.scatter.SCATTER_STRENGTH,
