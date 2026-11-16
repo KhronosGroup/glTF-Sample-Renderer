@@ -412,13 +412,13 @@ GltfState.DebugOutput = {
 
     gaussianSplatting: {
         /** output the spherical harmonics degree 0 */
-        SH_DEGREE_0: "SH Degree 0",
+        SH_DEGREE_0: "Spherical Harmonics Degree 0",
         /** output the spherical harmonics degree 0-1 */
-        SH_DEGREE_1: "SH Degree 1",
+        SH_DEGREE_1: "Spherical Harmonics Degree 1",
         /** output the spherical harmonics degree 0-2 */
-        SH_DEGREE_2: "SH Degree 2",
+        SH_DEGREE_2: "Spherical Harmonics Degree 2",
         /** output the spherical harmonics degree 0-3 */
-        SH_DEGREE_3: "SH Degree 3"
+        SH_DEGREE_3: "Spherical Harmonics Degree 3"
     },
 
     /** miscellaneous debug outputs */
