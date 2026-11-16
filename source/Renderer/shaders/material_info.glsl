@@ -176,6 +176,18 @@ NormalInfo getNormalInfo(vec3 v)
         b *= -1.0;
         ng *= -1.0;
     }
+    // The interpolated (smooth) normal can still point away from the viewer near
+    // the silhouette, even for a front-facing triangle, because the winding and
+    // the averaged vertex normal can disagree. Flip it so NdotV is never negative:
+    // a negative NdotV gets clamped to zero and snaps grazing-dependent terms
+    // (diffuse, specular, transmission) to zero, producing a hard shading
+    // discontinuity across a polygon.
+    if (dot(ng, v) < 0.0)
+    {
+        t *= -1.0;
+        b *= -1.0;
+        ng *= -1.0;
+    }
 #endif
 
     // Compute normals:
