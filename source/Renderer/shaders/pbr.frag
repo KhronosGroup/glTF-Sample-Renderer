@@ -425,7 +425,13 @@ void main()
 
         // BSTF
         vec3 l = normalize(pointToLight);   // Direction from surface point to light
-        vec3 h = normalize(l + v);          // Direction of the vector between l and v, called halfway vector
+        // When the light is directly behind the surface (l == -v) the halfway vector
+        // degenerates to zero, and normalizing it yields NaN which blackens the pixel.
+        // Fall back to the normal, whose exact value is irrelevant here because the
+        // front-face contribution is zero at NdotL == 0 anyway.
+        vec3 h = l + v;
+        float hLen = length(h);
+        h = hLen > 1e-5 ? h / hLen : n;
         float NdotL = clampedDot(n, l);
         float NdotV = clampedDot(n, v);
         float NdotH = clampedDot(n, h);
