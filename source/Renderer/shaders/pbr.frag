@@ -452,6 +452,7 @@ void main()
         vec3 l_sheen = vec3(0.0);
         float l_albedoSheenScaling = 1.0;
         vec3 l_diffuse_btdf = vec3(0.0);
+        vec3 l_transmission = vec3(0.0);
 
 
         
@@ -505,7 +506,8 @@ void main()
         }
 #endif
 
-        l_diffuse = mix(l_diffuse, transmittedLight, materialInfo.transmissionFactor);
+        l_diffuse *= (1.0 - materialInfo.transmissionFactor);
+        l_transmission = transmittedLight;
 #endif
 
         // Calculation of analytical light
@@ -568,6 +570,15 @@ void main()
             1.0 - max3(materialInfo.sheenColorFactor) * albedoSheenScalingLUT(NdotL, materialInfo.sheenRoughnessFactor));
 #endif
         
+#ifdef MATERIAL_TRANSMISSION
+        // Transmitted light exits through the front face, so gate it by the
+        // front-face transmittance at the view angle, not by the reflection
+        // Fresnel. The reflection Fresnel approaches 1 for a light directly behind
+        // the surface (VdotH ~ 0), which would otherwise erase the transmission.
+        l_dielectric_brdf += l_transmission * materialInfo.transmissionFactor
+            * (1.0 - F_Schlick(materialInfo.f0_dielectric, materialInfo.f90_dielectric, NdotV));
+#endif
+
         vec3 l_color = mix(l_dielectric_brdf, l_metal_brdf, materialInfo.metallic);
         l_color = l_sheen + l_color * l_albedoSheenScaling;
         l_color = mix(l_color, l_clearcoat_brdf, clearcoatFactor * clearcoatFresnel);
