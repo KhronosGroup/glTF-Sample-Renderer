@@ -852,6 +852,14 @@ vec3 specularTexture = vec3(1.0);
 #if DEBUG == DEBUG_SCATTER_SINGLE_SCATTER_COLOR
     g_finalColor.rgb = singleScatter;
 #endif
+#if DEBUG == DEBUG_SCATTER_STRENGTH
+    g_finalColor.rgb = vec3(getScatterStrength());
+#endif
+#if DEBUG == DEBUG_SCATTER_ANISOTROPY
+    // Anisotropy is in [-1, 1]; remap to [0, 1] so backward scattering reads
+    // dark and forward scattering reads bright.
+    g_finalColor.rgb = vec3(u_ScatterAnisotropy * 0.5 + 0.5);
+#endif
 #if defined(MATERIAL_VOLUME) && defined(MATERIAL_TRANSMISSION)
 #if DEBUG == DEBUG_SCATTER_BACK_DEPTH
     vec2 scatterUV = gl_FragCoord.xy / vec2(u_FramebufferSize);

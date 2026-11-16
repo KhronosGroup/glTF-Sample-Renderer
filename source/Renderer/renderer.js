@@ -3286,6 +3286,14 @@ class gltfRenderer {
                 shaderDefine: "DEBUG_SCATTER_SINGLE_SCATTER_COLOR"
             },
             {
+                debugOutput: GltfState.DebugOutput.scatter.SCATTER_STRENGTH,
+                shaderDefine: "DEBUG_SCATTER_STRENGTH"
+            },
+            {
+                debugOutput: GltfState.DebugOutput.scatter.SCATTER_ANISOTROPY,
+                shaderDefine: "DEBUG_SCATTER_ANISOTROPY"
+            },
+            {
                 debugOutput: GltfState.DebugOutput.scatter.BACK_DEPTH,
                 shaderDefine: "DEBUG_SCATTER_BACK_DEPTH"
             }
