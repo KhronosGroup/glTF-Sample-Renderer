@@ -83,9 +83,7 @@ function promoteMeshColliders(gltf) {
             }
             const shape = new gltfShape();
             shape.type = geometry.convexHull ? "convexMesh" : "mesh";
-            const parameters = new (geometry.convexHull
-                ? gltfShapeConvexMesh
-                : gltfShapeMesh)();
+            const parameters = new (geometry.convexHull ? gltfShapeConvexMesh : gltfShapeMesh)();
             parameters.mesh = geometry.mesh;
             shape[shape.type] = parameters;
             geometry.shape = gltf.shapes.length;
@@ -127,6 +125,7 @@ class glTF extends GltfObject {
         this.shapes = [];
         this.files = [];
         this.externalAssets = [];
+        this.uniqueIds = undefined;
         this.path = file;
 
         // Distinguishes documents in a tree of external assets, where indices such as a
@@ -146,6 +145,11 @@ class glTF extends GltfObject {
 
     isAtLeast(major, minor) {
         return this.asset?.isAtLeast(major, minor) ?? false;
+    }
+
+    // The uid `uniqueIds` maps to this JSON pointer, or undefined when there is none.
+    uidAt(pointer) {
+        return this.uniqueIds?.get(pointer);
     }
 
     fromJson(json) {
@@ -174,6 +178,14 @@ class glTF extends GltfObject {
         this.files = objectsFromJsons(json.files, gltfFile);
         this.externalAssets = objectsFromJsons(json.externalAssets, gltfExternalAsset);
         this.shapes = objectsFromJsons(json.shapes, gltfShape);
+
+        // Unique IDs map a uid string to a JSON pointer (`{ "<uid>": { "pointer": "..." } }`).
+        // Invert to pointer -> uid, which is what labelling an object needs.
+        if (json.uniqueIds !== undefined) {
+            this.uniqueIds = new Map(
+                Object.entries(json.uniqueIds).map(([uid, entry]) => [entry.pointer, uid])
+            );
+        }
 
         if (json.extensions?.KHR_lights_punctual !== undefined) {
             this.extensions.KHR_lights_punctual = new GltfObject([]);

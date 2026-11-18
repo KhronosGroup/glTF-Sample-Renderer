@@ -5,11 +5,10 @@ import { glTF } from "../../source/gltf/gltf.js";
 
 installWebGlConstants();
 
-// `uid` is still an open explainer rather than spec text: it does not appear in the 2.1
-// draft, and the explainer is undecided between a separate property and reusing `name`.
-// Nothing in the format references a uid, so there is no behaviour to implement yet.
-// These pin only that an asset carrying uids survives a round trip, so a 2.1 file is not
-// rejected or silently stripped while the design settles.
+// Unique IDs live in the top-level `uniqueIds` object: a map of uid string to a
+// `{ pointer }` JSON pointer. The renderer inverts that into a pointer -> uid lookup so
+// an object can be labelled with its uid, but it never writes a `uid` back onto the
+// object itself.
 
 function documentOf(json) {
     const gltf = new glTF("uid.gltf");
@@ -18,37 +17,49 @@ function documentOf(json) {
 }
 
 describe("unique ids", () => {
-    it("keeps a uid on the objects that carry one", () => {
+    it("inverts uniqueIds into a pointer -> uid lookup", () => {
         const gltf = documentOf({
-            nodes: [{ name: "Box", uid: "12345" }],
-            meshes: [{ uid: "mesh-uid", primitives: [{ attributes: { POSITION: 0 } }] }],
-            materials: [{ uid: "mat-uid" }]
+            uniqueIds: {
+                12345: { pointer: "/nodes/0" },
+                "mesh-uid": { pointer: "/meshes/0" },
+                "mat-uid": { pointer: "/materials/0" }
+            },
+            nodes: [{ name: "Box" }],
+            meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+            materials: [{}]
         });
 
-        expect(gltf.nodes[0].uid).toBe("12345");
-        expect(gltf.meshes[0].uid).toBe("mesh-uid");
-        expect(gltf.materials[0].uid).toBe("mat-uid");
+        expect(gltf.uidAt("/nodes/0")).toBe("12345");
+        expect(gltf.uidAt("/meshes/0")).toBe("mesh-uid");
+        expect(gltf.uidAt("/materials/0")).toBe("mat-uid");
     });
 
-    it("leaves name alone, since the two are independent", () => {
-        const gltf = documentOf({ nodes: [{ name: "Box", uid: "Crate" }] });
-
-        expect(gltf.nodes[0].name).toBe("Box");
-        expect(gltf.nodes[0].uid).toBe("Crate");
-    });
-
-    it("does not invent a uid for an object without one", () => {
-        const gltf = documentOf({ nodes: [{ name: "Box" }] });
+    it("does not write a uid onto the object the pointer names", () => {
+        const gltf = documentOf({
+            uniqueIds: { 12345: { pointer: "/nodes/0" } },
+            nodes: [{ name: "Box" }]
+        });
 
         expect(gltf.nodes[0].uid).toBeUndefined();
+        expect(gltf.uidAt("/nodes/0")).toBe("12345");
     });
 
-    it("loads an asset using uids without complaint", () => {
+    it("returns undefined for a pointer without a uid", () => {
+        const gltf = documentOf({ nodes: [{ name: "Box" }] });
+
+        expect(gltf.uidAt("/nodes/0")).toBeUndefined();
+    });
+
+    it("loads an asset using uniqueIds without complaint", () => {
         expect(() =>
             documentOf({
+                uniqueIds: {
+                    "scene-1": { pointer: "/scenes/0" },
+                    "node-1": { pointer: "/nodes/0" }
+                },
                 scene: 0,
-                scenes: [{ uid: "scene-1", nodes: [0] }],
-                nodes: [{ uid: "node-1", name: "Root" }]
+                scenes: [{ nodes: [0] }],
+                nodes: [{ name: "Root" }]
             })
         ).not.toThrow();
     });
